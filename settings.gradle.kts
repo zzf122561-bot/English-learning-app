@@ -24,3 +24,4 @@ dependencyResolutionManagement {
 rootProject.name = "EnglishApp"
 include(":app")
 include(":feature-01-word-memory")
+include(":feature-02-dictionary")

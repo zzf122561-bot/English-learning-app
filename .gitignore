@@ -26,3 +26,6 @@
 
 # 独立生成器工作区由其自己的会话和维护规则管理。
 /short-story-generator/
+
+# 用户私有词典只用于本机兼容测试和总控打包，不进入 Git。
+/dictionary-users/

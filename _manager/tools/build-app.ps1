@@ -2,6 +2,8 @@ param(
     [string[]] $Tasks = @(
         ':feature-01-word-memory:testDebugUnitTest',
         ':feature-01-word-memory:compileDebugAndroidTestKotlin',
+        ':feature-02-dictionary:testDebugUnitTest',
+        ':feature-02-dictionary:compileDebugAndroidTestKotlin',
         ':app:assembleRelease'
     ),
     [switch] $AllowDirty
