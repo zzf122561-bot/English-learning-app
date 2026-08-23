@@ -15,6 +15,6 @@
 
 ## 当前构建边界
 
-源码目标为 Kotlin、Jetpack Compose、Room，编译与目标平台为 Android API 36，最低 Android 10（API 29）。v0.2.0 的 7 项 JVM 测试、Debug APK 构建和 Android 仪器测试源码编译已经通过；用户于 2026-08-23 确认 v0.1.0 的真机测试清单全部正确。v0.2.0 尚需在手机上覆盖安装验收，验证结果不会与自动化测试混写。
+源码目标为 Kotlin、Jetpack Compose、Room，编译与目标平台为 Android API 36，最低 Android 10（API 29）。v0.2.0 的 7 项 JVM 测试、Debug APK 构建和 Android 仪器测试源码编译已经通过；用户于 2026-08-24 确认 v0.2.0 已验证可用、无问题。用户验收与自动化测试仍分开记录。
 
 本机工具链固定在 `D:\CodexData\android-toolchain`。项目已提供 `tools\build-android.ps1`，它会自动设置 JDK、Android SDK、项目专用 DNS 备用映射并执行单元测试与 Debug APK 构建。
