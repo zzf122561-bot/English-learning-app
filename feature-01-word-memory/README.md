@@ -8,12 +8,13 @@
 - 英文始终显示，中文按段独立显示或隐藏；
 - 加粗的 `编号. 内容` 目标项用强调色显示；
 - 每段独立默写框、中文显示状态和阅读位置自动保存在本机 Room 数据库；
+- 每本笔记本独立记忆十档学习字号，统一作用于英文、中文和默写输入正文；
 - 导入先完整解析与校验，成功后才以单个事务写入，取消或失败不会留下半本笔记。
 
 文档契约与验收标准见 [PLAN.md](PLAN.md)。
 
 ## 当前构建边界
 
-源码目标为 Kotlin、Jetpack Compose、Room，编译与目标平台为 Android API 36，最低 Android 10（API 29）。JVM 单元测试与 Debug APK 构建已经通过；用户于 2026-08-23 确认此前提供的真机测试清单全部正确。该确认按“用户报告”记录，与自动化设备测试分开。
+源码目标为 Kotlin、Jetpack Compose、Room，编译与目标平台为 Android API 36，最低 Android 10（API 29）。v0.2.0 的 7 项 JVM 测试、Debug APK 构建和 Android 仪器测试源码编译已经通过；用户于 2026-08-23 确认 v0.1.0 的真机测试清单全部正确。v0.2.0 尚需在手机上覆盖安装验收，验证结果不会与自动化测试混写。
 
 本机工具链固定在 `D:\CodexData\android-toolchain`。项目已提供 `tools\build-android.ps1`，它会自动设置 JDK、Android SDK、项目专用 DNS 备用映射并执行单元测试与 Debug APK 构建。

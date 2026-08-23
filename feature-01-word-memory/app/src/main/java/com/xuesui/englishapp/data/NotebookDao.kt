@@ -41,4 +41,7 @@ interface NotebookDao {
 
     @Query("UPDATE notebooks SET lastSegmentIndex = :position, updatedAt = :updatedAt WHERE id = :notebookId")
     suspend fun setLastPosition(notebookId: Long, position: Int, updatedAt: Long)
+
+    @Query("UPDATE notebooks SET fontLevel = :fontLevel WHERE id = :notebookId")
+    suspend fun setFontLevel(notebookId: Long, fontLevel: Int)
 }

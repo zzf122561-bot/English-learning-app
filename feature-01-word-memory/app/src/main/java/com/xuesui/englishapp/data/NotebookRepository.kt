@@ -2,6 +2,7 @@ package com.xuesui.englishapp.data
 
 import androidx.room.withTransaction
 import com.xuesui.englishapp.docx.ParsedNotebook
+import com.xuesui.englishapp.study.StudyFontScale
 import kotlinx.coroutines.flow.Flow
 
 class NotebookRepository(
@@ -62,4 +63,6 @@ class NotebookRepository(
     suspend fun setDictationText(segmentId: Long, text: String) = dao.setDictationText(segmentId, text)
     suspend fun setLastPosition(notebookId: Long, position: Int) =
         dao.setLastPosition(notebookId, position, System.currentTimeMillis())
+    suspend fun setFontLevel(notebookId: Long, fontLevel: Int) =
+        dao.setFontLevel(notebookId, StudyFontScale.normalize(fontLevel))
 }

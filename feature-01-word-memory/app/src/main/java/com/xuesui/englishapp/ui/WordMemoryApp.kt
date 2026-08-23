@@ -42,6 +42,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -54,12 +55,14 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.xuesui.englishapp.ImportState
 import com.xuesui.englishapp.WordMemoryViewModel
 import com.xuesui.englishapp.data.NotebookEntity
 import com.xuesui.englishapp.data.StudySegmentWithTargets
 import com.xuesui.englishapp.data.TargetEntity
+import com.xuesui.englishapp.study.StudyFontScale
 import com.xuesui.englishapp.ui.theme.Cobalt
 import com.xuesui.englishapp.ui.theme.Hairline
 import com.xuesui.englishapp.ui.theme.Ink
@@ -94,6 +97,7 @@ fun WordMemoryApp(model: WordMemoryViewModel) {
             onVisibilityChange = model::setChineseVisible,
             onDictationChange = model::updateDictation,
             onPositionChange = model::savePosition,
+            onFontLevelChange = model::setFontLevel,
         )
     }
 
@@ -222,8 +226,16 @@ private fun StudyScreen(
     onVisibilityChange: (Long, Boolean) -> Unit,
     onDictationChange: (Long, String) -> Unit,
     onPositionChange: (Int) -> Unit,
+    onFontLevelChange: (Int) -> Unit,
 ) {
     BackHandler(onBack = onBack)
+    var displayedFontLevel by remember(notebook.id) {
+        mutableIntStateOf(StudyFontScale.normalize(notebook.fontLevel))
+    }
+    var showFontDialog by remember(notebook.id) { mutableStateOf(false) }
+    LaunchedEffect(notebook.fontLevel) {
+        displayedFontLevel = StudyFontScale.normalize(notebook.fontLevel)
+    }
     val startIndex = notebook.lastSegmentIndex.coerceIn(0, (notebook.segmentCount - 1).coerceAtLeast(0))
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = startIndex)
     LaunchedEffect(listState, notebook.id) {
@@ -242,6 +254,9 @@ private fun StudyScreen(
                     Text(notebook.title, style = MaterialTheme.typography.titleLarge, maxLines = 1)
                     Text("${notebook.segmentCount} 段  ·  ${notebook.targetCount} 个目标", style = MaterialTheme.typography.labelMedium, color = Slate)
                 }
+                IconButton(onClick = { showFontDialog = true }) {
+                    Text("Aa", fontWeight = FontWeight.Bold)
+                }
             }
             HorizontalDivider(color = Hairline)
             if (segments.isEmpty()) {
@@ -253,12 +268,23 @@ private fun StudyScreen(
                             data = item,
                             onVisibilityChange = { onVisibilityChange(item.segment.id, it) },
                             onDictationChange = { onDictationChange(item.segment.id, it) },
+                            fontLevel = displayedFontLevel,
                         )
                     }
                     item { Spacer(Modifier.height(42.dp)) }
                 }
             }
         }
+    }
+    if (showFontDialog) {
+        FontSizeDialog(
+            fontLevel = displayedFontLevel,
+            onLevelChange = { requestedLevel ->
+                displayedFontLevel = StudyFontScale.normalize(requestedLevel)
+                onFontLevelChange(displayedFontLevel)
+            },
+            onDismiss = { showFontDialog = false },
+        )
     }
 }
 
@@ -267,9 +293,15 @@ private fun StudySegment(
     data: StudySegmentWithTargets,
     onVisibilityChange: (Boolean) -> Unit,
     onDictationChange: (String) -> Unit,
+    fontLevel: Int,
 ) {
     val segment = data.segment
     val targets = data.targets.sortedBy { it.position }
+    val textSize = StudyFontScale.sizeFor(fontLevel)
+    val studyTextStyle = MaterialTheme.typography.bodyLarge.copy(
+        fontSize = textSize.fontSizeSp.sp,
+        lineHeight = textSize.lineHeightSp.sp,
+    )
     var draft by remember(segment.id, segment.dictationText) { mutableStateOf(segment.dictationText) }
     Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 26.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -280,7 +312,7 @@ private fun StudySegment(
             Text("${targets.size} TARGETS", style = MaterialTheme.typography.labelMedium, color = Slate)
         }
         Spacer(Modifier.height(19.dp))
-        Text(highlightedText(segment.englishText, targets, false), style = MaterialTheme.typography.bodyLarge, color = Ink)
+        Text(highlightedText(segment.englishText, targets, false), style = studyTextStyle, color = Ink)
         Spacer(Modifier.height(18.dp))
         OutlinedTextField(
             value = draft,
@@ -288,6 +320,7 @@ private fun StudySegment(
             modifier = Modifier.fillMaxWidth(),
             label = { Text("我的默写") },
             placeholder = { Text("只看英文，在这里写下你记住的中文或目标词义") },
+            textStyle = studyTextStyle,
             minLines = 3,
         )
         Spacer(Modifier.height(14.dp))
@@ -302,10 +335,50 @@ private fun StudySegment(
         }
         if (segment.chineseVisible) {
             Spacer(Modifier.height(16.dp))
-            Text(highlightedText(segment.chineseText, targets, true), style = MaterialTheme.typography.bodyLarge, color = Ink)
+            Text(highlightedText(segment.chineseText, targets, true), style = studyTextStyle, color = Ink)
         }
     }
     HorizontalDivider(color = Hairline)
+}
+
+@Composable
+private fun FontSizeDialog(
+    fontLevel: Int,
+    onLevelChange: (Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val normalizedLevel = StudyFontScale.normalize(fontLevel)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("调整学习字号") },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text("档位 $normalizedLevel / ${StudyFontScale.MAX_LEVEL}")
+                Spacer(Modifier.height(12.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = { onLevelChange(normalizedLevel - 1) },
+                        enabled = normalizedLevel > StudyFontScale.MIN_LEVEL,
+                    ) {
+                        Text("−", style = MaterialTheme.typography.headlineSmall)
+                    }
+                    Spacer(Modifier.width(24.dp))
+                    Text(normalizedLevel.toString(), style = MaterialTheme.typography.headlineSmall)
+                    Spacer(Modifier.width(24.dp))
+                    IconButton(
+                        onClick = { onLevelChange(normalizedLevel + 1) },
+                        enabled = normalizedLevel < StudyFontScale.MAX_LEVEL,
+                    ) {
+                        Text("+", style = MaterialTheme.typography.headlineSmall)
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("完成") } },
+    )
 }
 
 private fun highlightedText(text: String, targets: List<TargetEntity>, chinese: Boolean) = buildAnnotatedString {

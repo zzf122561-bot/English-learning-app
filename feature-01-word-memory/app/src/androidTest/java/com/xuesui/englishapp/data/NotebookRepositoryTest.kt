@@ -43,6 +43,7 @@ class NotebookRepositoryTest {
         assertEquals("Local Context", created.title)
         assertEquals(1, created.segmentCount)
         assertEquals(1, created.targetCount)
+        assertEquals(5, created.fontLevel)
         assertFalse(initialSegment.segment.chineseVisible)
         assertEquals("A0001", initialSegment.targets.single().key)
 
@@ -61,6 +62,24 @@ class NotebookRepositoryTest {
 
         repository.deleteNotebook(notebookId)
         assertTrue(repository.observeNotebooks().first { it.isEmpty() }.isEmpty())
+    }
+
+    @Test
+    fun fontLevelIsIndependentPerNotebookAndDoesNotChangeListOrderingTime() = runBlocking {
+        val firstId = repository.importNotebook(sampleNotebook())
+        val secondId = repository.importNotebook(sampleNotebook())
+        val firstBefore = repository.observeNotebook(firstId).first { it != null }!!
+
+        repository.setFontLevel(firstId, 9)
+
+        val firstAfter = repository.observeNotebook(firstId).first { it?.fontLevel == 9 }!!
+        val second = repository.observeNotebook(secondId).first { it != null }!!
+        assertEquals(9, firstAfter.fontLevel)
+        assertEquals(5, second.fontLevel)
+        assertEquals(firstBefore.updatedAt, firstAfter.updatedAt)
+
+        repository.setFontLevel(firstId, 99)
+        assertEquals(10, repository.observeNotebook(firstId).first { it?.fontLevel == 10 }!!.fontLevel)
     }
 
     private fun sampleNotebook() = ParsedNotebook(

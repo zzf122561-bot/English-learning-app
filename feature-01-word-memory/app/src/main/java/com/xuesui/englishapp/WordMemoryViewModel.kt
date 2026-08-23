@@ -54,6 +54,7 @@ class WordMemoryViewModel(
     private var importJob: Job? = null
     private val dictationJobs = mutableMapOf<Long, Job>()
     private var positionJob: Job? = null
+    private var fontLevelJob: Job? = null
 
     fun openNotebook(id: Long) { activeNotebookId.value = id }
     fun closeNotebook() { activeNotebookId.value = null }
@@ -113,6 +114,13 @@ class WordMemoryViewModel(
         positionJob = viewModelScope.launch(Dispatchers.IO) {
             delay(400)
             repository.setLastPosition(notebookId, position)
+        }
+    }
+    fun setFontLevel(fontLevel: Int) {
+        val notebookId = activeNotebookId.value ?: return
+        fontLevelJob?.cancel()
+        fontLevelJob = viewModelScope.launch(Dispatchers.IO) {
+            repository.setFontLevel(notebookId, fontLevel)
         }
     }
 

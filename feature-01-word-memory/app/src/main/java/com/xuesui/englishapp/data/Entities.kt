@@ -16,6 +16,7 @@ data class NotebookEntity(
     val segmentCount: Int,
     val targetCount: Int,
     val lastSegmentIndex: Int = 0,
+    val fontLevel: Int = 5,
     val createdAt: Long,
     val updatedAt: Long,
 )
