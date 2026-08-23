@@ -14,7 +14,15 @@
 *.sqlite3
 *.db
 *.docx
+*.bundle
+
+# 总控二进制资产、恢复包和本机配置只保存在本机，不进入 Git。
+/_manager/artifacts/*
+!/_manager/artifacts/README.md
+/_manager/backups/*
+!/_manager/backups/README.md
+/_manager/local/
+/_manager/worktrees/
 
 # 独立生成器工作区由其自己的会话和维护规则管理。
 /short-story-generator/
-

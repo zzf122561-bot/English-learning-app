@@ -1,10 +1,10 @@
-# 功能 1 当前状态
+# 功能 1 当前状态（Android Library）
 
 更新时间：2026-08-24
 
 ## 已完成源码
 
-- Android 单应用工程骨架：Kotlin、Jetpack Compose、Room；
+- Android Library 功能模块：Kotlin、Jetpack Compose、Room；
 - 系统文件选择器仅接收 `.docx`；
 - 流式读取 DOCX 压缩包与正文 XML，不依赖云端和 AI；
 - 按标题、英文段、紧随的 `【中文译文】` 段建立学习段；
@@ -26,14 +26,15 @@
 | 文件与依赖配置完整性检查 | 已完成 |
 | 两份 Word 模板的独立结构检查 | 已完成，不等同于 App 运行验证 |
 | D 盘工具链 | 已安装并验证：Temurin JDK 17.0.20、Android SDK 36、Build Tools 36.0.0、Platform Tools、Gradle 9.5.0 |
-| Kotlin/Android 编译 | 已验证：`assembleDebug` 成功 |
+| Kotlin/Android 编译 | 已验证：Library `assembleDebug` 成功并生成 AAR |
 | JVM 单元测试 | 已验证：7 项通过，0 失败（5 项解析器＋2 项字号） |
 | Android 仪器测试源码 | 已验证：`compileDebugAndroidTestKotlin` 成功 |
 | Android 仪器测试运行 | 尚未运行：2026-08-23 无已连接设备 |
-| APK 生成与签名校验 | 已验证：v0.2.0 Debug APK 已生成，APK Signature Scheme v2 校验通过 |
+| 模块 APK 边界 | 已验证：功能目录 APK 数量为 0；只能生成 AAR |
+| App APK 生成与签名 | 由总控负责；根 App 壳 v0.2.1 首次构建及 v2 签名验证通过 |
 | v0.1.0 真机核心流程 | 用户确认通过：2026-08-23 报告此前提供的测试清单全部正确 |
 | v0.2.0 覆盖安装与字号交互 | 用户确认通过：2026-08-24 已验证可用、无问题 |
 
 ## 下一道门槛
 
-功能 1 当前无待修复问题，暂停开发并等待总纲对话下发后续项目安排。
+功能1当前无待修复问题，暂停开发并等待总纲对话下发新需求。后续完成模块改动后必须主动汇报，由总控生成测试 APK。

@@ -1,6 +1,6 @@
 # 功能 1：语境记忆
 
-这是英语学习 App 的独立 Android 模块。当前最小版本提供：
+这是英语学习 App 的独立 Android Library 功能模块。由根 App 壳统一集成和生成 APK，本目录不能独立发版。当前提供：
 
 - 从系统文件选择器导入约定格式的 `.docx`；
 - 一个 Word 文件形成一本本地笔记本；
@@ -15,6 +15,6 @@
 
 ## 当前构建边界
 
-源码目标为 Kotlin、Jetpack Compose、Room，编译与目标平台为 Android API 36，最低 Android 10（API 29）。v0.2.0 的 7 项 JVM 测试、Debug APK 构建和 Android 仪器测试源码编译已经通过；用户于 2026-08-24 确认 v0.2.0 已验证可用、无问题。用户验收与自动化测试仍分开记录。
+源码目标为 Kotlin、Jetpack Compose、Room，编译与目标平台为 Android API 36，最低 Android 10（API 29）。v0.2.0 的 7 项 JVM 测试和 Android 仪器测试源码编译已经通过；用户于 2026-08-24 确认 v0.2.0 已验证可用、无问题。模块只允许测试和生成 AAR，APK 由总控根工程统一构建，验证结果不会与设备或用户确认混写。
 
-本机工具链固定在 `D:\CodexData\android-toolchain`。项目已提供 `tools\build-android.ps1`，它会自动设置 JDK、Android SDK、项目专用 DNS 备用映射并执行单元测试与 Debug APK 构建。
+本机工具链固定在 `D:\CodexData\android-toolchain`。功能对话只可使用 `tools\test-module.ps1`；总控构建入口位于 `_manager\tools`，功能对话不得读取或调用，除非总控消息明确授权。

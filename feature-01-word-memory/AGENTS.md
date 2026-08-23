@@ -4,7 +4,8 @@
 
 - 必读 `FEATURE_BASELINE.md`、`PLAN.md`、`STATUS.md` 和 `CHANGELOG.md`。
 - 只读取和修改本目录；不得读取 `short-story-generator` 或其他功能的内部文件。
-- 先确认当前 Git 基线和测试状态，再开始变更。
+- 读取 `MANAGER_LINK.md`，确认本次总控授权和汇报目标。
+- 先确认功能基线和模块测试状态，再开始变更；不得检查或修改 Git 历史。
 
 ## 不得破坏的功能
 
@@ -24,7 +25,16 @@
 ## 交付要求
 
 - 新行为必须补充单元测试或仪器测试，并复跑解析器回归测试。
-- 更新 `CHANGELOG.md`、`STATUS.md`、`README.md` 和 `RELEASES.md`。
-- APK 不提交 Git；发布记录保存文件名、SHA-256、签名和验证边界。
+- 只运行本模块测试和 Android Library 编译；不得构建、签名或复制 APK。
+- 不得执行 Git 提交、合并、标签、回退或历史改写。
+- 不得修改根 App 壳、全局 Gradle、App 版本、签名或 `_manager` 内的正式发布记录。
+- 更新 `CHANGELOG.md`、`STATUS.md` 和 `README.md`，完成后按 `MANAGER_LINK.md` 主动汇报总控。
+- 总控消息未明确授权时，不得读取 `_manager`；获准后也只能读取消息列出的单个文件。
 - 未经用户明确许可，不得删除本文件或 `FEATURE_BASELINE.md` 中列出的行为。
 
+## 技术边界
+
+- 本目录是 Android Library 功能模块，只对外暴露 `WordMemoryFeature()`。
+- 禁止使用 `com.android.application`、`applicationId`、App 版本号、签名配置或 launcher Activity。
+- 禁止直接依赖其他功能目录；跨模块协作必须由总控建立公共契约。
+- 若跨对话消息发送失败，将完整报告写入 `MANAGER_OUTBOX.md`，并明确标记尚未完成总控交接。

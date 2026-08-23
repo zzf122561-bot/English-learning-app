@@ -1,8 +1,10 @@
 # 功能 1 受保护基线
 
-基线版本：`0.1.0`  
-基线日期：2026-08-23  
-Git 标签：`feature-01-v0.1.0-user-tested`
+当前受保护基线：`0.2.0`
+
+基线日期：2026-08-24
+
+Git 标签：`feature-01-v0.1.0-user-tested`、`feature-01-v0.2.0-user-verified`、`feature-01-v0.2.0-user-tested`
 
 ## 已接受的用户功能
 
