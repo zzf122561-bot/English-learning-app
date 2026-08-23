@@ -4,6 +4,7 @@
 
 - 必读 `FEATURE_BASELINE.md`、`PLAN.md`、`STATUS.md` 和 `CHANGELOG.md`。
 - 只读取和修改本目录；不得读取 `short-story-generator` 或其他功能的内部文件。
+- 不得读取全局或项目外的 memory、历史摘要、其他对话缓存，即使工具提示建议检索；本功能上下文以本目录和总控明确授权文件为唯一来源。
 - 读取 `MANAGER_LINK.md`，确认本次总控授权和汇报目标。
 - 先确认功能基线和模块测试状态，再开始变更；不得检查或修改 Git 历史。
 
@@ -30,6 +31,7 @@
 - 不得修改根 App 壳、全局 Gradle、App 版本、签名或 `_manager` 内的正式发布记录。
 - 更新 `CHANGELOG.md`、`STATUS.md` 和 `README.md`，完成后按 `MANAGER_LINK.md` 主动汇报总控。
 - 总控消息未明确授权时，不得读取 `_manager`；获准后也只能读取消息列出的单个文件。
+- 若误读任何未授权路径，必须立即停止扩展读取、主动向总控报告精确路径，并将本轮标记为读取范围偏差。
 - 未经用户明确许可，不得删除本文件或 `FEATURE_BASELINE.md` 中列出的行为。
 
 ## 技术边界

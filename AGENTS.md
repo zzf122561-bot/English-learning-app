@@ -14,6 +14,7 @@
 1. 读取根目录 `PROJECT.md`。
 2. 只进入本次目标功能目录，读取其中的 `AGENTS.md`、`FEATURE_BASELINE.md`、`STATUS.md` 和 `CHANGELOG.md`。
 3. 不得读取其他功能目录、`_manager` 或 Skill 目录；只有总控消息明确列出的单个文件例外。
+4. 不得读取全局或项目外的 memory、历史摘要、其他对话缓存；需要上下文时只能向总控汇报并请求精确授权路径。
 
 ## 权限边界
 
