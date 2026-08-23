@@ -5,3 +5,4 @@
 当前已归档：
 
 - `app/v0.2.0/accepted/EnglishApp-v0.2.0-accepted-088366c.apk`
+- `app/v0.2.1/test.001/EnglishApp-v0.2.1-test.001-d18054e.apk`
