@@ -1,0 +1,7 @@
+# Project-local DNS fallback for the current Windows DNS failure.
+# Used only by the Gradle JVM through -Djdk.net.hosts.file.
+142.251.35.78 dl.google.com
+142.251.215.238 maven.google.com
+104.18.18.12 repo.maven.apache.org
+104.16.73.101 plugins.gradle.org
+104.16.73.101 services.gradle.org

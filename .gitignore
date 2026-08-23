@@ -1,0 +1,20 @@
+/.gradle/
+/.idea/
+**/.gradle/
+**/.kotlin/
+**/.idea/
+**/build/
+**/local.properties
+*.iml
+*.apk
+*.aab
+*.jks
+*.keystore
+*.sqlite
+*.sqlite3
+*.db
+*.docx
+
+# 独立生成器工作区由其自己的会话和维护规则管理。
+/short-story-generator/
+
