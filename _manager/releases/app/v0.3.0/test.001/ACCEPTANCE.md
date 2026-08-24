@@ -10,6 +10,13 @@
 
 文件名或 SHA-256 不一致时停止验收，不要用其他 APK 替代。
 
+## 2026-08-24 用户实机反馈
+
+- 证据：用户提供词典界面截图。
+- 已确认：App能运行、可进入词典、搜索 `another place`，并显示Collins与Oxford结果标签。
+- 失败：词条正文区域显示 `data:text/html;charset=utf-8;base64,` 加载失败，错误 `net::ERR_HTTP_RESPONSE_CODE_FAILURE`。
+- 结论：`test.001` 用户验收不通过，以下未确认项目保持待验收，不得据此推断通过。
+
 ## A. 覆盖安装与旧数据
 
 | 核对项 | 预期结果 | 用户结果 |

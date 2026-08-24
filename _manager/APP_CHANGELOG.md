@@ -11,7 +11,9 @@
 - 构建时从 Git 忽略的 `dictionary-users` 校验四个 MDX/MDD SHA-256，原子生成 `assets/dictionaries/manifest.json` 和两套内置词典资产；原始词典与生成资产均不提交 Git。
 - 根 App 增加 `INTERNET` 权限，仅供用户点击发音时的严格 HTTPS 回退；当前两套 MDD 没有音频资源，离线仍可回退 Android 英语 TTS。
 - 从干净来源提交 `bfbfcc5` 先清理全部模块构建目录，再完成两个模块测试、Android测试源码编译、release lint、签名 APK 与内置资产逐项校验；`test.001` 已归档。
-- 当前只标记自动构建通过；没有连接 Android 设备，覆盖安装、交互和用户确认均待执行，不创建正式 `app-v0.3.0` 标签。
+- 2026-08-24 用户实机截图确认 `test.001` 能进入词典、发起查询并显示两本词典标签，但词条主 WebView 报 `data:text/html... / net::ERR_HTTP_RESPONSE_CODE_FAILURE`；该候选不通过。
+- 总控定位为安全拦截器误把 `loadDataWithBaseURL()` 生成的 `data:` 主文档返回403；已下发只限主文档加载链路的v0.1.1增量修复，外部导航和非受控子资源仍必须封锁。
+- 当前不创建正式 `app-v0.3.0` 标签；修复后生成新的 `test.002`，不得覆盖或改写 `test.001` 历史产物。
 
 ## 0.2.0 — 2026-08-24 验收基线
 
