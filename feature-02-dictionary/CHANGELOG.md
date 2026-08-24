@@ -1,5 +1,13 @@
 # 功能 2 变更记录
 
+## 0.1.1 — 待总控集成与test.002实机复测
+
+- 2026-08-24：v0.3.0 test.001用户实机确认查询与Collins/Oxford标签可到达，但正文显示 `data:text/html... / ERR_HTTP_RESPONSE_CODE_FAILURE`；总控定位为WebView data主框架被资源拦截器误返回403。
+- 2026-08-24：新增纯策略请求分类；仅主框架的严格base64 HTML data URL或精确受控base URL交给WebView，只有非主框架安全MDD路径进入资源读取器，其余继续403。
+- 2026-08-24：新增4项JVM回归，覆盖data主框架放行、data子框架阻止、外部/file/content主框架阻止、精确base URL主框架限制、MDD子资源与非法路径分类。
+- 2026-08-24：强制回归通过：52 tests、0 failures/errors/skipped、37 tasks executed、2个androidTest源码共8项编译成功；AAR 430,712 bytes，SHA-256 `0E4D71852AB7A8D520F6C625EB0F18D62C36DAC5CEFF84181D8BF0BF08879FAF`，native/JNI=0、APK=0。
+- 当前无设备；自动测试不能证明实机正文已恢复，状态为 `ready_for_integration / awaiting_test.002_device_retest`。
+
 ## 0.1.0 — 待总控集成
 
 - 2026-08-24：由总控初始化 Android Library 模块、公共契约、权限边界和开发里程碑。
