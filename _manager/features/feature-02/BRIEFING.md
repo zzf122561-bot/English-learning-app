@@ -25,16 +25,25 @@
 ## 技术决策
 
 - 解析器必须封装在项目自有 `MdictEngine` 接口后，随机访问、按需解压，不整文件载入内存。
-- 第一里程碑审计 `mdict-java` 固定提交，仅允许引入上游明确声明 Apache-2.0 的 `com.knziha.plod.dictionary.*` 核心和已确认宽松许可依赖；其余 GPL 源码禁止引入。
+- 原候选 `mdict-java@c3bc4e4fd71fc507e5b56b99394d1a5d1f941a2d` 已判定失败：POM 依赖 GPL-3.0 `lzo-core:1.0.6`，核心查询类还引用上游声明 GPL 范围内的红黑树等实现。GitHub 连接恢复不改变该结论，禁止引入该整库、POM 依赖或 GPL 范围源码。
+- 替代路线固定为项目自有纯 Kotlin/JVM 解析内核，只允许参考和按许可证改写：
+  - `whistooy/mdict-reader@e25373923035f06156dbfa8aedeb802b5167e6df`（MIT）：MDX/MDD、Encrypted=2、按块随机读取的格式实现参考；
+  - `encounter/lzokay-rs@c762f2522d0d19ca6e4b6b8ca7ba51b512dc93b0`（MIT，对应 `lzokay 2.0.1`）：仅 LZO1X 解压参考。
+- 总控已校验并只读授权两个离线来源文件：
+  - `D:\Codex_Project\Codex_EnglishApp\_manager\vendor\source-archives\mdict-reader-e25373923035f06156dbfa8aedeb802b5167e6df.zip`，SHA-256 `87C45EC9B6775B954B3EED20EF213A7E0F259E43727D7042E18803C545C99AE0`；
+  - `D:\Codex_Project\Codex_EnglishApp\_manager\vendor\source-archives\lzokay-rs-c762f2522d0d19ca6e4b6b8ca7ba51b512dc93b0.zip`，SHA-256 `0E56626FCF4A76A92C6D38D644AFA0FB54761121E4D0227E971F6FF8AB5AF218`。
+- 功能任务只能读取上述两个精确文件，可把内容解压到本功能目录用于文件级来源审计和实现；不得浏览归档目录或执行上游 Rust 代码。
+- 当前主机没有 Rust、Cargo 或 Android NDK，因此本阶段禁止自行增加 Rust/JNI/NDK 工具链；Android 运行时实现保持纯 Kotlin/JVM。
+- 进入页面、数据库和导入实现前，必须先完成新的里程碑1B：文件级来源与许可证记录、两本真实词典的 Encrypted=2 解密、精确/前缀查询，以及 MDD CSS/图片随机读取兼容测试。
 - `Gdict` 只能作为行为参考，禁止复制其 GPL 源码。
-- 若许可证、依赖或现有两套词典兼容性任一不通过，停止该里程碑并汇报总控，不得自行换库。
+- 若许可证、实现来源、内存边界或现有两套词典兼容性任一不通过，停止该里程碑并汇报总控，不得自行换库。
 - 使用独立 Room 数据库 `englishapp_dictionary.db`；禁止访问功能1数据库。
 - MDX/MDD 导入使用 Storage Access Framework，原子复制到 App 私有目录；匹配同名 `.mdd`、`.1.mdd`、`.2.mdd` 等资源文件。
 - HTML 采用受控本地域名和资源拦截；默认关闭 JavaScript、文件访问、内容访问与 JS Bridge。
 
 ## 里程碑与汇报
 
-1. 完成解析内核许可证审计，并用两套现有词典验证精确查询、前缀查询、加密索引、CSS 和图片资源。
+1. 完成纯 Kotlin/JVM 解析内核许可证审计，并用两套现有词典验证精确查询、前缀查询、加密索引、CSS 和图片资源。
 2. 完成查询、HTML 展示、发音回退、词典管理、SAF 导入和独立数据库。
 3. 完成模块回归、AAR 构建和边界自检，向总控提交 `ready_for_integration` 汇报。
 

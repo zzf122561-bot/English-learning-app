@@ -1,11 +1,17 @@
 # 功能 2：词典开发计划
 
-## 里程碑 1：解析内核与许可证
+## 里程碑 1A：原解析路线审计（已失败）
 
-- 固定并审计 `mdict-java` 提交、源码文件和依赖许可证。
-- 建立项目自有 `MdictEngine` 接口。
-- 用两套授权只读词典验证 MDX 2.0、RIPEMD128 索引解密、精确查询、前缀查询和 MDD 资源读取。
-- 任一门槛失败即停止并向总控报告。
+- `mdict-java` 固定提交的 POM 依赖 GPL-3.0 `lzo-core`，核心查询类还引用许可证范围外的实现；该路线已经停止，禁止继续接入。
+- 已建立但尚未接入具体实现的项目自有 `MdictEngine` 接口。
+
+## 里程碑 1B：纯 Kotlin/JVM 解析内核门槛
+
+- 仅审计和参考固定 MIT 源：`whistooy/mdict-reader@e25373923035f06156dbfa8aedeb802b5167e6df` 与 `encounter/lzokay-rs@c762f2522d0d19ca6e4b6b8ca7ba51b512dc93b0`。
+- 建立第三方来源、许可证、文件对应关系和未使用代码清单；不得复制 GPL/AGPL 项目源码。
+- 使用 `RandomAccessFile` / `FileChannel` 和按块解压实现项目自有纯 Kotlin/JVM 引擎；不得整文件读入内存，不引入 Rust、NDK 或 JNI。
+- 用两套授权只读词典验证 MDX 2.0、Encrypted=2 / RIPEMD128、精确查询、前缀查询、MDD CSS、图片和资源随机读取。
+- 许可证、构建、内存边界或任一本词典兼容性失败即停止并向总控报告；不得自行切换第三条路线。
 
 ## 里程碑 2：模块功能
 

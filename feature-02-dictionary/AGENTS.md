@@ -17,7 +17,10 @@
 
 ## 许可证与安全边界
 
-- `mdict-java` 只能引入固定提交中经文件级审计确认属于 Apache-2.0 核心的源码和宽松许可依赖。
+- `mdict-java` / `lzo-core` 路线已因 GPL 运行依赖和跨许可包依赖判定失败；禁止引入其整库、POM 依赖或 GPL 范围源码。
+- 当前仅允许以 `whistooy/mdict-reader@e25373923035f06156dbfa8aedeb802b5167e6df`（MIT）和 `encounter/lzokay-rs@c762f2522d0d19ca6e4b6b8ca7ba51b512dc93b0`（MIT）为固定参考，开发项目自有纯 Kotlin/JVM 解析内核。
+- 引用或改写宽松许可实现时必须保留来源、固定提交、许可证文本和文件级对应关系；在依赖审计与两套词典兼容门槛通过前不得进入页面、数据库或导入功能开发。
+- 未经总控另行批准，不得引入 Rust、NDK、JNI、Cargo 依赖或新的解析器候选。
 - 禁止复制 `Gdict` 或任何 GPL/AGPL UI、解析器或 Android App 源码。
 - 词典 HTML 默认关闭 JavaScript、文件访问、内容访问和 JS Bridge；不得自动加载外部页面。
 - 许可证或兼容性门槛失败时停止实现并向总控汇报，不得擅自更换技术路线。

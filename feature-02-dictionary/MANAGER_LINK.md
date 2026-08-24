@@ -17,8 +17,11 @@
 
 - `_manager/REPORTING_PROTOCOL.md`
 - `_manager/features/feature-02/BRIEFING.md`
+- `_manager/tools/gradle-hosts.txt`（仅供既有模块测试脚本只读使用，不得修改或向外复制）
+- `_manager/vendor/source-archives/mdict-reader-e25373923035f06156dbfa8aedeb802b5167e6df.zip`（只读；只可解压到本功能目录用于审计和实现）
+- `_manager/vendor/source-archives/lzokay-rs-c762f2522d0d19ca6e4b6b8ca7ba51b512dc93b0.zip`（只读；只可解压到本功能目录用于审计和实现）
 
-不得浏览 `_manager` 的其他文件，不得读取其他功能、Skill、全局 memory、历史摘要或其他对话缓存。
+不得浏览 `_manager` 的其他文件或归档目录列表，不得读取其他功能、Skill、全局 memory、历史摘要或其他对话缓存。
 
 ## 必须主动汇报
 
