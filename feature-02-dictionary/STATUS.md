@@ -9,7 +9,7 @@
 - Android Library 功能实现与交接包已完成并生成 AAR；总控边界检查确认为1个 Application、2个 Library。
 - 原 `mdict-java` 路线已永久停止：禁止引入 KnIfER/mdict-java、`org.anarres.lzo:lzo-core`、Gdict、mdict-cpp 或任何 GPL/AGPL 解析器源码。
 - v0.1.0已由总控集成进入v0.3.0 test.001；用户实机确认查询标签出现但WebView正文因data主框架被误拦截而失败。
-- v0.1.1只修复WebView主文档请求分类，已由总控审查、合并并生成签名test.002；当前为 `awaiting_test.002_device_retest`。
+- v0.1.1只修复WebView主文档请求分类，已由总控审查、合并并进入签名test.002；用户验收通过，当前为 `accepted_with_known_issues`。
 - 两个固定来源归档 SHA-256 与授权值匹配，LICENSE 均为 MIT；完整 notice、文件级映射和未采用内容已记录。
 - 项目自有 Kotlin/JVM 解析内核已实现 `RandomAccessFile` / `FileChannel` 随机读取、逐块解压、RIPEMD128 key-info 解密、MDX 精确/前缀查询和 MDD 资源读取；没有 Rust、Cargo、NDK、JNI 或解析器运行依赖。
 - 两套本地词典的 MDX/MDD 2.0、`Encrypted=2`、随机词条、CSS 与图片兼容验证全部通过；正文未写入报告。
@@ -18,8 +18,9 @@
 - 两本授权词典真实 `entry://` 链接改写后均精确命中；两本 MDD 全部资源键的音频资源计数均为0，明确记录 MDD 缺失并回退 TTS。
 - 公共契约核对完成：公开源码入口仅 `DictionaryPresentation` 与 `DictionaryFeature`；旧解析接口已最小收紧为 `internal`，没有暴露DAO、实体、解析器、ViewModel或页面内部类型。
 - 根App接线阻塞已修复：共享Activity ViewModel时，FULL→QUICK与连续不同QUICK会提交最新非空 `initialQuery`；安装前查询在就绪后执行一次；QUICK首帧不继承FULL管理态且一次返回只调用一次 `onClose`。公共签名和Room不变。
-- WebView请求分类已拆为主文档放行、受控MDD子资源读取和阻止三类：严格data HTML主框架与精确base URL交给WebView；data子框架、外部/file/content主框架和非法MDD路径继续403。尚待test.002实机复测。
-- 当前没有 Android 设备；androidTest 源码已编译但未在设备执行，UI/SAF/WebView/MediaPlayer/TTS 均无实机声明。
+- WebView请求分类已拆为主文档放行、受控MDD子资源读取和阻止三类：严格data HTML主框架与精确base URL交给WebView；用户确认test.002正文恢复。
+- 用户实机发现具体内容页面链接被阻止、无法获得内部发音，分别登记为 `F02-LINK-001`、`F02-AUDIO-001`；用户明确接受本版并要求暂不修复。
+- 总控当前没有连接Android设备；androidTest源码已编译但未在设备执行。用户已提供概括验收结论，但没有逐项UI/SAF/WebView/MediaPlayer/TTS日志。
 
 ## 验证边界
 
@@ -34,8 +35,8 @@
 | Android 仪器测试 | 2 个真实源码文件、8 项测试；编译成功；无设备，未运行 |
 | AAR 构建 | `assembleDebug` 成功；430,712 bytes；SHA-256 `0E4D71...79FAF`；native/JNI 条目 0 |
 | APK | 功能模块禁止生成；边界检查确认数量为 0 |
-| 实机验证 | test.001确认旧版失败；当前无连接设备，test.002已生成并等待用户复测 |
+| 实机验证 | 用户概括确认test.002除两项登记问题外其余正常；总控无设备且无逐项日志 |
 
 ## 下一步
 
-修复证据见 `WEBVIEW_MAIN_DOCUMENT_FIX_AUDIT.md`。v0.1.1 已通过总控增量审查与独立复测，签名test.002由总控生成并归档；功能任务停止，等待用户设备复测，不宣称实机修复通过。
+v0.1.1已由用户验收并随App v0.3.0正式提升；两项已知问题按用户要求只记录、不修复。功能任务保持停止，后续必须等待总控新的精确简报。

@@ -7,6 +7,7 @@
 - 2026-08-24：新增4项JVM回归，覆盖data主框架放行、data子框架阻止、外部/file/content主框架阻止、精确base URL主框架限制、MDD子资源与非法路径分类。
 - 2026-08-24：强制回归通过：52 tests、0 failures/errors/skipped、37 tasks executed、2个androidTest源码共8项编译成功；AAR 430,712 bytes，SHA-256 `0E4D71852AB7A8D520F6C625EB0F18D62C36DAC5CEFF84181D8BF0BF08879FAF`，native/JNI=0、APK=0。
 - 总控增量审查、独立复测和主线合并已完成，签名test.002已归档；当前无设备，自动测试不能证明实机正文已恢复，等待用户复测。
+- 用户验收：2026-08-24用户概括确认test.002除具体内容页面链接被阻止、无法获得内部发音外其余正常；两项登记为 `F02-LINK-001`、`F02-AUDIO-001`，按用户决定本版接受并暂不修复。
 
 ## 0.1.0 — 待总控集成
 

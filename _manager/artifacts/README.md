@@ -7,4 +7,4 @@
 - `app/v0.2.0/accepted/EnglishApp-v0.2.0-accepted-088366c.apk`
 - `app/v0.2.1/test.001/EnglishApp-v0.2.1-test.001-d18054e.apk`
 - `app/v0.3.0/test.001/EnglishApp-v0.3.0-test.001-bfbfcc5.apk`（用户实机不通过，保留历史）
-- `app/v0.3.0/test.002/EnglishApp-v0.3.0-test.002-6010e73.apk`（自动构建通过，待用户实机复测）
+- `app/v0.3.0/test.002/EnglishApp-v0.3.0-test.002-6010e73.apk`（同一二进制已由用户验收并提升正式v0.3.0；接受2项已知问题）
