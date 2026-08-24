@@ -16,6 +16,7 @@
 - 里程碑 2 第二次增量修复已完成：重 I/O 调度到可注入 IO dispatcher、引擎并发锁、Room `ABORT` 安全写入、真实词条内部链接改写、真实音频引用驱动回退、流式音频上限、发音串行/utteranceId 关联，以及删除/分卷路径防护。
 - 两本授权词典真实 `entry://` 链接改写后均精确命中；两本 MDD 全部资源键的音频资源计数均为0，明确记录 MDD 缺失并回退 TTS。
 - 公共契约核对完成：公开源码入口仅 `DictionaryPresentation` 与 `DictionaryFeature`；旧解析接口已最小收紧为 `internal`，没有暴露DAO、实体、解析器、ViewModel或页面内部类型。
+- 根App接线阻塞已修复：共享Activity ViewModel时，FULL→QUICK与连续不同QUICK会提交最新非空 `initialQuery`；安装前查询在就绪后执行一次；QUICK首帧不继承FULL管理态且一次返回只调用一次 `onClose`。公共签名和Room不变。
 - 当前没有 Android 设备；androidTest 源码已编译但未在设备执行，UI/SAF/WebView/MediaPlayer/TTS 均无实机声明。
 
 ## 验证边界
@@ -27,12 +28,12 @@
 | 查询与 UI | FULL / QUICK_LOOKUP、前缀建议、有序标签、单安全 WebView、管理页完成 |
 | 数据与文件 | `englishapp_dictionary.db` v1、内置清单、SAF 导入、原子回滚完成 |
 | 发音 | 真实词条引用驱动 MDD → 严格 HTTPS → 英语 TTS；单请求、8 MiB 流式上限、无自动联网 |
-| 单元测试 | 44 tests，0 failures/errors/skipped；保留原32项及既有5项解析回归 |
+| 单元测试 | 48 tests，0 failures/errors/skipped；包含4项入口复用状态测试及既有5项解析回归 |
 | Android 仪器测试 | 2 个真实源码文件、8 项测试；编译成功；无设备，未运行 |
-| AAR 构建 | `assembleDebug` 成功；420,004 bytes；SHA-256 `95EC34...4F59`；native/JNI 条目 0 |
+| AAR 构建 | `assembleDebug` 成功；425,353 bytes；SHA-256 `8837BB...D404`；native/JNI 条目 0 |
 | APK | 功能模块禁止生成；边界检查确认数量为 0 |
 | 实机验证 | 无连接设备；后续由用户自行验收 |
 
 ## 下一步
 
-交接文件见 `MILESTONE_3_HANDOFF.md`。等待总控审查唯一源码可见性修复、执行 Git 提交和根 App 集成；功能任务停止，不修改根 App/Manifest、不生成 APK、不宣称实机通过。
+交接文件见 `MILESTONE_3_HANDOFF.md`。等待总控审查最小API可见性与公共入口生命周期修复、执行 Git 提交和根 App 集成；功能任务停止，不修改根 App/Manifest、不生成 APK、不宣称实机通过。

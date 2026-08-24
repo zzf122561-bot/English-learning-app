@@ -25,4 +25,6 @@
 - 2026-08-24：总控批准里程碑2；里程碑3公共契约核对发现旧 `MdictEngine.kt` 解析器类型仍为默认public，已仅收紧为internal，未改实现、公共文档契约或数据库。
 - 2026-08-24：可见性修复后强制回归通过：44 tests、0 failures/errors/skipped、37 tasks executed、2个androidTest源码共8项编译成功；AAR 420,004 bytes，SHA-256 `95EC34BFE1CF073A0AAD3B167CE751B69BD8A1270BA7997F056CD314FDC74F59`，native/JNI=0、APK=0。
 - 2026-08-24：新增 `MILESTONE_3_HANDOFF.md`，整理公共入口、Room、资产/私有目录、根App依赖、导入/WebView/音频/导航边界、测试证据、风险、集成顺序与设备验收清单；状态为 `ready_for_integration / awaiting_manager_commit`。
+- 2026-08-24：修复同一Activity复用ViewModel时的公共入口生命周期：FULL→QUICK和连续不同QUICK会提交最新非空initialQuery，安装前查询在就绪后执行一次，FULL(null)不清空状态；QUICK首帧不继承FULL管理态且一次返回只触发一次onClose。公共签名、Room和其他行为不变。
+- 2026-08-24：入口生命周期最终强制回归通过：48 tests、0 failures/errors/skipped、37 tasks executed、2个androidTest源码共8项编译成功；AAR 425,353 bytes，SHA-256 `8837BBACF8B5615F028E5D2F9C02CA2B430E3FDD02A8DB2CCAC52CB30069D404`，native/JNI=0、APK=0。
 - 0.1.0 仍为待总控集成，未执行根 App 集成、Git提交、签名APK、正式发布或设备验收。

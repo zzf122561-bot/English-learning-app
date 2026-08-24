@@ -92,6 +92,11 @@ internal class CloseRequestGate(private val close: () -> Unit) {
     }
 }
 
+internal object DictionaryEntryPolicy {
+    fun isManaging(presentation: DictionaryPresentation, storedManaging: Boolean): Boolean =
+        presentation != DictionaryPresentation.QUICK_LOOKUP && storedManaging
+}
+
 private val InkBlue = Color(0xFF14213D)
 private val PaperBlue = Color(0xFFF4F7FB)
 private val CobaltBlue = Color(0xFF2F5D8C)
@@ -123,13 +128,17 @@ fun DictionaryFeature(
     val model: DictionaryViewModel = viewModel(factory = factory)
     val state by model.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
+    val isManaging = DictionaryEntryPolicy.isManaging(presentation, state.managing)
 
-    BackHandler(enabled = state.managing) { model.showManagement(false) }
-    BackHandler(enabled = presentation == DictionaryPresentation.QUICK_LOOKUP && !state.managing) {
+    BackHandler(enabled = isManaging) { model.showManagement(false) }
+    BackHandler(enabled = presentation == DictionaryPresentation.QUICK_LOOKUP && !isManaging) {
         closeGate.request()
     }
     LaunchedEffect(state.message) {
         state.message?.let { snackbar.showSnackbar(it) }
+    }
+    LaunchedEffect(model, presentation, initialQuery) {
+        model.enterPresentation(presentation, initialQuery)
     }
 
     MaterialTheme(colorScheme = DictionaryColors) {
@@ -137,7 +146,7 @@ fun DictionaryFeature(
             snackbarHost = { SnackbarHost(snackbar) },
             containerColor = PaperBlue,
         ) { padding ->
-            if (state.managing) {
+            if (isManaging) {
                 DictionaryManagementPage(
                     dictionaries = state.dictionaries,
                     busy = state.busy,

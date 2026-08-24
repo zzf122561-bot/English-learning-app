@@ -43,6 +43,37 @@ internal data class DictionaryUiState(
     val pronunciation: PronunciationState = PronunciationState.Idle,
 )
 
+/** Coordinates public initialQuery updates with the one-time built-in installation gate. */
+internal class InitialQueryGate(initialQuery: String?) {
+    private var ready = false
+    private var pending = initialQuery.nonBlankOrNull()
+    private var lastSubmitted: String? = null
+
+    fun offer(value: String?, currentQuery: String): String? {
+        val query = value.nonBlankOrNull() ?: return null
+        if (!ready) {
+            pending = query
+            return null
+        }
+        return deliver(query, currentQuery)
+    }
+
+    fun markReady(currentQuery: String): String? {
+        ready = true
+        val query = pending ?: return null
+        pending = null
+        return deliver(query, currentQuery)
+    }
+
+    private fun deliver(query: String, currentQuery: String): String? {
+        if (query == lastSubmitted && query == currentQuery) return null
+        lastSubmitted = query
+        return query
+    }
+
+    private fun String?.nonBlankOrNull(): String? = this?.takeIf(String::isNotBlank)
+}
+
 internal class DictionaryViewModel(
     context: Context,
     initialQuery: String?,
@@ -64,6 +95,7 @@ internal class DictionaryViewModel(
 
     private val mutableState = MutableStateFlow(DictionaryUiState(input = initialQuery.orEmpty()))
     val state: StateFlow<DictionaryUiState> = mutableState.asStateFlow()
+    private val initialQueryGate = InitialQueryGate(initialQuery)
     private var queryJob: Job? = null
     private var pronunciationJob: Job? = null
 
@@ -84,13 +116,20 @@ internal class DictionaryViewModel(
                 val summary = withContext(ioDispatcher) { installer.installAll() }
                 val message = summary.errors.takeIf(List<String>::isNotEmpty)?.joinToString("；")
                 mutableState.value = mutableState.value.copy(busy = false, message = message)
-                initialQuery?.takeIf(String::isNotBlank)?.let { submitQuery(it) }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Throwable) {
                 mutableState.value = mutableState.value.copy(busy = false, message = error.message ?: "内置词典安装失败")
             }
+            initialQueryGate.markReady(mutableState.value.query.displayQuery)?.let(::submitQuery)
         }
+    }
+
+    fun enterPresentation(presentation: DictionaryPresentation, value: String?) {
+        if (presentation == DictionaryPresentation.QUICK_LOOKUP && mutableState.value.managing) {
+            mutableState.value = mutableState.value.copy(managing = false)
+        }
+        initialQueryGate.offer(value, mutableState.value.query.displayQuery)?.let(::submitQuery)
     }
 
     fun setInput(value: String) {
