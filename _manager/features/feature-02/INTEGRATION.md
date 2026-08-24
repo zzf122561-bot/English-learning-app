@@ -5,13 +5,13 @@
 | 功能 ID | `feature-02-dictionary` |
 | 功能任务 | `功能2：词典` / `01a02fd4-7dcb-7882-aad0-0ed84ad3254c` |
 | 工作区 | `C:\Users\zzf86\.codex\worktrees\b83b\Codex_EnglishApp`；分支 `codex/feature-02-dictionary` |
-| 当前功能版本 | `0.1.0`；实机WebView修复目标 `0.1.1` |
+| 当前功能版本 | `0.1.1`；已集成，等待test.002实机复测 |
 | 目标 App 版本 | `0.3.0` / versionCode 4 |
 | 公共入口 | `DictionaryFeature(initialQuery, presentation, onClose)` |
 | 数据库 | 独立 Room 数据库 `englishapp_dictionary.db`，版本 1 |
 | 私有内置资料 | 两套 MDX/MDD；原始文件不进入 Git，只记录哈希 |
-| 集成状态 | v0.3.0 test.001已归档但用户实机发现主HTML被WebView拦截；v0.1.1只修主文档加载链路，待功能任务回报 |
-| 设备验收 | test.001：词典入口和查询到达结果标签；词条正文失败，候选不通过；其他项目待后续test.002复测 |
+| 集成状态 | v0.1.1只修主文档加载链路；功能提交 `49229d4`、主线合并 `6010e73`，test.002已签名归档 |
+| 设备验收 | test.001：词典入口和查询到达结果标签，但词条正文失败；test.002尚无设备证据，等待用户复测 |
 
 ## 解析路线审计历史
 
@@ -31,3 +31,5 @@
 - 2026-08-24：根App增加默认记单词的双入口、QUICK_LOOKUP临时页、构建时哈希校验的两套内置资产和仅点击发音使用的INTERNET权限；从干净提交 `bfbfcc5` 完整构建签名 `test.001` 并归档。当前没有设备，功能2仍不得标记实机通过或正式发布。
 - 2026-08-24：用户安装test.001后提供实机截图：搜索 `another place` 可显示查询词、Collins/Oxford标签，但正文区域显示 `data:text/html;charset=utf-8;base64,` 加载失败和 `net::ERR_HTTP_RESPONSE_CODE_FAILURE`。总控确认查询/词典选择链路已到达，正文WebView主请求失败；test.001判定不通过。
 - 2026-08-24：总控增量定位 `SecureDictionaryWebViewClient.shouldInterceptRequest` 对所有非受控资源直接返回403，而设备上的 `loadDataWithBaseURL` 主文档请求表现为 `data:`，因此应用自己的主页面被误拦截。修复范围仅限安全区分主文档与子资源，不回看解析、Room、导入、音频或其他已批准代码。
+- 2026-08-24：功能任务仅修改WebView请求分类、同组测试和状态文档；总控只增量审查该范围并独立复跑37个任务：52 tests/0 failures/errors/skipped、AAR 430,712 bytes、SHA-256 `0E4D71852AB7A8D520F6C625EB0F18D62C36DAC5CEFF84181D8BF0BF08879FAF`、JNI/APK=0。功能提交 `49229d4`，主线合并 `6010e73`。
+- 2026-08-24：从干净提交 `6010e73` 清理三个模块并完成167个Gradle任务、边界检查、签名和资产逐项校验；`EnglishApp-v0.3.0-test.002-6010e73.apk` 已永久归档。当前仅有自动证据，正文恢复、CSS/图片及导航仍待用户实机复测。

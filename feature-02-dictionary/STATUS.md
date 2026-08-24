@@ -9,7 +9,7 @@
 - Android Library 功能实现与交接包已完成并生成 AAR；总控边界检查确认为1个 Application、2个 Library。
 - 原 `mdict-java` 路线已永久停止：禁止引入 KnIfER/mdict-java、`org.anarres.lzo:lzo-core`、Gdict、mdict-cpp 或任何 GPL/AGPL 解析器源码。
 - v0.1.0已由总控集成进入v0.3.0 test.001；用户实机确认查询标签出现但WebView正文因data主框架被误拦截而失败。
-- v0.1.1只修复WebView主文档请求分类，当前为 `ready_for_integration / awaiting_test.002_device_retest`。
+- v0.1.1只修复WebView主文档请求分类，已由总控审查、合并并生成签名test.002；当前为 `awaiting_test.002_device_retest`。
 - 两个固定来源归档 SHA-256 与授权值匹配，LICENSE 均为 MIT；完整 notice、文件级映射和未采用内容已记录。
 - 项目自有 Kotlin/JVM 解析内核已实现 `RandomAccessFile` / `FileChannel` 随机读取、逐块解压、RIPEMD128 key-info 解密、MDX 精确/前缀查询和 MDD 资源读取；没有 Rust、Cargo、NDK、JNI 或解析器运行依赖。
 - 两套本地词典的 MDX/MDD 2.0、`Encrypted=2`、随机词条、CSS 与图片兼容验证全部通过；正文未写入报告。
@@ -34,8 +34,8 @@
 | Android 仪器测试 | 2 个真实源码文件、8 项测试；编译成功；无设备，未运行 |
 | AAR 构建 | `assembleDebug` 成功；430,712 bytes；SHA-256 `0E4D71...79FAF`；native/JNI 条目 0 |
 | APK | 功能模块禁止生成；边界检查确认数量为 0 |
-| 实机验证 | test.001确认旧版失败；当前无连接设备，v0.1.1等待test.002复测 |
+| 实机验证 | test.001确认旧版失败；当前无连接设备，test.002已生成并等待用户复测 |
 
 ## 下一步
 
-修复证据见 `WEBVIEW_MAIN_DOCUMENT_FIX_AUDIT.md`。v0.1.1 已通过总控增量审查与独立复测并进入根 App 集成，等待生成 test.002 供用户设备复测；功能任务停止，不修改根 App/Manifest、不生成 APK、不宣称实机修复通过。
+修复证据见 `WEBVIEW_MAIN_DOCUMENT_FIX_AUDIT.md`。v0.1.1 已通过总控增量审查与独立复测，签名test.002由总控生成并归档；功能任务停止，等待用户设备复测，不宣称实机修复通过。
