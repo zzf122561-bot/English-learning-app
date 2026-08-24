@@ -8,9 +8,10 @@
 | 当前用户验收基线 | App v0.2.0 / 功能1 v0.2.0 |
 | 功能1 | v0.3.0 长按查词回调已增量审查并合并；20 tests/0 failures，AAR 229,042 bytes、无 APK；Room v2 与 v0.2.0 用户验收基线不变 |
 | 功能2 | v0.1.0 已增量审查并合并；48 tests/0 failures、2个androidTest源码共8项编译、AAR 425,353 bytes、无 JNI/APK；设备运行待用户验收 |
-| 根 App 壳 | v0.3.0 / versionCode 4 双入口与 QUICK_LOOKUP 接线完成；集成工作树 release 构建通过，待从干净提交重建归档 |
+| 根 App 壳 | v0.3.0 / versionCode 4 双入口与 QUICK_LOOKUP 接线完成；从干净提交 `bfbfcc5` 完整 release 构建通过 |
 | 内置词典 | 四个 MDX/MDD 构建前校验登记 SHA-256；生成 schemaVersion 1 清单，Git 忽略且不修改用户原文件 |
 | 长期签名 | 已复制到 Git 外总控位置，证书指纹与 v0.2.0 一致 |
 | v0.2.1 测试 APK | `test.001` 已从提交 `d18054e` 完整重建、签名并归档；仅标记自动构建通过 |
+| v0.3.0 测试 APK | `test.001` 已归档；SHA-256 `03E1863D...D0E35`，v2签名与旧版证书连续；设备和用户验收待执行 |
 | 跨对话治理 | 独立 worktree 和固定格式汇报已跑通；首次全局 memory 误读已审计、修订规则并二次确认通过 |
 | 设备实机验证 | 当前未连接设备；v0.3.0 覆盖安装、旧数据、长按/返回、词典显示/管理/导入/发音均由用户收到 APK 后自行验收 |

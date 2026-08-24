@@ -10,7 +10,7 @@
 | 公共入口 | `DictionaryFeature(initialQuery, presentation, onClose)` |
 | 数据库 | 独立 Room 数据库 `englishapp_dictionary.db`，版本 1 |
 | 私有内置资料 | 两套 MDX/MDD；原始文件不进入 Git，只记录哈希 |
-| 集成状态 | v0.1.0模块和最终入口生命周期修复已由总控增量审查、复测、提交并合并；根App v0.3.0接线与内置资产流程完成，待干净提交构建归档 |
+| 集成状态 | v0.1.0模块和最终入口生命周期修复已由总控增量审查、复测、提交并合并；根App v0.3.0 test.001已从干净提交构建、签名并归档 |
 | 设备验收 | 未连接设备；后续由用户自行覆盖安装验收 |
 
 ## 解析路线审计历史
@@ -28,4 +28,4 @@
 - 2026-08-24：总控再次用 `--rerun-tasks` 强制执行37个任务：44 tests/0 failures/errors/skipped、2个androidTest源码编译、AAR 420,005 bytes、SHA-256 `8AB43658462C528339FB85ABA6F4A20D947150EB546C8812010658B04FFC0894`、native/JNI=0、APK=0；架构边界仍为1个Application、2个Library。两本真实词典均为 `entry` 链接且精确命中；两本MDD音频资源均为0，明确回退TTS。里程碑2批准并建立新审查锚点。
 - 2026-08-24：里程碑3将旧解析接口可见性收紧为 `internal` 并完成稳定交接；模块提交 `260ec07`，主线合并 `13bbbcd`。该阶段未重复审查已批准解析内核。
 - 2026-08-24：根App接线前发现同Activity复用ViewModel会忽略后续QUICK查询并可能继承管理态；功能任务只修该入口链路并新增4项契约测试。总控只复审这3个源码/测试路径，独立复跑37任务：48 tests/0 failures/errors/skipped、AAR 425,353 bytes、SHA-256 `8837BBACF8B5615F028E5D2F9C02CA2B430E3FDD02A8DB2CCAC52CB30069D404`、APK=0；修复提交 `0d7a57a`，主线合并 `e9523da`。
-- 2026-08-24：根App增加默认记单词的双入口、QUICK_LOOKUP临时页、构建时哈希校验的两套内置资产和仅点击发音使用的INTERNET权限；工作树完整release构建通过，干净提交产物待归档。
+- 2026-08-24：根App增加默认记单词的双入口、QUICK_LOOKUP临时页、构建时哈希校验的两套内置资产和仅点击发音使用的INTERNET权限；从干净提交 `bfbfcc5` 完整构建签名 `test.001` 并归档。当前没有设备，功能2仍不得标记实机通过或正式发布。
