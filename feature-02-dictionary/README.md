@@ -4,4 +4,4 @@
 
 模块负责 MDX/MDD 查询、词条 HTML 与资源显示、发音、词典管理和 Android 本地导入；不拥有 Activity、App 导航、签名、APK 或其他功能实现。
 
-当前总控初始化和公共入口空壳已完成；原 `mdict-java` 路线因 GPL 依赖失败，正在进行纯 Kotlin/JVM 替代内核的许可证与真实词典兼容门槛。尚未实现可用解析器、数据库或用户功能，开发状态以 `STATUS.md` 为准。
+三个功能里程碑均已完成并经总控增量审查；模块当前为 `ready_for_integration`。完整交接见 `MILESTONE_3_HANDOFF.md`，里程碑2实现与验证见 `MILESTONE_2_AUDIT.md`，解析来源见 `MILESTONE_1B_AUDIT.md`，许可证原文见 `THIRD_PARTY_NOTICES.md`。尚未完成根 App 集成、签名 APK 或设备验收。

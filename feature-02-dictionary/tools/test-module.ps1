@@ -3,7 +3,8 @@ param(
         ':feature-02-dictionary:testDebugUnitTest',
         ':feature-02-dictionary:compileDebugAndroidTestKotlin',
         ':feature-02-dictionary:assembleDebug'
-    )
+    ),
+    [switch] $RerunTasks
 )
 
 $ErrorActionPreference = 'Stop'
@@ -15,7 +16,7 @@ $toolchainRoot = [System.IO.Path]::GetFullPath('D:\CodexData\android-toolchain')
 $jdkHome = Join-Path $toolchainRoot 'jdk-17'
 $sdkRoot = Join-Path $toolchainRoot 'android-sdk'
 $gradle = Join-Path $toolchainRoot 'gradle\gradle-9.5.0\bin\gradle.bat'
-$hostsFile = Join-Path $projectRoot '_manager\tools\gradle-hosts.txt'
+$hostsFile = 'D:\Codex_Project\Codex_EnglishApp\_manager\tools\gradle-hosts.txt'
 
 foreach ($requiredFile in @(
     (Join-Path $jdkHome 'bin\java.exe'),
@@ -37,7 +38,9 @@ $env:GRADLE_OPTS = "-Xmx3g -Dfile.encoding=UTF-8 -Djdk.net.hosts.file=$javaHosts
 
 Push-Location -LiteralPath $projectRoot
 try {
-    & $gradle @('--no-daemon', '--no-configuration-cache') @Tasks
+    $gradleArgs = @('--no-daemon', '--no-configuration-cache', '--configure-on-demand')
+    if ($RerunTasks) { $gradleArgs += '--rerun-tasks' }
+    & $gradle @gradleArgs @Tasks
     if ($LASTEXITCODE -ne 0) { throw "Feature module tests failed with exit code $LASTEXITCODE" }
 } finally {
     Pop-Location
@@ -48,4 +51,32 @@ if ($unexpectedApks.Count -ne 0) {
     throw 'Feature module produced an APK, which violates the manager boundary.'
 }
 
-Write-Output 'FEATURE_MODULE_CHECK_PASSED artifact=AAR apk=0'
+$androidTestSources = @(Get-ChildItem -LiteralPath (Join-Path $featureRoot 'src\androidTest') -Recurse -File -Filter '*.kt' -ErrorAction SilentlyContinue)
+if ($androidTestSources.Count -eq 0) {
+    throw 'Milestone 2 requires real androidTest Kotlin source.'
+}
+
+$manifest = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $featureRoot 'src\main\AndroidManifest.xml')
+if ($manifest -match '<activity|android.intent.category.LAUNCHER') {
+    throw 'Feature library must not declare an Activity or launcher intent.'
+}
+
+$moduleBuild = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $featureRoot 'build.gradle.kts')
+if ($moduleBuild -match 'com\.android\.application|feature-01-word-memory') {
+    throw 'Feature module crossed the Application or Feature 1 boundary.'
+}
+
+$aars = @(Get-ChildItem -LiteralPath (Join-Path $featureRoot 'build\outputs\aar') -File -Filter '*.aar' -ErrorAction SilentlyContinue)
+if ($aars.Count -eq 0) { throw 'Feature module did not produce an AAR.' }
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+foreach ($aar in $aars) {
+    $archive = [System.IO.Compression.ZipFile]::OpenRead($aar.FullName)
+    try {
+        $nativeEntries = @($archive.Entries | Where-Object { $_.FullName -match '(^|/)(jni|lib)/|\.(so|dll|dylib)$' })
+        if ($nativeEntries.Count -ne 0) { throw "AAR contains forbidden native/JNI entries: $($aar.Name)" }
+    } finally {
+        $archive.Dispose()
+    }
+}
+
+Write-Output "FEATURE_MODULE_CHECK_PASSED artifact=AAR apk=0 native=0 androidTestSources=$($androidTestSources.Count)"
