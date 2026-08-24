@@ -41,9 +41,13 @@ internal class SecureDictionaryWebViewClient(
     private val onInternalLookup: (String) -> Unit,
     private val onNavigationBlocked: (String) -> Unit,
 ) : WebViewClient() {
-    override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest): WebResourceResponse {
+    override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest): WebResourceResponse? {
         val url = request.url.toString()
-        val path = DictionaryWebSecurityPolicy.resourcePath(url) ?: return blockedResponse()
+        val path = when (val decision = DictionaryWebSecurityPolicy.intercept(url, request.isForMainFrame)) {
+            InterceptDecision.AllowGeneratedMainDocument -> return null
+            is InterceptDecision.ReadControlledResource -> decision.path
+            InterceptDecision.Blocked -> return blockedResponse()
+        }
         val resourceResult = runCatching { resourceReader(path) }
         resourceResult.exceptionOrNull()?.let { onResourceError(it.message ?: "MDD 资源读取失败") }
         val resource = resourceResult.getOrNull() ?: return notFoundResponse()

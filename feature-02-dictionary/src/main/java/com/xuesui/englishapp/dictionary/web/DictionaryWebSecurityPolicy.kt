@@ -9,10 +9,28 @@ internal sealed interface NavigationDecision {
     data object Blocked : NavigationDecision
 }
 
+internal sealed interface InterceptDecision {
+    data object AllowGeneratedMainDocument : InterceptDecision
+    data class ReadControlledResource(val path: String) : InterceptDecision
+    data object Blocked : InterceptDecision
+}
+
 internal object DictionaryWebSecurityPolicy {
     const val HOST = "dictionary.local"
     const val BASE_URL = "https://$HOST/"
     const val MAX_RESOURCE_BYTES = 8 * 1024 * 1024
+
+    fun intercept(url: String, isForMainFrame: Boolean): InterceptDecision {
+        if (isForMainFrame) {
+            return if (isGeneratedMainDocument(url)) {
+                InterceptDecision.AllowGeneratedMainDocument
+            } else {
+                InterceptDecision.Blocked
+            }
+        }
+        return resourcePath(url)?.let(InterceptDecision::ReadControlledResource)
+            ?: InterceptDecision.Blocked
+    }
 
     fun resourcePath(url: String): String? {
         val uri = parseControlled(url) ?: return null
@@ -51,10 +69,20 @@ internal object DictionaryWebSecurityPolicy {
         null
     }
 
+    private fun isGeneratedMainDocument(url: String): Boolean {
+        if (url == BASE_URL) return true
+        if (!url.startsWith(DATA_HTML_BASE64_PREFIX, ignoreCase = true)) return false
+        return url.substring(DATA_HTML_BASE64_PREFIX.length).all { character ->
+            character in 'A'..'Z' || character in 'a'..'z' || character in '0'..'9' ||
+                character == '+' || character == '/' || character == '='
+        }
+    }
+
     private fun decodeComponent(value: String): String? = try {
         URLDecoder.decode(value.replace("+", "%2B"), StandardCharsets.UTF_8.name())
     } catch (_: IllegalArgumentException) {
         null
     }
-}
 
+    private const val DATA_HTML_BASE64_PREFIX = "data:text/html;charset=utf-8;base64,"
+}
