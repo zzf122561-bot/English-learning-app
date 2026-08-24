@@ -4,13 +4,13 @@
 |---|---|
 | 功能 ID | `feature-02-dictionary` |
 | 功能任务 | `功能2：词典` / `01a02fd4-7dcb-7882-aad0-0ed84ad3254c` |
-| 工作区 | `C:\Users\zzf86\.codex\worktrees\b83b\Codex_EnglishApp`；起点 `f3dcf49`；预留分支 `codex/feature-02-dictionary` |
+| 工作区 | `C:\Users\zzf86\.codex\worktrees\b83b\Codex_EnglishApp`；分支 `codex/feature-02-dictionary` |
 | 目标功能版本 | `0.1.0` |
 | 目标 App 版本 | `0.3.0` / versionCode 4 |
 | 公共入口 | `DictionaryFeature(initialQuery, presentation, onClose)` |
-| 数据库 | 计划使用独立 Room 数据库 `englishapp_dictionary.db`，初始版本 1 |
+| 数据库 | 独立 Room 数据库 `englishapp_dictionary.db`，版本 1 |
 | 私有内置资料 | 两套 MDX/MDD；原始文件不进入 Git，只记录哈希 |
-| 集成状态 | 里程碑2定向修复经增量复审和总控强制复测批准，新审查锚点已建立；进入里程碑3收尾，尚未接入 App 或构建 v0.3.0 APK |
+| 集成状态 | v0.1.0模块和最终入口生命周期修复已由总控增量审查、复测、提交并合并；根App v0.3.0接线与内置资产流程完成，待干净提交构建归档 |
 | 设备验收 | 未连接设备；后续由用户自行覆盖安装验收 |
 
 ## 解析路线审计历史
@@ -26,3 +26,6 @@
 - 2026-08-24：里程碑2首次增量审查发现主线程执行大文件安装/导入/查询、Room `REPLACE` 可能因唯一索引冲突删除无关词典、真实词条内部链接和MDD原声引用尚未接通、未知长度HTTPS音频在8 MiB检查前可无限写入，以及发音并发和删除边界问题。总控未批准该门槛，已定向退回修复；里程碑1B批准状态不受影响。
 - 2026-08-24：功能任务只修改上述7组新增链路并补充测试；总控未回看里程碑1B旧解析代码。第二次增量复核确认I/O调度、取消/引擎并发、Room安全写入、真实链接改写、实际音频引用、流式上限、发音并发和删除/分卷边界均有对应实现与证据。
 - 2026-08-24：总控再次用 `--rerun-tasks` 强制执行37个任务：44 tests/0 failures/errors/skipped、2个androidTest源码编译、AAR 420,005 bytes、SHA-256 `8AB43658462C528339FB85ABA6F4A20D947150EB546C8812010658B04FFC0894`、native/JNI=0、APK=0；架构边界仍为1个Application、2个Library。两本真实词典均为 `entry` 链接且精确命中；两本MDD音频资源均为0，明确回退TTS。里程碑2批准并建立新审查锚点。
+- 2026-08-24：里程碑3将旧解析接口可见性收紧为 `internal` 并完成稳定交接；模块提交 `260ec07`，主线合并 `13bbbcd`。该阶段未重复审查已批准解析内核。
+- 2026-08-24：根App接线前发现同Activity复用ViewModel会忽略后续QUICK查询并可能继承管理态；功能任务只修该入口链路并新增4项契约测试。总控只复审这3个源码/测试路径，独立复跑37任务：48 tests/0 failures/errors/skipped、AAR 425,353 bytes、SHA-256 `8837BBACF8B5615F028E5D2F9C02CA2B430E3FDD02A8DB2CCAC52CB30069D404`、APK=0；修复提交 `0d7a57a`，主线合并 `e9523da`。
+- 2026-08-24：根App增加默认记单词的双入口、QUICK_LOOKUP临时页、构建时哈希校验的两套内置资产和仅点击发音使用的INTERNET权限；工作树完整release构建通过，干净提交产物待归档。

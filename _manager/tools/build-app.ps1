@@ -19,6 +19,7 @@ $sdkRoot = Join-Path $toolchainRoot 'android-sdk'
 $gradle = Join-Path $toolchainRoot 'gradle\gradle-9.5.0\bin\gradle.bat'
 $hostsFile = Join-Path $PSScriptRoot 'gradle-hosts.txt'
 $boundaryVerifier = Join-Path $PSScriptRoot 'verify-boundaries.ps1'
+$dictionaryAssetPreparer = Join-Path $PSScriptRoot 'prepare-dictionary-assets.ps1'
 $signingProperties = Join-Path $projectRoot '_manager\local\signing.properties'
 
 foreach ($requiredFile in @(
@@ -27,6 +28,7 @@ foreach ($requiredFile in @(
     $gradle,
     $hostsFile,
     $boundaryVerifier,
+    $dictionaryAssetPreparer,
     $signingProperties
 )) {
     if (-not (Test-Path -LiteralPath $requiredFile)) {
@@ -49,6 +51,11 @@ if (-not $AllowDirty) {
     if ($gitStatus.Count -ne 0) {
         throw "Manager APK builds require a clean Git commit."
     }
+}
+
+& pwsh.exe -NoLogo -NoProfile -NonInteractive -File $dictionaryAssetPreparer
+if ($LASTEXITCODE -ne 0) {
+    throw "Dictionary asset preparation failed with exit code $LASTEXITCODE"
 }
 
 & pwsh.exe -NoLogo -NoProfile -NonInteractive -File $boundaryVerifier

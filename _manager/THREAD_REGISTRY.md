@@ -5,8 +5,8 @@
 | 对话标题 | 任务 ID | 用户指定类型 | 管理状态 | 目标目录 | 工作区/分支 | 最近汇报 |
 |---|---|---|---|---|---|---|
 | 总纲 | `01a024cb-1fba-7b23-a357-67eb2ad592b4` | `manager` | 总控 | 项目根目录与 `_manager` | `master` | 2026-08-24 |
-| 功能1 | 当前：`01a02f8c-2b77-7360-9d8f-56d7faa11773`；交接前：`01a024d0-fa64-7382-96e0-920fec364fc5` | `app-feature` | 独立 worktree；v0.2.0基线受保护，开发v0.3.0长按查词回调 | `feature-01-word-memory` | `C:\Users\zzf86\.codex\worktrees\d2f2\Codex_EnglishApp` / `codex/1` | 2026-08-24：总控下发普通String查词回调增量，只审本轮差异 |
-| 功能2：词典 | `01a02fd4-7dcb-7882-aad0-0ed84ad3254c` | `app-feature`（用户于 2026-08-24 明确指定） | 独立 worktree；里程碑2已批准，进入里程碑3收尾 | `feature-02-dictionary` | `C:\Users\zzf86\.codex\worktrees\b83b\Codex_EnglishApp` / detached `f3dcf49`；预留分支 `codex/feature-02-dictionary` | 2026-08-24：总控仅复核7组定向修复并强制复测通过；建立里程碑2审查锚点 |
+| 功能1 | 当前：`01a02f8c-2b77-7360-9d8f-56d7faa11773`；交接前：`01a024d0-fa64-7382-96e0-920fec364fc5` | `app-feature` | v0.3.0长按查词回调已由总控增量审查、提交并合并；等待设备验收 | `feature-01-word-memory` | `C:\Users\zzf86\.codex\worktrees\d2f2\Codex_EnglishApp` / `codex/1` | 2026-08-24：20 tests通过、AAR生成、无APK；总控独立复测并合并 |
+| 功能2：词典 | `01a02fd4-7dcb-7882-aad0-0ed84ad3254c` | `app-feature`（用户于 2026-08-24 明确指定） | v0.1.0模块及入口生命周期修复已由总控增量审查、提交并合并；进入根App集成 | `feature-02-dictionary` | `C:\Users\zzf86\.codex\worktrees\b83b\Codex_EnglishApp` / `codex/feature-02-dictionary` | 2026-08-24：48 tests通过；AAR 425,353 bytes、无JNI/APK；设备运行待验收 |
 | 英语语境短文生成器 | `01a024f4-f059-7dd1-a10f-04bbc4211e7b` | `skill` | 用户自行管理；总控不读取 | `short-story-generator` | 不纳入本仓库 | 不适用 |
 
 ## 交接审计

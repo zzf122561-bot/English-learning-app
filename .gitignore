@@ -29,3 +29,6 @@
 
 # 用户私有词典只用于本机兼容测试和总控打包，不进入 Git。
 /dictionary-users/
+/app/src/main/assets/dictionaries/
+/app/src/main/assets/.dictionary-assets-staging-*/
+/app/src/main/assets/.dictionary-assets-backup-*/
