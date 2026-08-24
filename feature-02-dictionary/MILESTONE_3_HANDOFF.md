@@ -30,6 +30,8 @@ fun DictionaryFeature(
 
 - `FULL`：完整搜索、结果与词典管理入口。
 - `QUICK_LOOKUP`：根 App 只传普通 `String` 查询；`onClose` 请求宿主关闭临时页面。
+- FULL 与 QUICK 即使由同一 Activity `ViewModelStore` 复用同一 ViewModel，每次进入/变更非空 `initialQuery` 都会提交最新值；安装前到达的查询会在安装完成后提交一次，重组不会重复提交。`FULL(null)` 不清空现有查询。
+- QUICK 首帧强制忽略并同步清除共享 ViewModel 遗留的管理态，因此第一次系统返回/页面返回直接经一次性关闭门调用一次 `onClose`。
 - `PUBLIC_CONTRACT.md` 与源码签名一致。
 - DAO、Room 实体、Repository、ViewModel、解析器、WebView、音频和页面内部类型均为 `internal`/`private`；没有第二个公共入口。
 
@@ -109,17 +111,17 @@ App 私有目录：
 
 ## 6. 自动测试与产物证据
 
-因里程碑3发现旧解析接口仍为 Kotlin 默认 `public`，已做唯一源码修复：只将 `MdictEngine.kt` 的解析器接口和数据类型收紧为 `internal`，未改实现、行为或公共文档契约。按简报重新强制验证：
+里程碑3包含两组最小集成修复：将 `MdictEngine.kt` 的解析器接口和数据类型收紧为 `internal`；修复同一 Activity 复用 ViewModel 时 FULL→QUICK/连续 QUICK 的 `initialQuery` 与管理态同步。未改公共签名、Room、解析行为或其他功能。按要求最终重新强制验证：
 
 ```text
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File feature-02-dictionary\tools\test-module.ps1 -RerunTasks
 ```
 
-- `BUILD SUCCESSFUL in 1m 9s`；37 actionable tasks，37 executed。
-- JVM：44 tests，0 failures，0 errors，0 skipped；既有5项解析回归保留。
+- `BUILD SUCCESSFUL in 1m 25s`；37 actionable tasks，37 executed。
+- JVM：48 tests，0 failures，0 errors，0 skipped；既有5项解析回归保留。入口契约测试覆盖 FULL创建VM后QUICK新词、连续不同QUICK查询、安装前查询排队、QUICK不继承管理态及一次关闭。
 - androidTest：2个 Kotlin 源文件、8项测试，`compileDebugAndroidTestKotlin` 成功。
-- AAR：`feature-02-dictionary-debug.aar`，420,004 bytes。
-- SHA-256：`95EC34BFE1CF073A0AAD3B167CE751B69BD8A1270BA7997F056CD314FDC74F59`。
+- AAR：`feature-02-dictionary-debug.aar`，425,353 bytes。
+- SHA-256：`8837BBACF8B5615F028E5D2F9C02CA2B430E3FDD02A8DB2CCAC52CB30069D404`。
 - native/JNI：0；功能目录 APK：0。
 - 公开源码声明扫描只剩 `DictionaryPresentation` 与 `DictionaryFeature`。
 - 候选文件扫描：MDX、MDD、数据库、缓存、APK、签名和 AAR 为 0；唯一 AAR 位于已排除的 `build/outputs/aar/`。
@@ -134,7 +136,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File feature-02-dictionary\to
 
 ## 8. 总控集成顺序
 
-1. 审查本里程碑唯一源码差异（解析器类型 `public` → `internal`）及本交接文件。
+1. 审查本里程碑最小源码差异（解析器类型 `public` → `internal`；公共入口复用VM时的查询/管理态同步）及本交接文件。
 2. 使用总控登记 SHA-256 准备四个内置资产并生成 schemaVersion 1 manifest；不要修改用户原词典。
 3. 根 App 依赖本 Library，建立底部“记单词 / 词典”双入口并保持默认进入记单词。
 4. FULL 入口接入词典标签；功能1查词回调以普通字符串打开 QUICK_LOOKUP，并由 `onClose` 返回原导航栈。
