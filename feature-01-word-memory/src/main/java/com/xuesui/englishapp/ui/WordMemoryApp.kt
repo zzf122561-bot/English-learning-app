@@ -6,6 +6,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,13 +46,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -63,6 +67,7 @@ import com.xuesui.englishapp.data.NotebookEntity
 import com.xuesui.englishapp.data.StudySegmentWithTargets
 import com.xuesui.englishapp.data.TargetEntity
 import com.xuesui.englishapp.study.StudyFontScale
+import com.xuesui.englishapp.study.findLatinWordAtOffset
 import com.xuesui.englishapp.ui.theme.Cobalt
 import com.xuesui.englishapp.ui.theme.Hairline
 import com.xuesui.englishapp.ui.theme.Ink
@@ -71,7 +76,10 @@ import com.xuesui.englishapp.ui.theme.Slate
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Composable
-fun WordMemoryApp(model: WordMemoryViewModel) {
+fun WordMemoryApp(
+    model: WordMemoryViewModel,
+    onLookupRequested: (String) -> Unit,
+) {
     val notebooks by model.notebooks.collectAsStateWithLifecycle(initialValue = emptyList())
     val activeNotebook by model.activeNotebook.collectAsStateWithLifecycle(initialValue = null)
     val segments by model.activeSegments.collectAsStateWithLifecycle(initialValue = emptyList())
@@ -98,6 +106,7 @@ fun WordMemoryApp(model: WordMemoryViewModel) {
             onDictationChange = model::updateDictation,
             onPositionChange = model::savePosition,
             onFontLevelChange = model::setFontLevel,
+            onLookupRequested = onLookupRequested,
         )
     }
 
@@ -227,6 +236,7 @@ private fun StudyScreen(
     onDictationChange: (Long, String) -> Unit,
     onPositionChange: (Int) -> Unit,
     onFontLevelChange: (Int) -> Unit,
+    onLookupRequested: (String) -> Unit,
 ) {
     BackHandler(onBack = onBack)
     var displayedFontLevel by remember(notebook.id) {
@@ -269,6 +279,7 @@ private fun StudyScreen(
                             onVisibilityChange = { onVisibilityChange(item.segment.id, it) },
                             onDictationChange = { onDictationChange(item.segment.id, it) },
                             fontLevel = displayedFontLevel,
+                            onLookupRequested = onLookupRequested,
                         )
                     }
                     item { Spacer(Modifier.height(42.dp)) }
@@ -294,6 +305,7 @@ private fun StudySegment(
     onVisibilityChange: (Boolean) -> Unit,
     onDictationChange: (String) -> Unit,
     fontLevel: Int,
+    onLookupRequested: (String) -> Unit,
 ) {
     val segment = data.segment
     val targets = data.targets.sortedBy { it.position }
@@ -303,6 +315,8 @@ private fun StudySegment(
         lineHeight = textSize.lineHeightSp.sp,
     )
     var draft by remember(segment.id, segment.dictationText) { mutableStateOf(segment.dictationText) }
+    var englishLayout by remember(segment.id, segment.englishText) { mutableStateOf<TextLayoutResult?>(null) }
+    val currentLookupRequested by rememberUpdatedState(onLookupRequested)
     Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 26.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("段落 ${(segment.position + 1).toString().padStart(3, '0')}", style = MaterialTheme.typography.labelMedium, color = Cobalt)
@@ -312,7 +326,20 @@ private fun StudySegment(
             Text("${targets.size} TARGETS", style = MaterialTheme.typography.labelMedium, color = Slate)
         }
         Spacer(Modifier.height(19.dp))
-        Text(highlightedText(segment.englishText, targets, false), style = studyTextStyle, color = Ink)
+        Text(
+            text = highlightedText(segment.englishText, targets, false),
+            modifier = Modifier.pointerInput(segment.id, segment.englishText) {
+                detectTapGestures(
+                    onLongPress = { position ->
+                        val textOffset = englishLayout?.getOffsetForPosition(position) ?: return@detectTapGestures
+                        findLatinWordAtOffset(segment.englishText, textOffset)?.let(currentLookupRequested)
+                    },
+                )
+            },
+            style = studyTextStyle,
+            color = Ink,
+            onTextLayout = { englishLayout = it },
+        )
         Spacer(Modifier.height(18.dp))
         OutlinedTextField(
             value = draft,
