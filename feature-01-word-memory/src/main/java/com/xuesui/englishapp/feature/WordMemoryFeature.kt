@@ -10,11 +10,13 @@ import com.xuesui.englishapp.ui.WordMemoryApp
 import com.xuesui.englishapp.ui.theme.WordMemoryTheme
 
 @Composable
-fun WordMemoryFeature() {
+fun WordMemoryFeature(
+    onLookupRequested: (String) -> Unit = {},
+) {
     val context = LocalContext.current.applicationContext
     val repository = NotebookRepository(WordMemoryDatabase.getInstance(context))
     WordMemoryTheme {
         val model: WordMemoryViewModel = viewModel(factory = WordMemoryViewModel.Factory(repository))
-        WordMemoryApp(model)
+        WordMemoryApp(model, onLookupRequested)
     }
 }
