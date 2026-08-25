@@ -13,6 +13,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import com.xuesui.englishapp.dictionary.data.DictionaryFontScale
 import com.xuesui.englishapp.dictionary.engine.MdictResource
 import java.io.ByteArrayInputStream
 
@@ -39,6 +40,7 @@ internal class SecureDictionaryWebViewClient(
     private val resourceReader: (String) -> MdictResource?,
     private val onResourceError: (String) -> Unit,
     private val onInternalLookup: (String) -> Unit,
+    private val onAudioAction: (DictionaryAudioAction) -> Unit,
     private val onNavigationBlocked: (String) -> Unit,
 ) : WebViewClient() {
     override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest): WebResourceResponse? {
@@ -68,22 +70,17 @@ internal class SecureDictionaryWebViewClient(
 
     override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest): Boolean {
         val url = request.url.toString()
-        when (val decision = DictionaryWebSecurityPolicy.navigation(url)) {
-            is NavigationDecision.InternalLookup -> onInternalLookup(decision.query)
-            NavigationDecision.Blocked -> onNavigationBlocked(url)
-        }
-        return true
+        return dispatchNavigation(DictionaryWebSecurityPolicy.navigation(url), url)
     }
 
     @Suppress("DEPRECATION")
     override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
         if (url == null) return true
-        when (val decision = DictionaryWebSecurityPolicy.navigation(url)) {
-            is NavigationDecision.InternalLookup -> onInternalLookup(decision.query)
-            NavigationDecision.Blocked -> onNavigationBlocked(url)
-        }
-        return true
+        return dispatchNavigation(DictionaryWebSecurityPolicy.navigation(url), url)
     }
+
+    private fun dispatchNavigation(decision: NavigationDecision, url: String): Boolean =
+        dispatchDictionaryNavigation(decision, onInternalLookup, onAudioAction) { onNavigationBlocked(url) }
 
     private fun blockedResponse() = response(403, "Blocked")
     private fun notFoundResponse() = response(404, "Not Found")
@@ -106,7 +103,9 @@ internal fun SecureDictionaryWebView(
     resourceReader: (String) -> MdictResource?,
     onResourceError: (String) -> Unit,
     onInternalLookup: (String) -> Unit,
+    onAudioAction: (DictionaryAudioAction) -> Unit,
     onNavigationBlocked: (String) -> Unit,
+    fontLevel: Int,
 ) {
     val context = LocalContext.current
     val webView = remember(context) {
@@ -116,6 +115,7 @@ internal fun SecureDictionaryWebView(
                 resourceReader = resourceReader,
                 onResourceError = onResourceError,
                 onInternalLookup = onInternalLookup,
+                onAudioAction = onAudioAction,
                 onNavigationBlocked = onNavigationBlocked,
             )
         }
@@ -134,8 +134,11 @@ internal fun SecureDictionaryWebView(
         modifier = modifier,
         update = { view ->
             val document = secureHtmlDocument(html)
-            if (view.tag != document.hashCode()) {
-                view.tag = document.hashCode()
+            val zoom = DictionaryFontScale.textZoom(fontLevel)
+            view.settings.textZoom = zoom
+            val renderKey = document.hashCode() to zoom
+            if (view.tag != renderKey) {
+                view.tag = renderKey
                 view.loadDataWithBaseURL(
                     DictionaryWebSecurityPolicy.BASE_URL,
                     document,
@@ -146,6 +149,18 @@ internal fun SecureDictionaryWebView(
             }
         },
     )
+}
+
+internal fun dispatchDictionaryNavigation(
+    decision: NavigationDecision,
+    onInternalLookup: (String) -> Unit,
+    onAudioAction: (DictionaryAudioAction) -> Unit,
+    onBlocked: () -> Unit,
+): Boolean = when (decision) {
+    is NavigationDecision.SameDocumentAnchor -> false
+    is NavigationDecision.InternalLookup -> true.also { onInternalLookup(decision.query) }
+    is NavigationDecision.PlayAudio -> true.also { onAudioAction(decision.action) }
+    NavigationDecision.Blocked -> true.also { onBlocked() }
 }
 
 internal fun secureHtmlDocument(body: String): String = """

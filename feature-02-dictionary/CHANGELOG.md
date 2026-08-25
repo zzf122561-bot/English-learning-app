@@ -1,6 +1,17 @@
 # 功能 2 变更记录
 
-## 0.1.1 — 已由总控集成；等待test.002实机复测
+## 0.2.0 — 已由总控增量审查；待App 1.0.0构建
+
+- 2026-08-25：用户重新授权处理 `F02-LINK-001`、`F02-AUDIO-001`，并批准每本词典独立正文字号；未改变公共 `DictionaryFeature` 签名。
+- 2026-08-25：新增受控同文档锚点决策；只让精确 `https://dictionary.local/#fragment` 的非空安全片段由 WebView 处理，外部主框架、data 子框架、file/content、脚本、非法受控路径和 MDD 主文档继续阻止；跨词条 `/lookup?q=` 行为不变。
+- 2026-08-25：正文可识别发音链接改写为受控内部播放动作，点击不导航；顶部按钮与正文入口共享当前词条候选，固定执行 MDD → 严格 HTTPS → Android 英语 TTS，并保留取消、大小/MIME/重定向与路径防护。
+- 2026-08-25：两本授权词典真实审计仍为 `audioReferences=0 / mddAudioResources=0 / resource=missing / fallback=TTS`；未复制正文、未伪称内置原声命中。
+- 2026-08-25：词典管理页新增逐词典十档正文字号，档位映射为 `[71,82,88,94,100,112,124,135,153,176]%`；默认 5，只有保存持久化，查询页不新增 Aa。
+- 2026-08-25：Room 数据库从 v1 升至 v2；显式 `MIGRATION_1_2` 只执行 `ALTER TABLE dictionaries ADD COLUMN fontLevel INTEGER NOT NULL DEFAULT 5`，不使用 destructive migration；新增 v2 schema 与迁移/隔离更新测试源码。
+- 2026-08-25：`--rerun-tasks` 强制回归通过：61 项 JVM 测试、0 failures/errors/skipped、37 tasks executed；3 个 androidTest 源文件共 10 项编译成功；AAR 466,380 bytes，SHA-256 `27890D223523524E9B7C16B2977EC2ED940D1E307BCC946D9B69CD1DDBFF7ECD`；native/JNI=0、APK=0。
+- 当前无设备；androidTest 只完成源码编译，WebView、发音、字号与 Room 迁移均未宣称实机或仪器运行通过。状态为 `ready_for_integration / awaiting_manager_build`。
+
+## 0.1.1 — 已由总控集成；test.002用户验收通过并登记历史问题
 
 - 2026-08-24：v0.3.0 test.001用户实机确认查询与Collins/Oxford标签可到达，但正文显示 `data:text/html... / ERR_HTTP_RESPONSE_CODE_FAILURE`；总控定位为WebView data主框架被资源拦截器误返回403。
 - 2026-08-24：新增纯策略请求分类；仅主框架的严格base64 HTML data URL或精确受控base URL交给WebView，只有非主框架安全MDD路径进入资源读取器，其余继续403。

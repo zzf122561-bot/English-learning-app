@@ -1,5 +1,7 @@
 package com.xuesui.englishapp.dictionary
 
+import com.xuesui.englishapp.dictionary.web.DictionaryAudioAction
+import com.xuesui.englishapp.dictionary.web.DictionaryAudioSource
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -61,5 +63,36 @@ class DictionaryFeatureContractTest {
         gate.request()
         gate.request()
         assertEquals(1, closeCount)
+    }
+
+    @Test
+    fun fontDraftChangesOnlyCandidateUntilSaveAndCancelKeepsOriginal() {
+        val draft = FontLevelDraft(7)
+        draft.decrease()
+        draft.restoreDefault()
+
+        assertEquals(7, draft.original)
+        assertEquals(5, draft.candidate)
+        assertEquals(7, draft.cancel())
+        assertEquals(5, draft.save())
+    }
+
+    @Test
+    fun clickedAudioCandidateIsFirstOnlyInsideItsFixedSourceLayer() {
+        val mdd = listOf("/one.mp3", "/two.mp3")
+        val https = listOf("https://audio.example/one.mp3", "https://audio.example/two.mp3")
+
+        assertEquals(
+            listOf("/two.mp3", "/one.mp3"),
+            DictionaryViewModel.prioritizeCandidate(mdd, "/two.mp3"),
+        )
+        assertEquals(
+            listOf("https://audio.example/two.mp3", "https://audio.example/one.mp3"),
+            DictionaryViewModel.prioritizeCandidate(https, "https://audio.example/two.mp3"),
+        )
+        assertEquals(
+            DictionaryAudioSource.HTTPS,
+            DictionaryAudioAction(DictionaryAudioSource.HTTPS, https.last()).source,
+        )
     }
 }

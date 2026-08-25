@@ -20,5 +20,6 @@ fun DictionaryFeature(
 - `QUICK_LOOKUP`：由根 App 壳传入单词并显示临时结果；`onClose` 请求关闭临时页面。
 - 功能模块不得接受功能1内部对象；根 App 壳只传入普通字符串和导航回调。
 - 功能内部自行创建数据库、Repository、解析器和 ViewModel，App 壳不得访问内部 DAO 或文件实现。
+- v0.2.0 的受控锚点、发音动作、逐词典字号和 Room v2 迁移全部属于模块内部实现；上述公开枚举、参数、默认值与回调签名保持不变。
 
 修改本契约前必须向总控提交 `contract_change` 汇报并等待确认。

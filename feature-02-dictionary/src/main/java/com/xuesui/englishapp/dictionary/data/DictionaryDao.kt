@@ -52,6 +52,9 @@ internal interface DictionaryDao {
     @Query("UPDATE dictionaries SET runtimeStatus = :status, updatedAt = :updatedAt WHERE id = :id")
     suspend fun updateRuntimeStatus(id: String, status: String, updatedAt: Long): Int
 
+    @Query("UPDATE dictionaries SET fontLevel = :fontLevel WHERE id = :id")
+    suspend fun updateFontLevel(id: String, fontLevel: Int): Int
+
     /** DAO-level protection: this SQL can never delete a built-in row. */
     @Query("DELETE FROM dictionaries WHERE id = :id AND sourceType = 'IMPORTED'")
     suspend fun deleteImportedOnly(id: String): Int

@@ -24,8 +24,13 @@ class RealDictionaryHtmlCompatibilityTest {
                 val lookupTargets = linkedSetOf<String>()
                 val audioPaths = linkedSetOf<String>()
                 val httpsAudio = linkedSetOf<String>()
+                var anchorLinks = 0
+                var controlledAnchorLinks = 0
+                var audioActions = 0
                 candidateHeadwords(engine).forEach { query ->
                     val entry = engine.exactLookup(query) ?: return@forEach
+                    anchorLinks += Regex("""href\s*=\s*[\"']#[^\"']+[\"']""", RegexOption.IGNORE_CASE)
+                        .findAll(entry.html).count()
                     val rewritten = DictionaryHtmlRewriter.rewrite(entry.html)
                     internalTypes += rewritten.internalLinkTypes
                     audioPaths += rewritten.embeddedAudioPaths
@@ -36,11 +41,31 @@ class RealDictionaryHtmlCompatibilityTest {
                             (DictionaryWebSecurityPolicy.navigation(match.value) as? NavigationDecision.InternalLookup)?.query
                         }
                         .forEach(lookupTargets::add)
+                    Regex("https://dictionary\\.local/#[^\\\"'<>\\s]+")
+                        .findAll(rewritten.html)
+                        .forEach { match ->
+                            if (DictionaryWebSecurityPolicy.navigation(match.value) is NavigationDecision.SameDocumentAnchor) {
+                                controlledAnchorLinks++
+                            }
+                        }
+                    Regex("https://dictionary\\.local/action/audio\\?[^\\\"'<>\\s]+")
+                        .findAll(rewritten.html)
+                        .forEach { match ->
+                            if (
+                                DictionaryWebSecurityPolicy.navigation(match.value.replace("&amp;", "&")) is
+                                    NavigationDecision.PlayAudio
+                            ) {
+                                audioActions++
+                            }
+                        }
                 }
 
                 assertTrue("No real internal links were rewritten for ${files.label}", internalTypes.isNotEmpty())
                 val exactTargetHit = lookupTargets.asSequence().take(128).any { engine.exactLookup(it) != null }
                 assertTrue("No rewritten real internal link resolved for ${files.label}", exactTargetHit)
+                if (anchorLinks > 0) {
+                    assertTrue("Real anchors were not kept as controlled same-document links for ${files.label}", controlledAnchorLinks > 0)
+                }
 
                 val embeddedHit = audioPaths.asSequence().mapNotNull(engine::readResource).firstOrNull()
                 if (audioPaths.isNotEmpty()) {
@@ -80,6 +105,7 @@ class RealDictionaryHtmlCompatibilityTest {
                 println(
                     "MDICT_HTML dictionary=${files.label} linkTypes=${internalTypes.sorted().joinToString("+")} " +
                         "internalExactHit=$exactTargetHit audioReferences=${audioPaths.size} " +
+                        "anchors=$anchorLinks controlledAnchors=$controlledAnchorLinks audioActions=$audioActions " +
                         "mddAudioResources=$mddAudioResources " +
                         "resource=${if (embeddedHit == null) "missing" else "hit"} fallback=${fallback?.name ?: "NONE"}",
                 )

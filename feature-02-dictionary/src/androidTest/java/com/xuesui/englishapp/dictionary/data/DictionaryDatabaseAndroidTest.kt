@@ -47,7 +47,7 @@ class DictionaryDatabaseAndroidTest {
         repository.reorder(listOf("two", "one"))
 
         val rows = repository.dictionaries.first()
-        assertEquals(1, database.openHelper.readableDatabase.version)
+        assertEquals(2, database.openHelper.readableDatabase.version)
         assertEquals(listOf("two", "one"), rows.map { it.dictionary.id })
         assertFalse(rows.last().dictionary.enabled)
     }
@@ -129,6 +129,20 @@ class DictionaryDatabaseAndroidTest {
         val row = database.dictionaryDao().getAll().single()
         assertEquals(existing.displayName, row.dictionary.displayName)
         assertEquals(listOf(originalResource), row.resources)
+    }
+
+
+    @Test
+    fun fontUpdatesAreIndependentEvenWhenDictionaryIsDisabledAndPreserveOtherFields() = runBlocking {
+        val first = entity("one", DictionarySourceType.BUILTIN, 0).copy(enabled = false, updatedAt = 44)
+        val second = entity("two", DictionarySourceType.IMPORTED, 1).copy(fontLevel = 8, updatedAt = 55)
+        repository.replace(first, emptyList())
+        repository.replace(second, emptyList())
+
+        repository.setFontLevel("one", 99)
+
+        assertEquals(first.copy(fontLevel = 10), database.dictionaryDao().getDictionary("one"))
+        assertEquals(second, database.dictionaryDao().getDictionary("two"))
     }
 
     private fun entity(id: String, source: String, order: Int) = DictionaryEntity(
