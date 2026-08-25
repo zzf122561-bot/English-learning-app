@@ -12,6 +12,8 @@
 - 功能2提交 `fc93964` 经总控增量审查并合并为 `add4c38`；未重复审查未变化的解析内核。
 - 总控独立复跑61项JVM测试、3个Android测试源码共10项编译、AAR和全项目边界检查均通过；AAR为466,380 bytes，SHA-256 `27890D223523524E9B7C16B2977EC2ED940D1E307BCC946D9B69CD1DDBFF7ECD`。
 - `F02-LINK-001`、`F02-AUDIO-001`当前仅标记implemented / awaiting device verification；两本内置词典没有MDD音频资源，设备上预期使用Android英语TTS回退。
+- 从干净提交`a3b5e2a`完成签名release构建并归档`EnglishApp-v1.0.0-test.001-a3b5e2a.apk`；APK SHA-256为`99230CB21ACD6104675F88D7604C0C46BF6B64A716B392DF7E4A6F68DD0985FE`，v2签名、证书连续性、元数据、对齐与内置词典哈希通过。
+- test.001当前仅为自动构建通过；没有连接Android设备，等待用户覆盖安装、锚点、双发音入口、逐词典字号和Room迁移验收。
 
 ## 0.3.0 — 词典集成（2026-08-24用户验收通过，带已知问题）
 
