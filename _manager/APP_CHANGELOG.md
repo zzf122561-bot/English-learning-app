@@ -9,6 +9,9 @@
 - 正文与顶部发音入口统一走MDD→严格HTTPS→Android英语TTS受控链路。
 - 词典管理页新增每本词典独立十档正文字号；Room计划从1显式迁移到2并保留现有词典状态。
 - App目标版本为 `versionName=1.0.0`、`versionCode=5`。本节仅登记批准范围；在自动验证、签名候选和用户实机验收前不得标记发布。
+- 功能2提交 `fc93964` 经总控增量审查并合并为 `add4c38`；未重复审查未变化的解析内核。
+- 总控独立复跑61项JVM测试、3个Android测试源码共10项编译、AAR和全项目边界检查均通过；AAR为466,380 bytes，SHA-256 `27890D223523524E9B7C16B2977EC2ED940D1E307BCC946D9B69CD1DDBFF7ECD`。
+- `F02-LINK-001`、`F02-AUDIO-001`当前仅标记implemented / awaiting device verification；两本内置词典没有MDD音频资源，设备上预期使用Android英语TTS回退。
 
 ## 0.3.0 — 词典集成（2026-08-24用户验收通过，带已知问题）
 
