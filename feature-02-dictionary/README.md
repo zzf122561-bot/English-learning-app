@@ -1,7 +1,9 @@
 # 功能 2：词典
 
-本目录是 EnglishApp 的独立 Android Library 词典模块，当前修复目标版本为 `0.1.1`。
+本目录是 EnglishApp 的独立 Android Library 词典模块，当前目标版本为 `0.2.0`。
 
-模块负责 MDX/MDD 查询、词条 HTML 与资源显示、发音、词典管理和 Android 本地导入；不拥有 Activity、App 导航、签名、APK 或其他功能实现。
+模块负责 MDX/MDD 查询、词条 HTML 与资源显示、发音、词典管理、本地导入，以及逐词典正文字号；不拥有 Activity、App 导航、签名、APK 或其他功能实现。
 
-v0.1.1 仅修复test.001实机发现的WebView主文档误拦截：严格应用生成的 `data:text/html...` 主框架交给WebView，子框架data、外部主框架和非法MDD路径仍封锁。当前状态为 `ready_for_integration / awaiting_test.002_device_retest`；没有设备，不能宣称实机修复。证据见 `WEBVIEW_MAIN_DOCUMENT_FIX_AUDIT.md`，完整交接见 `MILESTONE_3_HANDOFF.md`，解析来源见 `MILESTONE_1B_AUDIT.md`，许可证原文见 `THIRD_PARTY_NOTICES.md`。
+v0.2.0 在不改变公共 `DictionaryFeature` 签名的前提下：仅恢复受控同文档锚点；把正文发音入口接入 MDD → 严格 HTTPS → Android 英语 TTS；在词典管理页提供每本词典独立十档正文字号；通过显式 Room `MIGRATION_1_2` 将数据库升级到 v2 并保留旧数据。
+
+当前状态为 `ready_for_integration / awaiting_manager_build`。自动回归和 AAR 构建已通过，但当前没有 Android 设备，WebView、发音、Room 迁移和 UI 仪器测试均未在设备运行。v0.2.0 证据见 `V0.2.0_AUDIT.md`；解析来源与许可证证据仍分别见 `MILESTONE_1B_AUDIT.md` 和 `THIRD_PARTY_NOTICES.md`。

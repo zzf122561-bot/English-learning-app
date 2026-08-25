@@ -48,18 +48,32 @@ internal object DictionaryHtmlRewriter {
         embeddedAudio: MutableSet<String>,
         httpsAudio: MutableSet<String>,
     ): String? {
-        if (value.isBlank() || value.startsWith('#') || value.length > 2048) return null
+        if (value.isBlank() || value.length > 2048) return null
+        if ((tag == "a" || tag == "area") && attribute == "href" && value.startsWith('#')) {
+            val fragment = decode(value.drop(1))?.trim().orEmpty()
+            if (fragment.isEmpty() || fragment.length > 512 || fragment.any(::isControl)) return null
+            internalTypes += "anchor"
+            return DictionaryWebSecurityPolicy.BASE_URL + "#" + encode(fragment)
+        }
         val scheme = value.substringBefore(':', "").lowercase(Locale.ROOT)
         val audioReference = tag == "audio" || tag == "source" || extension(value) in audioExtensions ||
             scheme == "sound" || scheme == "audio"
-        if (audioReference && scheme == "https" && isStrictHttps(value)) {
+        if (audioReference && scheme == "https" && isStrictHttpsAudioUrl(value)) {
             httpsAudio += value
-            return null
+            return if ((tag == "a" || tag == "area") && attribute == "href") {
+                controlledAudioActionUrl(DictionaryAudioSource.HTTPS, value)
+            } else {
+                null
+            }
         }
         if (audioReference) {
-            normalizeMddPath(value)?.let { path ->
+            normalizeMddAudioPath(value)?.let { path ->
                 embeddedAudio += path
-                return controlledResourceUrl(path)
+                return if ((tag == "a" || tag == "area") && attribute == "href") {
+                    controlledAudioActionUrl(DictionaryAudioSource.MDD, path)
+                } else {
+                    controlledResourceUrl(path)
+                }
             }
         }
 
@@ -71,7 +85,7 @@ internal object DictionaryHtmlRewriter {
         }
 
         if (scheme.isEmpty() && (tag == "img" || tag == "link" || attribute == "src" || extension(value) in resourceExtensions)) {
-            normalizeMddPath(value)?.let { return controlledResourceUrl(it) }
+            normalizeMddAudioPath(value)?.let { return controlledResourceUrl(it) }
         }
         return null
     }
@@ -90,22 +104,15 @@ internal object DictionaryHtmlRewriter {
         return (if (scheme.isEmpty()) "relative" else scheme) to query
     }
 
-    private fun normalizeMddPath(value: String): String? {
-        val scheme = value.substringBefore(':', "").lowercase(Locale.ROOT)
-        if (scheme.isNotEmpty() && scheme !in setOf("sound", "audio")) return null
-        val withoutScheme = if (scheme.isEmpty()) value else value.substringAfter(':').removePrefix("//")
-        val decoded = decode(withoutScheme.substringBefore('#').substringBefore('?')) ?: return null
-        if (decoded.isBlank() || decoded.indexOf('\u0000') >= 0) return null
-        val segments = decoded.replace('\\', '/').split('/').filter(String::isNotEmpty)
-        if (segments.isEmpty() || segments.any { it == "." || it == ".." }) return null
-        return "/" + segments.joinToString("/")
-    }
-
     private fun controlledLookupUrl(query: String): String =
         "https://${DictionaryWebSecurityPolicy.HOST}/lookup?q=${encode(query)}"
 
     private fun controlledResourceUrl(path: String): String =
         "https://${DictionaryWebSecurityPolicy.HOST}" + path.split('/').joinToString("/") { encode(it) }
+
+    private fun controlledAudioActionUrl(source: DictionaryAudioSource, value: String): String =
+        "https://${DictionaryWebSecurityPolicy.HOST}${DictionaryWebSecurityPolicy.AUDIO_ACTION_PATH}" +
+            "?source=${source.name.lowercase(Locale.ROOT)}&amp;value=${encode(value)}"
 
     private fun extension(value: String): String = value.substringBefore('#').substringBefore('?')
         .substringAfterLast('.', "").lowercase(Locale.ROOT)
@@ -119,11 +126,31 @@ internal object DictionaryHtmlRewriter {
     private fun encode(value: String): String =
         URLEncoder.encode(value, StandardCharsets.UTF_8.name()).replace("+", "%20")
 
-    private fun isStrictHttps(value: String): Boolean = try {
-        val uri = URI(value)
-        uri.scheme.equals("https", true) && !uri.host.isNullOrBlank() && uri.userInfo == null &&
-            (uri.port == -1 || uri.port == 443) && uri.fragment == null
-    } catch (_: Exception) {
-        false
+    private fun isControl(character: Char): Boolean = character.code < 0x20 || character.code == 0x7f
+}
+
+internal fun normalizeMddAudioPath(value: String): String? {
+    val scheme = value.substringBefore(':', "").lowercase(Locale.ROOT)
+    if (scheme.isNotEmpty() && scheme !in setOf("sound", "audio")) return null
+    val withoutScheme = if (scheme.isEmpty()) value else value.substringAfter(':').removePrefix("//")
+    val decoded = try {
+        URLDecoder.decode(
+            withoutScheme.substringBefore('#').substringBefore('?').replace("+", "%2B"),
+            StandardCharsets.UTF_8.name(),
+        )
+    } catch (_: IllegalArgumentException) {
+        return null
     }
+    if (decoded.isBlank() || decoded.indexOf('\u0000') >= 0 || decoded.length > 2048) return null
+    val segments = decoded.replace('\\', '/').split('/').filter(String::isNotEmpty)
+    if (segments.isEmpty() || segments.any { it == "." || it == ".." }) return null
+    return "/" + segments.joinToString("/")
+}
+
+internal fun isStrictHttpsAudioUrl(value: String): Boolean = try {
+    val uri = URI(value)
+    uri.scheme.equals("https", true) && !uri.host.isNullOrBlank() && uri.userInfo == null &&
+        (uri.port == -1 || uri.port == 443) && uri.fragment == null
+} catch (_: Exception) {
+    false
 }

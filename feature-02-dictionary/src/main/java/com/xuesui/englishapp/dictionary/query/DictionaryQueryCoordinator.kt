@@ -20,6 +20,7 @@ internal data class DictionaryResultTab(
     val error: String?,
     val embeddedAudioPaths: List<String> = emptyList(),
     val httpsAudioUrls: List<String> = emptyList(),
+    val fontLevel: Int = 5,
 )
 
 internal data class DictionaryQuerySnapshot(
@@ -76,6 +77,7 @@ internal class DictionaryQueryCoordinator(
                         dictionary.dictionary.displayName,
                         null,
                         openErrors[id] ?: "词典无法打开",
+                        fontLevel = dictionary.dictionary.fontLevel,
                     )
                 } else {
                     try {
@@ -93,6 +95,7 @@ internal class DictionaryQueryCoordinator(
                             null,
                             rewritten?.embeddedAudioPaths.orEmpty(),
                             rewritten?.httpsAudioUrls.orEmpty(),
+                            dictionary.dictionary.fontLevel,
                         )
                     } catch (cancelled: CancellationException) {
                         throw cancelled
@@ -102,6 +105,7 @@ internal class DictionaryQueryCoordinator(
                             dictionary.dictionary.displayName,
                             null,
                             error.message ?: "解析失败",
+                            fontLevel = dictionary.dictionary.fontLevel,
                         )
                     }
                 }

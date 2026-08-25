@@ -15,12 +15,15 @@ import com.xuesui.englishapp.dictionary.audio.StrictHttpsAudioPlayer
 import com.xuesui.englishapp.dictionary.data.DictionaryDatabase
 import com.xuesui.englishapp.dictionary.data.DictionaryRepository
 import com.xuesui.englishapp.dictionary.data.DictionaryStatus
+import com.xuesui.englishapp.dictionary.data.DictionaryFontScale
 import com.xuesui.englishapp.dictionary.data.DictionaryWithResources
 import com.xuesui.englishapp.dictionary.engine.MdictResource
 import com.xuesui.englishapp.dictionary.files.BuiltinDictionaryInstaller
 import com.xuesui.englishapp.dictionary.files.SafDictionaryImporter
 import com.xuesui.englishapp.dictionary.query.DictionaryQueryCoordinator
 import com.xuesui.englishapp.dictionary.query.DictionaryQuerySnapshot
+import com.xuesui.englishapp.dictionary.web.DictionaryAudioAction
+import com.xuesui.englishapp.dictionary.web.DictionaryAudioSource
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -195,6 +198,18 @@ internal class DictionaryViewModel(
         }
     }
 
+    fun setFontLevel(id: String, level: Int) {
+        viewModelScope.launch {
+            try {
+                withContext(ioDispatcher) { repository.setFontLevel(id, DictionaryFontScale.normalize(level)) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                mutableState.value = mutableState.value.copy(message = error.message ?: "正文字号保存失败")
+            }
+        }
+    }
+
     fun moveDictionary(from: Int, to: Int) {
         val ids = mutableState.value.dictionaries.map { it.dictionary.id }.toMutableList()
         if (from !in ids.indices || to !in ids.indices || from == to) return
@@ -242,13 +257,38 @@ internal class DictionaryViewModel(
     }
 
     fun pronounce() {
+        startPronunciation(null)
+    }
+
+    fun pronounce(action: DictionaryAudioAction) {
+        startPronunciation(action)
+    }
+
+    private fun startPronunciation(action: DictionaryAudioAction?) {
         val query = mutableState.value.query.displayQuery.takeIf(String::isNotBlank) ?: return
         val result = mutableState.value.query.selectedResult ?: return
+        val embeddedPaths = prioritizeCandidate(
+            result.embeddedAudioPaths,
+            action?.takeIf { it.source == DictionaryAudioSource.MDD }?.value,
+        )
+        val httpsUrls = prioritizeCandidate(
+            result.httpsAudioUrls,
+            action?.takeIf { it.source == DictionaryAudioSource.HTTPS }?.value,
+        )
         pronunciationJob?.cancel()
         pronunciation.stopActive()
         pronunciationJob = viewModelScope.launch {
-            withContext(ioDispatcher) {
-                pronunciation.pronounce(query, result.embeddedAudioPaths, result.httpsAudioUrls)
+            try {
+                val source = withContext(ioDispatcher) {
+                    pronunciation.pronounce(query, embeddedPaths, httpsUrls)
+                }
+                if (source == null) {
+                    mutableState.value = mutableState.value.copy(message = "没有可用发音，已尝试词典资源、HTTPS 和系统语音")
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                mutableState.value = mutableState.value.copy(message = error.message ?: "发音失败")
             }
         }
     }
@@ -274,6 +314,9 @@ internal class DictionaryViewModel(
         }
 
     companion object {
+        internal fun <T> prioritizeCandidate(candidates: List<T>, preferred: T?): List<T> =
+            (listOfNotNull(preferred) + candidates).distinct()
+
         fun factory(context: Context, initialQuery: String?) = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T =

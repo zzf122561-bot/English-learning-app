@@ -45,6 +45,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -56,6 +57,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -74,7 +76,9 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.xuesui.englishapp.dictionary.data.DictionarySourceType
+import com.xuesui.englishapp.dictionary.data.DictionaryFontScale
 import com.xuesui.englishapp.dictionary.data.DictionaryWithResources
+import com.xuesui.englishapp.dictionary.web.DictionaryAudioAction
 import com.xuesui.englishapp.dictionary.web.SecureDictionaryWebView
 
 enum class DictionaryPresentation {
@@ -95,6 +99,19 @@ internal class CloseRequestGate(private val close: () -> Unit) {
 internal object DictionaryEntryPolicy {
     fun isManaging(presentation: DictionaryPresentation, storedManaging: Boolean): Boolean =
         presentation != DictionaryPresentation.QUICK_LOOKUP && storedManaging
+}
+
+internal class FontLevelDraft(originalLevel: Int) {
+    val original: Int = DictionaryFontScale.normalize(originalLevel)
+    var candidate: Int = original
+        private set
+
+    fun set(value: Int) { candidate = DictionaryFontScale.normalize(value) }
+    fun decrease() = set(candidate - 1)
+    fun increase() = set(candidate + 1)
+    fun restoreDefault() = set(DictionaryFontScale.DEFAULT_LEVEL)
+    fun save(): Int = candidate
+    fun cancel(): Int = original
 }
 
 private val InkBlue = Color(0xFF14213D)
@@ -153,6 +170,7 @@ fun DictionaryFeature(
                     onBack = { model.showManagement(false) },
                     onImport = model::importDirectory,
                     onEnabled = model::setEnabled,
+                    onFontLevel = model::setFontLevel,
                     onMove = model::moveDictionary,
                     onDelete = model::deleteImported,
                     modifier = Modifier.padding(padding),
@@ -167,6 +185,7 @@ fun DictionaryFeature(
                     onManage = { model.showManagement(true) },
                     onSelectDictionary = model::selectDictionary,
                     onPronounce = model::pronounce,
+                    onAudioAction = model::pronounce,
                     onInternalLookup = model::openInternalLink,
                     resourceReader = model::readSelectedResource,
                     onResourceError = model::reportResourceError,
@@ -188,6 +207,7 @@ private fun DictionaryLookupPage(
     onManage: () -> Unit,
     onSelectDictionary: (String) -> Unit,
     onPronounce: () -> Unit,
+    onAudioAction: (DictionaryAudioAction) -> Unit,
     onInternalLookup: (String) -> Unit,
     resourceReader: (String) -> com.xuesui.englishapp.dictionary.engine.MdictResource?,
     onResourceError: (String) -> Unit,
@@ -297,7 +317,9 @@ private fun DictionaryLookupPage(
                 resourceReader = resourceReader,
                 onResourceError = onResourceError,
                 onInternalLookup = { onInput(it); onInternalLookup(it) },
+                onAudioAction = onAudioAction,
                 onNavigationBlocked = onNavigationBlocked,
+                fontLevel = selectedResult.fontLevel,
             )
             selectedError != null -> Text(
                 selectedError,
@@ -338,6 +360,7 @@ private fun DictionaryManagementPage(
     onBack: () -> Unit,
     onImport: (android.net.Uri) -> Unit,
     onEnabled: (String, Boolean) -> Unit,
+    onFontLevel: (String, Int) -> Unit,
     onMove: (Int, Int) -> Unit,
     onDelete: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -355,6 +378,7 @@ private fun DictionaryManagementPage(
         }
     }
     var deleteId by remember { mutableStateOf<String?>(null) }
+    var fontDictionaryId by remember { mutableStateOf<String?>(null) }
 
     Column(modifier.fillMaxSize().background(PaperBlue)) {
         Row(
@@ -385,6 +409,7 @@ private fun DictionaryManagementPage(
                         index = index,
                         count = dictionaries.size,
                         onEnabled = onEnabled,
+                        onEditFont = { fontDictionaryId = item.dictionary.id },
                         onMove = onMove,
                         onDelete = { deleteId = item.dictionary.id },
                     )
@@ -406,6 +431,20 @@ private fun DictionaryManagementPage(
             dismissButton = { TextButton(onClick = { deleteId = null }) { Text("取消") } },
         )
     }
+
+
+    val fontDictionary = dictionaries.firstOrNull { it.dictionary.id == fontDictionaryId }
+    if (fontDictionary != null) {
+        FontLevelDialog(
+            dictionaryName = fontDictionary.dictionary.displayName,
+            initialLevel = fontDictionary.dictionary.fontLevel,
+            onDismiss = { fontDictionaryId = null },
+            onSave = { level ->
+                onFontLevel(fontDictionary.dictionary.id, level)
+                fontDictionaryId = null
+            },
+        )
+    }
 }
 
 @Composable
@@ -414,6 +453,7 @@ private fun DictionaryManagementRow(
     index: Int,
     count: Int,
     onEnabled: (String, Boolean) -> Unit,
+    onEditFont: () -> Unit,
     onMove: (Int, Int) -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -451,6 +491,9 @@ private fun DictionaryManagementRow(
                 fontSize = 11.sp,
                 color = CobaltBlue,
             )
+            TextButton(onClick = onEditFont) {
+                Text("正文字号：${item.dictionary.fontLevel}档", fontSize = 12.sp)
+            }
         }
         IconButton(onClick = { onMove(index, index - 1) }, enabled = index > 0) {
             Icon(Icons.Default.ArrowUpward, contentDescription = "上移")
@@ -470,4 +513,53 @@ private fun DictionaryManagementRow(
             Spacer(Modifier.width(48.dp))
         }
     }
+}
+
+
+@Composable
+private fun FontLevelDialog(
+    dictionaryName: String,
+    initialLevel: Int,
+    onDismiss: () -> Unit,
+    onSave: (Int) -> Unit,
+) {
+    var candidate by remember(dictionaryName, initialLevel) {
+        mutableIntStateOf(DictionaryFontScale.normalize(initialLevel))
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("$dictionaryName 正文字号") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("${candidate}档 · ${DictionaryFontScale.textZoom(candidate)}%")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(
+                        onClick = { candidate = DictionaryFontScale.normalize(candidate - 1) },
+                        enabled = candidate > 1,
+                    ) { Text("减小") }
+                    Slider(
+                        value = candidate.toFloat(),
+                        onValueChange = { candidate = DictionaryFontScale.normalize(it.toInt()) },
+                        valueRange = 1f..10f,
+                        steps = 8,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(
+                        onClick = { candidate = DictionaryFontScale.normalize(candidate + 1) },
+                        enabled = candidate < 10,
+                    ) { Text("增大") }
+                }
+                Text(
+                    "The quick brown fox · 正文字号预览",
+                    fontSize = (10 + candidate).sp,
+                    fontFamily = FontFamily.Serif,
+                )
+                TextButton(onClick = { candidate = DictionaryFontScale.DEFAULT_LEVEL }) {
+                    Text("恢复默认（5档）")
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = { onSave(candidate) }) { Text("保存") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+    )
 }

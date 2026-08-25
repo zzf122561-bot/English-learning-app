@@ -132,6 +132,7 @@ internal class BuiltinDictionaryInstaller(
                     runtimeStatus = if (mddFiles.isEmpty()) DictionaryStatus.RESOURCE_MISSING else DictionaryStatus.READY,
                     createdAt = current?.createdAt ?: timestamp,
                     updatedAt = timestamp,
+                    fontLevel = current?.fontLevel ?: 5,
                 ),
                 spec.resources.mapIndexed { index, asset ->
                     DictionaryResourceEntity(

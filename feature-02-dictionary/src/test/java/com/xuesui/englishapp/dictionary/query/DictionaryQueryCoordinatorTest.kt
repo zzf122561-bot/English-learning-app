@@ -103,6 +103,25 @@ class DictionaryQueryCoordinatorTest {
     }
 
     @Test
+    fun eachResultTabCarriesOnlyItsDictionaryFontLevel() = runBlocking {
+        val dictionaries = listOf(
+            dictionary("small", 0).copy(dictionary = dictionary("small", 0).dictionary.copy(fontLevel = 2)),
+            dictionary("large", 1).copy(dictionary = dictionary("large", 1).dictionary.copy(fontLevel = 9)),
+        )
+        val coordinator = DictionaryQueryCoordinator(
+            enabledProvider = { dictionaries },
+            engineOpener = { FakeEngine(entries = mapOf("word" to "definition")) },
+        )
+
+        val result = coordinator.query("word")
+
+        assertEquals(listOf(2, 9), result.tabs.map { it.fontLevel })
+        assertEquals(2, result.selectedResult?.fontLevel)
+        assertEquals(9, coordinator.selectDictionary("large").selectedResult?.fontLevel)
+        coordinator.close()
+    }
+
+    @Test
     fun queryResourceReadAndCloseShareOneEngineSynchronizationBoundary() = runBlocking {
         val engine = BlockingEngine()
         val coordinator = DictionaryQueryCoordinator(

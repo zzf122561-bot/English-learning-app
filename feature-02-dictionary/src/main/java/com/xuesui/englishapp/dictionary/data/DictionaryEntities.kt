@@ -1,6 +1,7 @@
 package com.xuesui.englishapp.dictionary.data
 
 import androidx.room.Embedded
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -34,6 +35,7 @@ internal data class DictionaryEntity(
     val runtimeStatus: String,
     val createdAt: Long,
     val updatedAt: Long,
+    @ColumnInfo(defaultValue = "5") val fontLevel: Int = 5,
 )
 
 @Entity(
@@ -61,4 +63,3 @@ internal data class DictionaryWithResources(
     @Relation(parentColumn = "id", entityColumn = "dictionaryId")
     val resources: List<DictionaryResourceEntity>,
 )
-

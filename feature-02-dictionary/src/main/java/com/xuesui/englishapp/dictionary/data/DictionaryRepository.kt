@@ -31,6 +31,12 @@ internal class DictionaryRepository(
         check(dao.updateRuntimeStatus(id, status, now()) == 1) { "Dictionary not found: $id" }
     }
 
+    suspend fun setFontLevel(id: String, level: Int) {
+        check(dao.updateFontLevel(id, DictionaryFontScale.normalize(level)) == 1) {
+            "Dictionary not found: $id"
+        }
+    }
+
     suspend fun reorder(orderedIds: List<String>) {
         require(orderedIds.distinct().size == orderedIds.size) { "Dictionary order contains duplicates" }
         database.withTransaction {
@@ -83,6 +89,15 @@ internal class DictionaryRepository(
             throw error
         }
     }
+}
+
+internal object DictionaryFontScale {
+    const val DEFAULT_LEVEL = 5
+    private val percentages = intArrayOf(71, 82, 88, 94, 100, 112, 124, 135, 153, 176)
+
+    fun normalize(level: Int): Int = level.coerceIn(1, percentages.size)
+
+    fun textZoom(level: Int): Int = percentages[normalize(level) - 1]
 }
 
 internal object ImportedDeletionGuard {
