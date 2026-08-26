@@ -8,191 +8,178 @@ import org.junit.Test
 
 class DictionaryWebSecurityPolicyTest {
     @Test
-    fun acceptsOnlyControlledHttpsResourcePaths() {
-        assertEquals(
-            "/images/icon.png",
-            DictionaryWebSecurityPolicy.resourcePath("https://dictionary.local/images/icon.png"),
+    fun everyControlledOriginResourceShapeReachesOnlyTheCurrentMddReader() {
+        val cases = mapOf(
+            "https://dictionary.local/images/icon.png" to "/images/icon.png",
+            "https://dictionary.local/unknown/path?mode=quick#part" to "/unknown/path",
+            "https://dictionary.local/a/%2e%2e/inside.mdd?x=1" to "/a/../inside.mdd",
+            "https://dictionary.local/a%5cb.css#x" to "/a\\b.css",
+            "https://dictionary.local/" + "a".repeat(3000) to "/" + "a".repeat(3000),
         )
-        assertNull(DictionaryWebSecurityPolicy.resourcePath("http://dictionary.local/images/icon.png"))
-        assertNull(DictionaryWebSecurityPolicy.resourcePath("https://evil.example/images/icon.png"))
-        assertNull(DictionaryWebSecurityPolicy.resourcePath("file:///images/icon.png"))
-        assertNull(DictionaryWebSecurityPolicy.resourcePath("content://dictionary.local/images/icon.png"))
+        cases.forEach { (url, path) ->
+            assertEquals(path, DictionaryWebSecurityPolicy.resourcePath(url))
+            assertEquals(
+                InterceptDecision.ReadControlledResource(path),
+                DictionaryWebSecurityPolicy.intercept(url, isForMainFrame = false),
+            )
+        }
+        assertNull(DictionaryWebSecurityPolicy.resourcePath("https://dictionary.local.evil/image.png"))
+        assertNull(DictionaryWebSecurityPolicy.resourcePath("file:///image.png"))
     }
 
     @Test
-    fun generatedDataHtmlMainFrameIsHandledByWebViewButDataSubframesAreBlocked() {
-        val main = "data:text/html;charset=utf-8;base64,"
+    fun controlledPagesAreNot403EvenForMainFrameUnknownPathsQueriesOrFragments() {
+        listOf(
+            "https://dictionary.local/page",
+            "https://dictionary.local/page?mode=compact",
+            "https://dictionary.local/page#part",
+            "https://dictionary.local/?dynamic=1#",
+        ).forEach { url ->
+            assertTrue(
+                "$url must reach the current dictionary rather than 403",
+                DictionaryWebSecurityPolicy.intercept(url, isForMainFrame = true) is
+                    InterceptDecision.ReadControlledResource,
+            )
+        }
+    }
+
+    @Test
+    fun generatedDataHtmlMainFrameIsAllowedButDataSubframesStayBlocked() {
+        val main = "data:text/html;charset=utf-8;base64,PGRpdj5vazwvZGl2Pg=="
         assertTrue(
             DictionaryWebSecurityPolicy.intercept(main, isForMainFrame = true) is
                 InterceptDecision.AllowGeneratedMainDocument,
         )
+        assertTrue(DictionaryWebSecurityPolicy.intercept(main, false) is InterceptDecision.Blocked)
         assertTrue(
-            DictionaryWebSecurityPolicy.intercept(main + "PGRpdj5vazwvZGl2Pg==", isForMainFrame = true) is
-                InterceptDecision.AllowGeneratedMainDocument,
-        )
-        assertTrue(
-            DictionaryWebSecurityPolicy.intercept(main, isForMainFrame = false) is InterceptDecision.Blocked,
-        )
-        assertTrue(
-            DictionaryWebSecurityPolicy.intercept("data:text/html,<p>not-base64</p>", true) is InterceptDecision.Blocked,
-        )
-        assertTrue(
-            DictionaryWebSecurityPolicy.intercept(main + "<script>", true) is InterceptDecision.Blocked,
-        )
-    }
-
-    @Test
-    fun mainFrameConditionCannotAllowExternalFileContentOrHttpDocuments() {
-        listOf(
-            "https://example.com/",
-            "https://dictionary.local/page",
-            "http://dictionary.local/",
-            "file:///dictionary.html",
-            "content://dictionary.local/document",
-        ).forEach { url ->
-            assertTrue(
-                "$url must remain blocked",
-                DictionaryWebSecurityPolicy.intercept(url, isForMainFrame = true) is InterceptDecision.Blocked,
-            )
-        }
-    }
-
-    @Test
-    fun exactControlledBaseIsMainOnlyAndMddResourcesAreSubresourcesOnly() {
-        assertTrue(
-            DictionaryWebSecurityPolicy.intercept(DictionaryWebSecurityPolicy.BASE_URL, true) is
-                InterceptDecision.AllowGeneratedMainDocument,
-        )
-        assertTrue(
-            DictionaryWebSecurityPolicy.intercept(DictionaryWebSecurityPolicy.BASE_URL, false) is
+            DictionaryWebSecurityPolicy.intercept("data:text/html,<p>not-base64</p>", true) is
                 InterceptDecision.Blocked,
         )
-        assertEquals(
-            InterceptDecision.ReadControlledResource("/images/icon.png"),
-            DictionaryWebSecurityPolicy.intercept(
-                "https://dictionary.local/images/icon.png",
-                isForMainFrame = false,
-            ),
-        )
-        assertTrue(
-            DictionaryWebSecurityPolicy.intercept(
-                "https://dictionary.local/images/icon.png",
-                isForMainFrame = true,
-            ) is InterceptDecision.Blocked,
-        )
     }
 
     @Test
-    fun invalidControlledSubresourcesNeverReachResourceReaderClassification() {
+    fun externalAndCrossApplicationRequestsRemainBlockedForEveryFrame() {
         listOf(
-            "https://dictionary.local/a/%2e%2e/secret",
-            "https://dictionary.local/a%5cb.css",
-            "https://dictionary.local/lookup?q=word",
-            "https://dictionary.local/action/audio",
-            "https://evil.example/image.png",
-            "file:///image.png",
-            "content://dictionary.local/image.png",
+            "https://example.com/page",
+            "http://dictionary.local/page",
+            "file:///dictionary.html",
+            "content://dictionary.local/document",
+            "intent://lookup#Intent;scheme=test;end",
+            "android-app://com.example/page",
+            "mailto:user@example.com",
+            "tel:10086",
         ).forEach { url ->
-            assertTrue(
-                "$url must remain blocked",
-                DictionaryWebSecurityPolicy.intercept(url, isForMainFrame = false) is InterceptDecision.Blocked,
-            )
+            assertTrue(DictionaryWebSecurityPolicy.intercept(url, true) is InterceptDecision.Blocked)
+            assertTrue(DictionaryWebSecurityPolicy.intercept(url, false) is InterceptDecision.Blocked)
+            assertTrue(DictionaryWebSecurityPolicy.navigation(url) is NavigationDecision.Blocked)
         }
     }
 
     @Test
-    fun blocksEncodedTraversalBackslashAndOversizedPaths() {
-        assertNull(DictionaryWebSecurityPolicy.resourcePath("https://dictionary.local/a/%2e%2e/secret"))
-        assertNull(DictionaryWebSecurityPolicy.resourcePath("https://dictionary.local/a%5cb.css"))
-        assertNull(
-            DictionaryWebSecurityPolicy.resourcePath(
-                "https://dictionary.local/" + "a".repeat(2050),
-            ),
-        )
-    }
-
-    @Test
-    fun internalLookupIsTheOnlyAllowedNavigation() {
-        val internal = DictionaryWebSecurityPolicy.navigation("https://dictionary.local/lookup?q=next%20word")
-        assertEquals("next word", (internal as NavigationDecision.InternalLookup).query)
-        assertTrue(DictionaryWebSecurityPolicy.navigation("https://dictionary.local/page") is NavigationDecision.Blocked)
-        assertTrue(DictionaryWebSecurityPolicy.navigation("https://example.com/") is NavigationDecision.Blocked)
-    }
-
-    @Test
-    fun onlySafeSameDocumentAnchorsAreDelegatedToWebView() {
-        assertEquals(
-            NavigationDecision.SameDocumentAnchor("sense 1"),
-            DictionaryWebSecurityPolicy.navigation("https://dictionary.local/#sense%201"),
-        )
-        assertTrue(DictionaryWebSecurityPolicy.navigation("https://dictionary.local/#") is NavigationDecision.Blocked)
-        assertTrue(DictionaryWebSecurityPolicy.navigation("https://example.com/#sense") is NavigationDecision.Blocked)
-        assertTrue(DictionaryWebSecurityPolicy.navigation("javascript:#sense") is NavigationDecision.Blocked)
-        assertTrue(DictionaryWebSecurityPolicy.navigation("file:///entry.html#sense") is NavigationDecision.Blocked)
-        assertTrue(DictionaryWebSecurityPolicy.navigation("content://dictionary.local/#sense") is NavigationDecision.Blocked)
-        assertTrue(
-            DictionaryWebSecurityPolicy.navigation("https://dictionary.local/page#sense") is NavigationDecision.Blocked,
-        )
-    }
-
-    @Test
-    fun controlledAudioActionsAcceptOnlySafeMddOrStrictHttpsCandidates() {
-        assertEquals(
-            NavigationDecision.PlayAudio(DictionaryAudioAction(DictionaryAudioSource.MDD, "/uk/word.mp3")),
-            DictionaryWebSecurityPolicy.navigation(
-                "https://dictionary.local/action/audio?source=mdd&value=%2Fuk%2Fword.mp3",
-            ),
-        )
-        assertEquals(
-            NavigationDecision.PlayAudio(
-                DictionaryAudioAction(DictionaryAudioSource.HTTPS, "https://audio.example/word.mp3"),
-            ),
-            DictionaryWebSecurityPolicy.navigation(
-                "https://dictionary.local/action/audio?source=https&value=https%3A%2F%2Faudio.example%2Fword.mp3",
-            ),
-        )
+    fun ordinaryEncodedAndEmptyFragmentsAreAlwaysNativeSameDocumentNavigation() {
         listOf(
-            "https://dictionary.local/action/audio?source=mdd&value=..%2Fsecret.mp3",
-            "https://dictionary.local/action/audio?source=https&value=http%3A%2F%2Faudio.example%2Fword.mp3",
-            "https://dictionary.local/action/audio?source=https&value=file%3A%2F%2F%2Fword.mp3",
-            "https://dictionary.local/action/audio?source=mdd&value=%2Fok.mp3&value=%2Fsecond.mp3",
-            "https://dictionary.local/action/audio?source=mdd&value=${"a".repeat(2050)}",
+            "https://dictionary.local/#sense",
+            "https://dictionary.local/#sense%201",
+            "https://dictionary.local/#",
+            "https://dictionary.local/#%00${"x".repeat(2000)}",
         ).forEach { url ->
-            assertTrue("$url must remain blocked", DictionaryWebSecurityPolicy.navigation(url) is NavigationDecision.Blocked)
+            assertTrue(DictionaryWebSecurityPolicy.navigation(url) is NavigationDecision.SameDocumentAnchor)
         }
     }
 
     @Test
-    fun anchorDispatchDoesNotCreateQueryOrBackStackAndAudioNeverNavigates() {
+    fun sameOriginPathsQueriesAndDomGeneratedLinksAreAllowedWithoutEnumeration() {
+        listOf(
+            "https://dictionary.local/page",
+            "https://dictionary.local/unknown/path?x=1",
+            "https://dictionary.local/generated/by/dom?mode=quick#target",
+        ).forEach { url ->
+            assertEquals(NavigationDecision.AllowControlledInternal, DictionaryWebSecurityPolicy.navigation(url))
+        }
+    }
+
+    @Test
+    fun entryBwordAndCustomDictionarySchemesReplaceTheCurrentQuery() {
+        assertEquals(
+            NavigationDecision.InternalLookup("ice cream"),
+            DictionaryWebSecurityPolicy.navigation("entry://ice%20cream"),
+        )
+        assertEquals(
+            NavigationDecision.InternalLookup("apple"),
+            DictionaryWebSecurityPolicy.navigation("bword:apple"),
+        )
+        assertEquals(
+            NavigationDecision.InternalLookup("target"),
+            DictionaryWebSecurityPolicy.navigation("mdict-internal://target"),
+        )
+        assertEquals(
+            NavigationDecision.InternalLookup("next word"),
+            DictionaryWebSecurityPolicy.navigation("https://dictionary.local/lookup?q=next%20word"),
+        )
+    }
+
+    @Test
+    fun inlineDictionaryScriptIsNativeButNeverAHostBridgeOrExternalNavigation() {
+        assertEquals(
+            NavigationDecision.AllowInlineScript,
+            DictionaryWebSecurityPolicy.navigation("javascript:this.className='expanded'"),
+        )
         var lookups = 0
         var audio = 0
         var blocked = 0
         assertFalse(
             dispatchDictionaryNavigation(
-                NavigationDecision.SameDocumentAnchor("sense"),
-                { lookups++ },
-                { audio++ },
-                { blocked++ },
-            ),
-        )
-        assertTrue(
-            dispatchDictionaryNavigation(
-                NavigationDecision.PlayAudio(DictionaryAudioAction(DictionaryAudioSource.MDD, "/word.mp3")),
+                NavigationDecision.AllowInlineScript,
                 { lookups++ },
                 { audio++ },
                 { blocked++ },
             ),
         )
         assertEquals(0, lookups)
-        assertEquals(1, audio)
+        assertEquals(0, audio)
         assertEquals(0, blocked)
     }
 
     @Test
-    fun generatedDocumentDeclaresRestrictiveCsp() {
-        val html = secureHtmlDocument("<p>definition</p>")
+    fun sameDocumentAndSameOriginDispatchNeverMutateQueryOrAddModuleBackStack() {
+        var lookups = 0
+        var blocked = 0
+        listOf(
+            NavigationDecision.SameDocumentAnchor(""),
+            NavigationDecision.AllowControlledInternal,
+        ).forEach { decision ->
+            assertFalse(dispatchDictionaryNavigation(decision, { lookups++ }, {}, { blocked++ }))
+        }
+        assertEquals(0, lookups)
+        assertEquals(0, blocked)
+    }
+
+    @Test
+    fun controlledAudioActionStillUsesTheExistingCoordinatorBoundary() {
+        assertEquals(
+            NavigationDecision.PlayAudio(DictionaryAudioAction(DictionaryAudioSource.MDD, "/uk/word.mp3")),
+            DictionaryWebSecurityPolicy.navigation(
+                "https://dictionary.local/action/audio?source=mdd&value=%2Fuk%2Fword.mp3",
+            ),
+        )
+        listOf(
+            "https://dictionary.local/action/audio?source=mdd&value=..%2Fsecret.mp3",
+            "https://dictionary.local/action/audio?source=https&value=http%3A%2F%2Faudio.example%2Fword.mp3",
+        ).forEach { url ->
+            assertTrue(DictionaryWebSecurityPolicy.navigation(url) is NavigationDecision.Blocked)
+        }
+    }
+
+    @Test
+    fun generatedDocumentAllowsOnlyLocalAndInlineDictionaryScripts() {
+        val html = secureHtmlDocument(
+            "<a onclick=\"this.className='expanded'\">quick</a>" +
+                "<script>document.body.dataset.ready='1'</script>",
+        )
+        assertTrue(html.contains("script-src https://dictionary.local 'unsafe-inline'"))
         assertTrue(html.contains("default-src 'none'"))
-        assertTrue(html.contains("https://dictionary.local"))
-        assertTrue(html.contains("<p>definition</p>"))
+        assertFalse(html.contains("https://example.com"))
+        assertTrue(html.contains("onclick="))
+        assertTrue(html.contains("<script>"))
     }
 }

@@ -20,6 +20,7 @@ class RealDictionaryHtmlCompatibilityTest {
     fun realEntryLinksAreRewrittenAndAudioReferencesDriveMddOrDocumentedFallback() = runBlocking {
         authorizedDictionaries().forEach { files ->
             PureKotlinMdictEngine.open(MdictSource(files.mdx, listOf(files.mdd))).use { engine ->
+                val mechanisms = LinkMechanismStats()
                 val internalTypes = linkedSetOf<String>()
                 val lookupTargets = linkedSetOf<String>()
                 val audioPaths = linkedSetOf<String>()
@@ -29,6 +30,7 @@ class RealDictionaryHtmlCompatibilityTest {
                 var audioActions = 0
                 candidateHeadwords(engine).forEach { query ->
                     val entry = engine.exactLookup(query) ?: return@forEach
+                    mechanisms.inspect(entry.html)
                     anchorLinks += Regex("""href\s*=\s*[\"']#[^\"']+[\"']""", RegexOption.IGNORE_CASE)
                         .findAll(entry.html).count()
                     val rewritten = DictionaryHtmlRewriter.rewrite(entry.html)
@@ -61,6 +63,15 @@ class RealDictionaryHtmlCompatibilityTest {
                 }
 
                 assertTrue("No real internal links were rewritten for ${files.label}", internalTypes.isNotEmpty())
+                assertTrue("No real entry links found for ${files.label}", mechanisms.hrefSchemes.getOrDefault("entry", 0) > 0)
+                assertTrue("No real relative links found for ${files.label}", mechanisms.hrefSchemes.getOrDefault("relative", 0) > 0)
+                if (files.label == "oxford9") {
+                    assertTrue("Oxford shortcut onclick mechanism missing", mechanisms.eventNames.getOrDefault("onclick", 0) > 0)
+                    assertTrue(
+                        "Oxford shortcut className mechanism missing",
+                        mechanisms.handlerMechanisms.getOrDefault("className", 0) > 0,
+                    )
+                }
                 val exactTargetHit = lookupTargets.asSequence().take(128).any { engine.exactLookup(it) != null }
                 assertTrue("No rewritten real internal link resolved for ${files.label}", exactTargetHit)
                 if (anchorLinks > 0) {
@@ -73,6 +84,9 @@ class RealDictionaryHtmlCompatibilityTest {
                 }
                 val mddAudioResources = engine.resourceKeys().count { key ->
                     key.substringAfterLast('.', "").lowercase(Locale.ROOT) in setOf("mp3", "wav", "ogg", "m4a", "aac")
+                }
+                val mddScriptResources = engine.resourceKeys().count { key ->
+                    key.substringBefore('?').substringAfterLast('.', "").equals("js", ignoreCase = true)
                 }
                 if (audioPaths.isEmpty()) {
                     assertTrue(
@@ -107,6 +121,10 @@ class RealDictionaryHtmlCompatibilityTest {
                         "internalExactHit=$exactTargetHit audioReferences=${audioPaths.size} " +
                         "anchors=$anchorLinks controlledAnchors=$controlledAnchorLinks audioActions=$audioActions " +
                         "mddAudioResources=$mddAudioResources " +
+                        "hrefSchemes=${mechanisms.hrefSchemes.toSortedMap()} events=${mechanisms.eventAttributes} " +
+                        "eventNames=${mechanisms.eventNames.toSortedMap()} handlerMechanisms=${mechanisms.handlerMechanisms.toSortedMap()} " +
+                        "inlineScripts=${mechanisms.inlineScripts} scriptSources=${mechanisms.scriptSources} " +
+                        "mddScriptResources=$mddScriptResources " +
                         "resource=${if (embeddedHit == null) "missing" else "hit"} fallback=${fallback?.name ?: "NONE"}",
                 )
             }
@@ -149,4 +167,60 @@ class RealDictionaryHtmlCompatibilityTest {
     }
 
     private data class DictionaryFiles(val label: String, val mdx: File, val mdd: File)
+
+    private class LinkMechanismStats {
+        val hrefSchemes = linkedMapOf<String, Int>()
+        var eventAttributes = 0
+        val eventNames = linkedMapOf<String, Int>()
+        val handlerMechanisms = linkedMapOf<String, Int>()
+        var inlineScripts = 0
+        var scriptSources = 0
+
+        fun inspect(html: String) {
+            Regex("""\bhref\s*=\s*([\"'])(.*?)\1""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+                .findAll(html)
+                .forEach { match ->
+                    val value = match.groupValues[2].trim()
+                    val type = when {
+                        value.startsWith("#") -> "fragment"
+                        value.startsWith("//") -> "network-relative"
+                        value.startsWith("/") -> "absolute-path"
+                        value.substringBefore(':', "").matches(Regex("[A-Za-z][A-Za-z0-9+.-]*")) ->
+                            value.substringBefore(':').lowercase(Locale.ROOT)
+                        else -> "relative"
+                    }
+                    hrefSchemes[type] = hrefSchemes.getOrDefault(type, 0) + 1
+                }
+            Regex(
+                """\b(on[a-z]+)\s*=\s*([\"'])(.*?)\2""",
+                setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
+            ).findAll(html).forEach { match ->
+                eventAttributes++
+                val eventName = match.groupValues[1].lowercase(Locale.ROOT)
+                eventNames[eventName] = eventNames.getOrDefault(eventName, 0) + 1
+                val handler = match.groupValues[3]
+                val mechanism = when {
+                    handler.contains("scrollIntoView", ignoreCase = true) -> "scrollIntoView"
+                    handler.contains("getElementById", ignoreCase = true) -> "getElementById"
+                    handler.contains("querySelector", ignoreCase = true) -> "querySelector"
+                    handler.contains("location", ignoreCase = true) -> "location"
+                    handler.contains("style.", ignoreCase = true) -> "style"
+                    handler.contains("classList", ignoreCase = true) -> "classList"
+                    handler.contains("className", ignoreCase = true) -> "className"
+                    else -> Regex("""(?:return\s+)?([A-Za-z_$][A-Za-z0-9_$.]*)\s*\(""")
+                        .find(handler)?.groupValues?.get(1)?.let { "call:$it" } ?: "expression"
+                }
+                handlerMechanisms[mechanism] = handlerMechanisms.getOrDefault(mechanism, 0) + 1
+            }
+            Regex("""<script\b([^>]*)>""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+                .findAll(html)
+                .forEach { match ->
+                    if (Regex("""\bsrc\s*=""", RegexOption.IGNORE_CASE).containsMatchIn(match.groupValues[1])) {
+                        scriptSources++
+                    } else {
+                        inlineScripts++
+                    }
+                }
+        }
+    }
 }
