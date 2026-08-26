@@ -15,7 +15,7 @@ internal data class RewrittenDictionaryHtml(
 
 /** Converts only recognized dictionary references into the controlled WebView origin. */
 internal object DictionaryHtmlRewriter {
-    private val tagPattern = Regex("<\\s*(a|area|img|link|audio|source)\\b[^>]*>", RegexOption.IGNORE_CASE)
+    private val tagPattern = Regex("<\\s*(a|area|img|link|audio|source|script)\\b[^>]*>", RegexOption.IGNORE_CASE)
     private val attributePattern = Regex("""\b(href|src)\s*=\s*(?:(["'])(.*?)\2|([^\s>]+))""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
     private val audioExtensions = setOf("mp3", "wav", "ogg", "m4a", "aac")
     private val resourceExtensions = audioExtensions + setOf("css", "js", "png", "jpg", "jpeg", "gif", "webp", "svg", "woff", "woff2", "ttf", "otf")
@@ -48,14 +48,16 @@ internal object DictionaryHtmlRewriter {
         embeddedAudio: MutableSet<String>,
         httpsAudio: MutableSet<String>,
     ): String? {
-        if (value.isBlank() || value.length > 2048) return null
+        if (value.isBlank()) return null
         if ((tag == "a" || tag == "area") && attribute == "href" && value.startsWith('#')) {
-            val fragment = decode(value.drop(1))?.trim().orEmpty()
-            if (fragment.isEmpty() || fragment.length > 512 || fragment.any(::isControl)) return null
             internalTypes += "anchor"
-            return DictionaryWebSecurityPolicy.BASE_URL + "#" + encode(fragment)
+            return DictionaryWebSecurityPolicy.BASE_URL + value
         }
         val scheme = value.substringBefore(':', "").lowercase(Locale.ROOT)
+        if ((tag == "a" || tag == "area") && attribute == "href" && scheme == "javascript") {
+            internalTypes += "javascript"
+            return null
+        }
         val audioReference = tag == "audio" || tag == "source" || extension(value) in audioExtensions ||
             scheme == "sound" || scheme == "audio"
         if (audioReference && scheme == "https" && isStrictHttpsAudioUrl(value)) {
@@ -78,13 +80,17 @@ internal object DictionaryHtmlRewriter {
         }
 
         if ((tag == "a" || tag == "area") && attribute == "href") {
+            if (scheme == "https" && value.startsWith(DictionaryWebSecurityPolicy.BASE_URL, ignoreCase = true)) {
+                internalTypes += "same-origin"
+                return null
+            }
             internalQuery(value)?.let { (type, query) ->
                 internalTypes += type
                 return controlledLookupUrl(query)
             }
         }
 
-        if (scheme.isEmpty() && (tag == "img" || tag == "link" || attribute == "src" || extension(value) in resourceExtensions)) {
+        if (scheme.isEmpty() && (tag in setOf("img", "link", "script") || attribute == "src" || extension(value) in resourceExtensions)) {
             normalizeMddAudioPath(value)?.let { return controlledResourceUrl(it) }
         }
         return null
@@ -95,8 +101,10 @@ internal object DictionaryHtmlRewriter {
         val encoded = when (scheme) {
             "entry", "bword" -> value.substringAfter(":").removePrefix("//")
             else -> {
-                if (scheme.isNotEmpty() || value.startsWith('/') || extension(value) in resourceExtensions) return null
-                value
+                if (scheme in EXTERNAL_OR_LOCAL_SCHEMES || value.startsWith('/') || extension(value) in resourceExtensions) {
+                    return null
+                }
+                if (scheme.isEmpty()) value else value.substringAfter(':').removePrefix("//")
             }
         }.substringBefore('#').substringBefore('?')
         val query = decode(encoded)?.trim().orEmpty()
@@ -126,7 +134,10 @@ internal object DictionaryHtmlRewriter {
     private fun encode(value: String): String =
         URLEncoder.encode(value, StandardCharsets.UTF_8.name()).replace("+", "%20")
 
-    private fun isControl(character: Char): Boolean = character.code < 0x20 || character.code == 0x7f
+    private val EXTERNAL_OR_LOCAL_SCHEMES = setOf(
+        "http", "https", "javascript", "file", "content", "intent", "android-app", "data", "about",
+        "sound", "audio",
+    )
 }
 
 internal fun normalizeMddAudioPath(value: String): String? {

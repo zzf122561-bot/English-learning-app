@@ -21,7 +21,7 @@ import java.io.ByteArrayInputStream
 @Suppress("DEPRECATION")
 internal fun configureSecureSettings(webView: WebView) {
     webView.settings.apply {
-        javaScriptEnabled = false
+        javaScriptEnabled = true
         javaScriptCanOpenWindowsAutomatically = false
         allowFileAccess = false
         allowContentAccess = false
@@ -61,7 +61,7 @@ internal class SecureDictionaryWebViewClient(
             "OK",
             mapOf(
                 "Cache-Control" to "no-store",
-                "Content-Security-Policy" to "default-src 'none'",
+                "Content-Security-Policy" to DICTIONARY_CONTENT_SECURITY_POLICY,
                 "X-Content-Type-Options" to "nosniff",
             ),
             ByteArrayInputStream(resource.bytes),
@@ -158,6 +158,8 @@ internal fun dispatchDictionaryNavigation(
     onBlocked: () -> Unit,
 ): Boolean = when (decision) {
     is NavigationDecision.SameDocumentAnchor -> false
+    NavigationDecision.AllowControlledInternal -> false
+    NavigationDecision.AllowInlineScript -> false
     is NavigationDecision.InternalLookup -> true.also { onInternalLookup(decision.query) }
     is NavigationDecision.PlayAudio -> true.also { onAudioAction(decision.action) }
     NavigationDecision.Blocked -> true.also { onBlocked() }
@@ -166,7 +168,12 @@ internal fun dispatchDictionaryNavigation(
 internal fun secureHtmlDocument(body: String): String = """
     <!doctype html><html><head>
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https://${DictionaryWebSecurityPolicy.HOST}; style-src https://${DictionaryWebSecurityPolicy.HOST} 'unsafe-inline'; media-src https://${DictionaryWebSecurityPolicy.HOST}; font-src https://${DictionaryWebSecurityPolicy.HOST}">
+    <meta http-equiv="Content-Security-Policy" content="$DICTIONARY_CONTENT_SECURITY_POLICY">
     <style>body{margin:14px;color:#14213D;background:#F4F7FB;font-family:sans-serif;line-height:1.55}a{color:#2F5D8C}</style>
     </head><body>$body</body></html>
 """.trimIndent()
+
+internal const val DICTIONARY_CONTENT_SECURITY_POLICY =
+    "default-src 'none'; img-src https://dictionary.local; style-src https://dictionary.local 'unsafe-inline'; " +
+        "script-src https://dictionary.local 'unsafe-inline'; media-src https://dictionary.local; " +
+        "font-src https://dictionary.local"

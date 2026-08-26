@@ -1,5 +1,15 @@
 # 功能 2 变更记录
 
+## 0.2.1 — 待总控集成构建 test.002
+
+- 2026-08-26：App 1.0.0 test.001 用户设备确认词典应用内链接仍失败；用户要求取消所有词典应用内链接限制。无设备日志、具体词条或原始链接标记，本功能任务未宣称复现。
+- 2026-08-26：取消 v0.2.0 对受控内部链接的片段字符/长度、路径、query、fragment、扩展名和少量格式白名单；`dictionary.local` 同源页面与 MDD 资源不再因未知形态直接 403。
+- 2026-08-26：相对/绝对同源、`entry:`、`bword:`、其他词典自定义 scheme、DOM 动态链接、普通/编码/空 fragment 默认兼容；跨词条仍替换当前查询，QUICK_LOOKUP 不增加返回层。
+- 2026-08-26：真实结构审计确认 Collins 为 `entry:`+相对链接且无脚本；Oxford9 存在 386 个 `onclick`，均通过 `className` 完成快捷定位，词条与 MDD 均无脚本文件。由此仅在受控词典 WebView 启用 JavaScript/内联脚本，并支持相对 MDD `.js` 资源读取；没有注入兼容脚本或 JS Bridge。
+- 2026-08-26：外部 HTTP/HTTPS 页面、file/content/intent/android-app/跨应用访问、文件/内容访问、多窗口和外部脚本继续阻止；当前词典 MDD 读取与 8 MiB 上限保持。
+- 2026-08-26：`--rerun-tasks` 强制回归通过：63 项 JVM 测试、0 failures/errors/skipped、37 tasks executed；3 个 androidTest 源文件共 10 项编译成功；AAR 468,724 bytes，SHA-256 `69931817087AFB9A500E09D0FFDFF25D1BCAF9B577A40E0313997C662D2223AD`；native/JNI=0、APK=0。
+- 当前无设备；v0.2.1 只达到 `ready_for_integration / awaiting_manager_build`，等待总控构建 App 1.0.0 test.002 和用户设备验收。解析内核、Room、导入、音频、字号与公共契约均未变化。
+
 ## 0.2.0 — 待总控集成构建
 
 - 2026-08-25：用户重新授权处理 `F02-LINK-001`、`F02-AUDIO-001`，并批准每本词典独立正文字号；未改变公共 `DictionaryFeature` 签名。

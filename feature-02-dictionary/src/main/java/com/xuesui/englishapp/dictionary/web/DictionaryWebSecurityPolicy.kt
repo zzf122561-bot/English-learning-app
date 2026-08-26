@@ -3,10 +3,13 @@ package com.xuesui.englishapp.dictionary.web
 import java.net.URI
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
+import java.util.Locale
 
 internal sealed interface NavigationDecision {
     data class InternalLookup(val query: String) : NavigationDecision
     data class SameDocumentAnchor(val fragment: String) : NavigationDecision
+    data object AllowControlledInternal : NavigationDecision
+    data object AllowInlineScript : NavigationDecision
     data class PlayAudio(val action: DictionaryAudioAction) : NavigationDecision
     data object Blocked : NavigationDecision
 }
@@ -31,51 +34,49 @@ internal object DictionaryWebSecurityPolicy {
     const val MAX_RESOURCE_BYTES = 8 * 1024 * 1024
 
     fun intercept(url: String, isForMainFrame: Boolean): InterceptDecision {
-        if (isForMainFrame) {
-            return if (isGeneratedMainDocument(url)) {
-                InterceptDecision.AllowGeneratedMainDocument
-            } else {
-                InterceptDecision.Blocked
-            }
-        }
+        if (isForMainFrame && isGeneratedMainDocument(url)) return InterceptDecision.AllowGeneratedMainDocument
         return resourcePath(url)?.let(InterceptDecision::ReadControlledResource)
             ?: InterceptDecision.Blocked
     }
 
     fun resourcePath(url: String): String? {
         val uri = parseControlled(url) ?: return null
-        if (uri.rawQuery != null || uri.rawFragment != null) return null
-        val decoded = decodeComponent(uri.rawPath ?: return null) ?: return null
-        if (decoded.length > 2048 || decoded.indexOf('\u0000') >= 0 || decoded.contains('\\')) return null
-        val segments = decoded.split('/').filter(String::isNotEmpty)
-        if (segments.isEmpty() || segments.any { it == "." || it == ".." }) return null
-        if (segments.first().lowercase() in setOf("lookup", "action")) return null
-        return "/" + segments.joinToString("/")
+        val rawPath = uri.rawPath.orEmpty().ifEmpty { "/" }
+        val decoded = decodeComponent(rawPath) ?: rawPath
+        return decoded.let { if (it.startsWith('/')) it else "/$it" }
     }
 
     fun navigation(url: String): NavigationDecision {
-        val uri = parseControlled(url) ?: return NavigationDecision.Blocked
-        if (uri.path == "/" && uri.rawQuery == null && uri.rawFragment != null) {
-            val fragment = decodeComponent(uri.rawFragment)?.trim().orEmpty()
-            return if (fragment.isNotEmpty() && fragment.length <= 512 && fragment.none(::isControl)) {
-                NavigationDecision.SameDocumentAnchor(fragment)
-            } else {
-                NavigationDecision.Blocked
-            }
+        if (url.startsWith("$BASE_URL#")) {
+            return NavigationDecision.SameDocumentAnchor(url.substringAfter('#'))
         }
+        val scheme = url.substringBefore(':', "").lowercase(Locale.ROOT)
+        if (scheme == "javascript") return NavigationDecision.AllowInlineScript
+        if (scheme in BLOCKED_SCHEMES) return NavigationDecision.Blocked
+        if (scheme.isNotEmpty() && scheme !in setOf("http", "https")) {
+            return internalTarget(url)?.let(NavigationDecision::InternalLookup) ?: NavigationDecision.Blocked
+        }
+        val uri = parseControlled(url) ?: return NavigationDecision.Blocked
         if (uri.path == AUDIO_ACTION_PATH && uri.rawFragment == null) {
             return parseAudioAction(uri.rawQuery)
         }
-        if (uri.path != "/lookup" || uri.rawFragment != null) return NavigationDecision.Blocked
-        val query = uri.rawQuery.orEmpty().split('&').mapNotNull { pair ->
-            val parts = pair.split('=', limit = 2)
-            if (parts.firstOrNull() != "q") null else decodeComponent(parts.getOrElse(1) { "" })
-        }.singleOrNull()?.trim().orEmpty()
-        return if (query.isEmpty() || query.length > 256) {
-            NavigationDecision.Blocked
-        } else {
-            NavigationDecision.InternalLookup(query)
+        if (uri.path == "/lookup" && uri.rawFragment == null) {
+            val query = uri.rawQuery.orEmpty().split('&').mapNotNull { pair ->
+                val parts = pair.split('=', limit = 2)
+                if (parts.firstOrNull() != "q") null else decodeComponent(parts.getOrElse(1) { "" })
+            }.singleOrNull()?.trim().orEmpty()
+            if (query.isNotEmpty() && query.length <= 256) return NavigationDecision.InternalLookup(query)
         }
+        return if (uri.rawFragment != null && uri.path == "/") {
+            NavigationDecision.SameDocumentAnchor(uri.rawFragment.orEmpty())
+        } else {
+            NavigationDecision.AllowControlledInternal
+        }
+    }
+
+    private fun internalTarget(url: String): String? {
+        val target = url.substringAfter(':').removePrefix("//").substringBefore('#').substringBefore('?')
+        return decodeComponent(target)?.trim()?.takeIf { it.isNotEmpty() && it.length <= 256 }
     }
 
     private fun parseAudioAction(rawQuery: String?): NavigationDecision {
@@ -128,7 +129,9 @@ internal object DictionaryWebSecurityPolicy {
         null
     }
 
-    private fun isControl(character: Char): Boolean = character.code < 0x20 || character.code == 0x7f
-
     private const val DATA_HTML_BASE64_PREFIX = "data:text/html;charset=utf-8;base64,"
+    private val BLOCKED_SCHEMES = setOf(
+        "file", "content", "intent", "android-app", "data", "about", "blob",
+        "mailto", "tel", "sms", "geo", "market", "ftp", "ws", "wss",
+    )
 }
