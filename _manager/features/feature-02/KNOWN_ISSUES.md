@@ -4,7 +4,7 @@
 
 | ID | 用户观察 | 首次登记 | 当前状态 | 用户决定 |
 |---|---|---|---|---|
-| `F02-LINK-001` | 词典具体内容页面中的链接被阻止，无法按预期打开或跳转 | App v0.3.0 test.002，2026-08-24用户自测 | v0.2.1 integrated / awaiting App 1.0.0 test.002 device verification | v0.2.0受控锚点方案实机仍失败；v0.2.1已按用户要求改为词典内部默认放行 |
+| `F02-LINK-001` | 词典具体内容页面中的链接被阻止，无法按预期打开或跳转 | App v0.3.0 test.002，2026-08-24用户自测 | App 1.0.0 test.002 built / awaiting device verification | v0.2.0受控锚点方案实机仍失败；v0.2.1已按用户要求改为词典内部默认放行 |
 | `F02-AUDIO-001` | 无法获得词条内部发音 | App v0.3.0 test.002，2026-08-24用户自测 | implemented / awaiting App 1.0.0 device verification | 功能2 v0.2.0已接通正文与顶部入口；两本内置词典预期回退TTS；尚未实机确认 |
 
 ## 证据边界

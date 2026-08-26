@@ -10,8 +10,8 @@
 | 公共入口 | `DictionaryFeature(initialQuery, presentation, onClose)` |
 | 数据库 | 独立 Room数据库 `englishapp_dictionary.db`，版本2；显式 `MIGRATION_1_2` |
 | 私有内置资料 | 两套 MDX/MDD；原始文件不进入 Git，只记录哈希 |
-| 集成状态 | v0.2.1功能提交 `de23797`、主线合并 `68644a9`；63 tests和边界检查通过，等待构建App 1.0.0 test.002 |
-| 设备验收 | v0.3.0 test.002历史验收接受2项问题；App 1.0.0 test.001内部链接仍失败；test.002待用户复测 |
+| 集成状态 | v0.2.1功能提交 `de23797`、主线合并 `68644a9`；App 1.0.0 test.002已从 `5719bb3`签名归档 |
+| 设备验收 | v0.3.0 test.002历史验收接受2项问题；App 1.0.0 test.001内部链接仍失败；新test.002待用户复测 |
 
 ## 解析路线审计历史
 
@@ -38,3 +38,4 @@
 - 2026-08-26：用户实机确认App 1.0.0 test.001词典应用内链接“还是不行”，要求取消所有应用内链接限制；test.001判定不通过且不得覆盖、提升或重建。
 - 2026-08-26：真实两本词典结构审计确认Oxford9快捷定位依赖386个 `onclick/className`事件。功能2v0.2.1取消 `dictionary.local`内部白名单并在受控页面启用本地/内联JavaScript，不添加JS Bridge；外部/本地/跨应用边界继续隔离。
 - 2026-08-26：总控仅审查v0.2.1 WebView增量并独立强制复跑：63 tests/0 failures/errors/skipped、3个androidTest源码共10项编译、AAR 468,724 bytes、SHA-256 `69931817087AFB9A500E09D0FFDFF25D1BCAF9B577A40E0313997C662D2223AD`、JNI/APK=0；边界仍为1 Application/2 Library。功能提交 `de23797`，主线合并 `68644a9`。
+- 2026-08-26：从干净来源提交 `5719bb3`完成完整release构建、lint、签名、对齐、元数据和内置资产验证；`EnglishApp-v1.0.0-test.002-5719bb3.apk`大小106,004,624 bytes，SHA-256 `6EF00A222D073EA87D58CD246226B43B3ADDC5E42A12A37A1D59474FC0AD160C`，永久归档等待用户实机。

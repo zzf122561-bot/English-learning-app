@@ -9,3 +9,4 @@
 - `app/v0.3.0/test.001/EnglishApp-v0.3.0-test.001-bfbfcc5.apk`（用户实机不通过，保留历史）
 - `app/v0.3.0/test.002/EnglishApp-v0.3.0-test.002-6010e73.apk`（同一二进制已由用户验收并提升正式v0.3.0；接受2项已知问题）
 - `app/v1.0.0/test.001/EnglishApp-v1.0.0-test.001-a3b5e2a.apk`（自动测试与签名构建通过；用户实机确认内部链接仍失败，候选不通过并永久保留）
+- `app/v1.0.0/test.002/EnglishApp-v1.0.0-test.002-5719bb3.apk`（自动测试、签名和资产校验通过；等待用户覆盖安装验收）
