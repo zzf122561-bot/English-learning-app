@@ -5,13 +5,13 @@
 | 功能 ID | `feature-02-dictionary` |
 | 功能任务 | `功能2：词典` / `01a02fd4-7dcb-7882-aad0-0ed84ad3254c` |
 | 工作区 | `C:\Users\zzf86\.codex\worktrees\b83b\Codex_EnglishApp`；分支 `codex/feature-02-dictionary` |
-| 当前功能版本 | `0.1.1`；已集成并获用户验收，接受2项已知问题 |
-| 目标 App 版本 | `0.3.0` / versionCode 4 |
+| 当前功能版本 | `0.2.1`；已由总控增量审查、复测并合并，等待App test.002实机验收 |
+| 目标 App 版本 | `1.0.0` / versionCode 5 / test.002 |
 | 公共入口 | `DictionaryFeature(initialQuery, presentation, onClose)` |
-| 数据库 | 独立 Room 数据库 `englishapp_dictionary.db`，版本 1 |
+| 数据库 | 独立 Room数据库 `englishapp_dictionary.db`，版本2；显式 `MIGRATION_1_2` |
 | 私有内置资料 | 两套 MDX/MDD；原始文件不进入 Git，只记录哈希 |
-| 集成状态 | v0.1.1只修主文档加载链路；功能提交 `49229d4`、主线合并 `6010e73`，test.002已签名归档 |
-| 设备验收 | test.001正文失败；test.002用户概括确认除内容链接和内部发音外其余正常，验收通过并接受延期修复 |
+| 集成状态 | v0.2.1功能提交 `de23797`、主线合并 `68644a9`；63 tests和边界检查通过，等待构建App 1.0.0 test.002 |
+| 设备验收 | v0.3.0 test.002历史验收接受2项问题；App 1.0.0 test.001内部链接仍失败；test.002待用户复测 |
 
 ## 解析路线审计历史
 
@@ -34,3 +34,7 @@
 - 2026-08-24：功能任务仅修改WebView请求分类、同组测试和状态文档；总控只增量审查该范围并独立复跑37个任务：52 tests/0 failures/errors/skipped、AAR 430,712 bytes、SHA-256 `0E4D71852AB7A8D520F6C625EB0F18D62C36DAC5CEFF84181D8BF0BF08879FAF`、JNI/APK=0。功能提交 `49229d4`，主线合并 `6010e73`。
 - 2026-08-24：从干净提交 `6010e73` 清理三个模块并完成167个Gradle任务、边界检查、签名和资产逐项校验；`EnglishApp-v0.3.0-test.002-6010e73.apk` 已永久归档。当前仅有自动证据，正文恢复、CSS/图片及导航仍待用户实机复测。
 - 2026-08-24：用户实机概括确认test.002除“具体内容页面链接被阻止”和“无法获得内部发音”外其余均正常，并要求先记录、不修。两项登记为 `F02-LINK-001`、`F02-AUDIO-001`；本版接受已知问题并正式提升，未修改功能代码或APK。
+- 2026-08-25：用户重新授权功能2v0.2.0修复内部链接与双发音入口，并增加逐词典十档字号；Room通过显式 `MIGRATION_1_2`升级到2。总控独立复跑61项JVM测试并合并，App 1.0.0 test.001从干净提交构建、签名和永久归档。
+- 2026-08-26：用户实机确认App 1.0.0 test.001词典应用内链接“还是不行”，要求取消所有应用内链接限制；test.001判定不通过且不得覆盖、提升或重建。
+- 2026-08-26：真实两本词典结构审计确认Oxford9快捷定位依赖386个 `onclick/className`事件。功能2v0.2.1取消 `dictionary.local`内部白名单并在受控页面启用本地/内联JavaScript，不添加JS Bridge；外部/本地/跨应用边界继续隔离。
+- 2026-08-26：总控仅审查v0.2.1 WebView增量并独立强制复跑：63 tests/0 failures/errors/skipped、3个androidTest源码共10项编译、AAR 468,724 bytes、SHA-256 `69931817087AFB9A500E09D0FFDFF25D1BCAF9B577A40E0313997C662D2223AD`、JNI/APK=0；边界仍为1 Application/2 Library。功能提交 `de23797`，主线合并 `68644a9`。
