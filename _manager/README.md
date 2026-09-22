@@ -15,17 +15,17 @@
 - 功能目录 `STATUS.md`：模块当前状态与证据入口；功能 `CHANGELOG.md`：版本变化；`README.md`：用途与用法。已有审计/交接文档作为证据引用，不全文复制到上述各文件。
 - `RELEASE_POLICY.md` 与 `releases/`：发布流程和每份产物的验收证据；`GITHUB_SYNC_POLICY.md` 与 `GITHUB_SYNC_LOG.md`：按需推送规则和结果。
 
-## Markdown 精简候选（2026-09-23，待用户决定）
+## Markdown 合并记录（2026-09-23）
 
-已盘点本项目 Git 跟踪的 71 个 Markdown 文件，范围不包含用户自管 Skill 和私有词典内容。现有文件包含独有的权限、里程碑、来源或验收信息，未发现可直接确定无用的整份文件；本轮不删除、移动或合并文件。以下候选仅是建议，未获同意前保持原样。
+用户已明确批准“MD-01～04 可以合并”。四项均已完成，受 Git 管理的 Markdown 从 71 份减为 68 份；移除的三份文件可由合并前 Git 历史恢复。未涉及用户自管 Skill 或私有词典内容。
 
-| 编号 | 文件或段落 | 建议 | 需保留/确认的内容 |
+| 编号 | 原位置 | 现维护入口 | 处理结果 |
 |---|---|---|---|
-| MD-01 | `_manager/features/feature-02/BUILTIN_DICTIONARIES.md` → 同目录 `BUILTIN_ASSETS.md` | 合并为一个资产登记文件，可减少 1 份 Markdown | 前者独有 Oxford PNG 项，后者有稳定 ID、清单与构建流程；全部保留并区分原始资料与打包资产，不能直接删其中一份 |
-| MD-02 | `PROJECT.md` 的“当前状态”与 `_manager/INTEGRATION_STATUS.md` | 当前集成状态只在后者维护，前者改为入口说明；不删除总纲 | 总纲仍有旧版本和历史已知问题表述；合并时明确正式基线与候选状态，不推断用户已验收 |
-| MD-03 | `feature-01-word-memory/README.md` 的测试/验收状态 → 同目录 `STATUS.md`；`feature-02-dictionary/README.md` 的“当前状态”与测试结论 → 同目录 `STATUS.md` | README 只留功能介绍、用法和状态链接，测试结论只在各自 STATUS 维护；不删除模块 README | 两功能分别处理，不互读或合并模块；保留历史版本介绍，防止将“已构建”和“待构建”混写 |
-| MD-04 | `_manager/features/feature-02/DEVICE_FEEDBACK_TEST_001.md`、`DEVICE_FEEDBACK_V1.0.0_TEST_001.md` → 同目录 `KNOWN_ISSUES.md` 的分版本反馈历史 | 按日期/版本保留完整独有事实与诊断后合并，可减少 2 份 Markdown | 主文档 403 与词条内部链接是不同问题，必须分开；原始诊断、用户原意、失败结论及证据边界都不能丢失 |
+| MD-01 | `_manager/features/feature-02/BUILTIN_DICTIONARIES.md`（已移除） | [BUILTIN_ASSETS.md](features/feature-02/BUILTIN_ASSETS.md) | 保留全部文件名、大小和哈希，包括独有 Oxford PNG；稳定 ID、清单和构建约束继续保留 |
+| MD-02 | `PROJECT.md` 的“当前状态” | [INTEGRATION_STATUS.md](INTEGRATION_STATUS.md) | 总纲改为状态入口；分别标明已验收正式基线和待用户验收候选 |
+| MD-03 | 两功能 `README.md` 中的测试/验收状态 | 各自 `STATUS.md` | README 保留用途、用法和历史功能介绍；沿用已有反馈纠正过时状态，不提高验收级别 |
+| MD-04 | `_manager/features/feature-02/DEVICE_FEEDBACK_TEST_001.md`、`DEVICE_FEEDBACK_V1.0.0_TEST_001.md`（均已移除） | [KNOWN_ISSUES.md](features/feature-02/KNOWN_ISSUES.md) 的分版本反馈历史 | 分开保留主文档 403 和内部链接故障；完整保留原始观察、诊断、用户意图、候选哈希、失败处置及证据边界 |
 
-执行条件：用户指明候选编号并回复“可以合并”后，才迁移内容、更新引用及授权路径并移除原文件；若要直接删除，须明确回复对应文件“可以去掉”。有新的不确定点再列出，不自行裁决。
+后续新的删除/合并不确定项仍须先列出，等待用户“可以去掉”或“可以合并”的明确回复；本次批准仅对应 MD-01～04。目前没有新增待用户决定的候选。
 
 明确保留：根与子目录 `AGENTS.md`、模块 `MANAGER_LINK.md`、受保护基线、公共契约、第三方许可证/来源映射、发布/验收记录、恢复与签名索引，以及各里程碑的独有审计证据。`MANAGER_OUTBOX.md` 是消息失败的持久回退入口，空闲并不代表无用途；不列为删除项。

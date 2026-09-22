@@ -1,15 +1,20 @@
 # 功能2内置词典资产登记
 
-更新时间：2026-08-24
+资产登记日期：2026-08-24；文档合并日期：2026-09-23。
+
+本文件统一保存原始资料的文件名、大小、SHA-256 及内置资产契约。2026-09-23 经用户批准 MD-01，原本机清单并入此处；不重新计算或改变既有登记哈希。
 
 ## 权限与存储边界
 
 - 只读来源：`D:\Codex_Project\Codex_EnglishApp\dictionary-users`。
 - 原始 MDX/MDD、生成的 `app/src/main/assets/dictionaries/` 和最终 APK 均由 Git 忽略，不提交、不上传。
+- 原始词典及随附资料均为用户私有文件，不得对外分发；本文件只登记元数据。
 - `_manager/tools/prepare-dictionary-assets.ps1` 每次构建先核对源文件 SHA-256，再复制并复核；任一不一致立即停止，不修改用户原文件。
 - 生成采用同一资产目录内的唯一暂存目录和原子替换；重复运行不会遗留 staging/backup 目录或覆盖未校验内容。
 
 ## 固定资产
+
+显示名称：`builtin.collins-advanced-bilingual` 对应“柯林斯高阶英汉双解学习词典”，`builtin.oxford-ald9-en-en` 对应“Oxford ALD 9th En-En”。
 
 | 稳定 ID | 文件 | 字节 | SHA-256 |
 |---|---|---:|---|
@@ -17,6 +22,14 @@
 | `builtin.collins-advanced-bilingual` | `柯林斯高阶英汉双解学习词典（好看）.mdd` | 15,307 | `15A1668EAB08DBAD960C942CB99A7842AC8C7B77736A1936A4E77FD00FE6ED6C` |
 | `builtin.oxford-ald9-en-en` | `Oxford ALD_9th_En-En.mdx` | 41,514,928 | `8E140C288D9F8D195F707F1297ADD0233E9CB44C31DC0BBCFEB46063C99C24BE` |
 | `builtin.oxford-ald9-en-en` | `Oxford ALD_9th_En-En.mdd` | 4,104,095 | `4ED26627CD7FC26916CA23CF9A3AF44FD03710EECFCDDC8607B2717C1AAF1BAE` |
+
+## 原始资料中的附属文件
+
+下项是原本机清单独有的 PNG 登记，区别于上表 MDX/MDD。合并此记录不增加或改变构建打包要求。
+
+| 词典 | 文件 | 字节 | SHA-256 |
+|---|---|---:|---|
+| Oxford ALD 9th En-En | `Oxford ALD_9th_En-En.png` | 62,455 | `8580AFE6369A843A2953E8072DD8B51FACFF207D6FA0453F3E5FF94C1ECFACAA` |
 
 ## 生成清单
 

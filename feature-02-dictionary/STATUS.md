@@ -1,11 +1,11 @@
 # 功能 2 当前状态（Android Library）
 
-更新时间：2026-08-26
+证据日期：2026-08-26；文档合并日期：2026-09-23，本轮未重新运行测试。
 
 ## 当前阶段
 
 - 功能版本：`0.2.1`。
-- 状态：`manager_review_passed / awaiting_app_1.0.0_test.002_build`。
+- 状态：`integrated / awaiting_app_1.0.0_test.002_device_verification`。总控既有集成记录确认 test.002 已签名归档，原“等待构建”表述已过时；没有新增实机通过证据。
 - 用户已明确将“功能2：词典”指定为 `app-feature`；功能模块保持Android Library，总控边界检查为1个Application、2个Library。
 - 原 `mdict-java` / `lzo-core` GPL路线永久停止；当前是有完整MIT来源审计的项目自有纯Kotlin/JVM解析内核，没有Rust、Cargo、NDK、JNI或解析器运行依赖。
 - App 1.0.0 test.001 已由用户设备判定词典应用内链接仍失败；没有设备日志、具体词条或原始链接标记，本功能任务未宣称复现。
@@ -42,4 +42,11 @@
 
 ## 下一步
 
-总控仅审查v0.2.1 WebView内部链接增量并独立复跑模块/边界通过；等待构建签名App 1.0.0 test.002。功能任务保持停止，不执行根App修改、签名或APK构建。
+总控此前已完成 v0.2.1 增量审查、模块/边界验证及 App 1.0.0 test.002 签名归档，等待用户覆盖安装验收。功能任务保持等待；当前文档整理不启动新的开发或测试。
+
+## 历史验收与证据入口
+
+- v0.1.1 随 App v0.3.0 已获用户概括验收，历史上接受 `F02-LINK-001` 与 `F02-AUDIO-001`；用户于 2026-08-25 重新授权在 v0.2.0 处理两项问题并增加逐词典字号。
+- App 1.0.0 test.001 实机确认 v0.2.0 受控锚点方案仍失败，该历史结论保留；v0.2.1 test.002 不能仅凭自动验证标记实机修复。
+- v0.2.1 增量与自动证据：[V0.2.1_INTERNAL_LINK_COMPATIBILITY_AUDIT.md](V0.2.1_INTERNAL_LINK_COMPATIBILITY_AUDIT.md)；v0.2.0 证据：[V0.2.0_AUDIT.md](V0.2.0_AUDIT.md)。
+- 历史交接：[MILESTONE_3_HANDOFF.md](MILESTONE_3_HANDOFF.md)；解析来源与许可：[MILESTONE_1B_AUDIT.md](MILESTONE_1B_AUDIT.md)、[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。现存里程碑与修复审计继续保留。
