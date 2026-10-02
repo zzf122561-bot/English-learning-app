@@ -1,8 +1,8 @@
 # 当前状态
 
-- 2026-10-02：用户授权开始独立测试 App，要求高配置开发模型和完整设置项。
-- 同日追加：独立App需适宜以后内嵌其他大模型，公共层/引擎适配器/任务页面分离；首期仍仅Qwen语音验证。
-- 状态：initialized / awaiting_native_compatibility_gate。
-- 开发简报与回复规则：[MANAGER_LINK.md](MANAGER_LINK.md)。
-- 总控初始脚手架验证：独立Gradle工程 :runtime:assembleDebug 成功（23 tasks executed，2m54s）；只证明占位Library及隔离依赖可编译，没有JNI/模型实现，也没有自动测试源码。无需重复本轮脚手架验证。
-- 尚未下载模型、编译原生引擎或生成测试 APK；无设备运行证据。沙箱内Gradle native-platform.dll加载失败后，经平台批准使用现有工具链完成上述AAR构建。
+- 2026-10-03：`ready_for_device_validation / awaiting_manager_apk`。阶段2完整设备验证候选已实现；原生/模型实际运行门槛仍未通过，不能标记 compatibility_gate_passed。
+- 授权、资产注入与回复对象见 [MANAGER_LINK.md](MANAGER_LINK.md)。总控 MODEL_PAIR_VERIFIED 及固定工具安装证据已接收并沿用，没有重复整文件hash或安装。
+- 中文操作/设置/结果页面、公共模型安装/租约/调度/存储、Qwen适配器、生成取消、播放、缓存/历史及SAF导出已接线。实际架构与设置/测量语义见 [ARCHITECTURE.md](ARCHITECTURE.md)。
+- 本轮25项新增JVM测试通过；Android测试源码编译、Release AAR构建完成；Lint 0错误、6警告。最终AAR的两份原生SO与阶段1B一致，ELF/notice检查通过。精确命令、范围、警告、哈希和产物路径统一见 [SOURCE_MANIFEST.md 第8节](SOURCE_MANIFEST.md#8-阶段2追加设备验证候选)。
+- 没有主机/手机模型执行、Android测试执行、UI视觉运行、APK、断网或听感验收证据。总控需注入精确样例/清单/模型，制作独立APK并安排设备检查；清单契约与设备检查表也在来源清单第8节。
+- 阶段1静态与阶段1B原生报告已交接并获续派；阶段2完整FEATURE_MILESTONE于2026-10-03成功发送给登记总控01a024cb-1fba-7b23-a357-67eb2ad592b4（消息工具isError=false）。现等待总控APK/设备验证或下一项明确范围，不轮询，不主动扩大到Git、宿主、APK或其他功能。

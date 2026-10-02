@@ -1,0 +1,542 @@
+{
+  "engine_commit": "16bb5afcd06311031c72a8488f8d59660dc2fb46",
+  "ggml_commit": "af97976c7810cdabb1863172f31c432dab767de7",
+  "files": [
+    {
+      "path": "qwen3-tts/LICENSE",
+      "upstream_sha256": "db63e0b7a46d6ab3ddd2deec35a6f32808847f828192670fb2712e22c36701c7"
+    },
+    {
+      "path": "qwen3-tts/src/audio_tokenizer_decoder.h",
+      "upstream_sha256": "e13d9dc7f43b30c14632c427b4dff18b5d16f6404e8fbac5f655d41301d58365"
+    },
+    {
+      "path": "qwen3-tts/src/audio_tokenizer_encoder.cpp",
+      "upstream_sha256": "657c81134507f17d8bc67297a4adb166b82e4a4c1f65e647016c8e6d59c54760"
+    },
+    {
+      "path": "qwen3-tts/src/audio_tokenizer_encoder.h",
+      "upstream_sha256": "e3c83004fc8c5a7f7c77e92e46d190e8ca795492dc1619ffb7940635a66d1e9a"
+    },
+    {
+      "path": "qwen3-tts/src/common/audio_io.cpp",
+      "upstream_sha256": "3a5ef850eed55a474460fe808ba44dd3238bae9aaf8dd6ff80b77c337e5675d2"
+    },
+    {
+      "path": "qwen3-tts/src/common/icl_prompt_io.cpp",
+      "upstream_sha256": "e3d8e833fad78f97c681f0701551b32489bafc5530bc50953d7d80ead5a86e17"
+    },
+    {
+      "path": "qwen3-tts/src/common/speaker_embedding_io.cpp",
+      "upstream_sha256": "1c08b1fa5fb629b7c9c98d3b57c90c03a019d7b33e774e82306fc95f66689aa7"
+    },
+    {
+      "path": "qwen3-tts/src/coreml_code_predictor.h",
+      "upstream_sha256": "6593b0b5e82183848d189c107204dafd21b98f5daf3e34971367e28742a0656d"
+    },
+    {
+      "path": "qwen3-tts/src/coreml_code_predictor_stub.cpp",
+      "upstream_sha256": "3ee72ae8c936ad3c1b51be622c6cd6002703c3580fb36e1d3765b9d734120e70"
+    },
+    {
+      "path": "qwen3-tts/src/decoder/decoder_cache.cpp",
+      "upstream_sha256": "328af377ab485a733cae08288578cd376540d49f68f1b08f5f873e8a979536f3"
+    },
+    {
+      "path": "qwen3-tts/src/decoder/decoder_graph.cpp",
+      "upstream_sha256": "67909ed7bc73199e86388978bd153a8cb01a8b990d6f55efd6b4d3922fdf8fba"
+    },
+    {
+      "path": "qwen3-tts/src/decoder/decoder_internal.h",
+      "upstream_sha256": "3a10443ec66a7492b18a1623b02046bc966f8c6cb235f854472ce2cf22e027c3"
+    },
+    {
+      "path": "qwen3-tts/src/decoder/decoder_layers.cpp",
+      "upstream_sha256": "f24c7ee3d5e36a5a9bfeb3f7e962e3425523d23699b42f8e4a364142367d6587"
+    },
+    {
+      "path": "qwen3-tts/src/decoder/decoder_loader.cpp",
+      "upstream_sha256": "f340dd0fd81f1eaaff0f61690075e32db3b17d061670f47db72e11c57099b6bb"
+    },
+    {
+      "path": "qwen3-tts/src/decoder/decoder_runtime.cpp",
+      "upstream_sha256": "e3c5ab67de117966216005fbe6c1a826554a270e18edffcccebe5b598adaa107"
+    },
+    {
+      "path": "qwen3-tts/src/decoder/decoder_state_internal.h",
+      "upstream_sha256": "9a603b79e31c791ab694a4bd47937064b8c1406fa8b99c8ff20da6c81a5f9db9"
+    },
+    {
+      "path": "qwen3-tts/src/encoder/encoder_frontend.cpp",
+      "upstream_sha256": "981686ea25463f91085be33159bda882850054ee04a94aa45e34b7e06142b16e"
+    },
+    {
+      "path": "qwen3-tts/src/encoder/encoder_graph.cpp",
+      "upstream_sha256": "bafde7767cf267635dc9ab9417e016fa947c8917fc5b1a43a52e86813f068c30"
+    },
+    {
+      "path": "qwen3-tts/src/encoder/encoder_internal.h",
+      "upstream_sha256": "40196ffd15dea61f93d3d401582fe19a2ae8205f8782b9b8aab54fe7a02fec13"
+    },
+    {
+      "path": "qwen3-tts/src/encoder/encoder_loader.cpp",
+      "upstream_sha256": "26c19538bc2e44668fde4c5a2856bf1026274bb9046f7691aefc02812f066981"
+    },
+    {
+      "path": "qwen3-tts/src/encoder/encoder_runtime.cpp",
+      "upstream_sha256": "372a974870b44210751ce433258e7a70591b5bd609c6cbe096a3a50173b08565"
+    },
+    {
+      "path": "qwen3-tts/src/encoder/encoder_state_internal.h",
+      "upstream_sha256": "332f923d66e1dc8d1fcef007b692f3896bbb3aa9fca8428e0a1f8f6d85e1cbaf"
+    },
+    {
+      "path": "qwen3-tts/src/gguf_loader.cpp",
+      "upstream_sha256": "9e19fb6f47b58fa0c09bd5563b350c28c6aed5035af30da19e7bff68742ee347"
+    },
+    {
+      "path": "qwen3-tts/src/gguf_loader.h",
+      "upstream_sha256": "9c48c25124c98554bcd06b295b44d56399024c6fd26005b0400469c83ae687bb"
+    },
+    {
+      "path": "qwen3-tts/src/pipeline/pipeline_internal.h",
+      "upstream_sha256": "3b6f89128015ea449225b2ff605d2a75e98a116acc79fa7ed20e9db6bb91f915"
+    },
+    {
+      "path": "qwen3-tts/src/pipeline/pipeline_models.cpp",
+      "upstream_sha256": "96b19dbe5231c454839e8bf39a6dca13eceba4c6e9d1f17ae5e6fd5f431c0b2c"
+    },
+    {
+      "path": "qwen3-tts/src/pipeline/pipeline_runtime.cpp",
+      "upstream_sha256": "dc2597b36d90be7db13eb5d6c21e8ab9f6c6f086704ecd427f9f8d1899ac617b"
+    },
+    {
+      "path": "qwen3-tts/src/pipeline/pipeline_synthesize.cpp",
+      "upstream_sha256": "5b86dda0aa70af8afdfcaa75a228846cc060628797ba7c279a6b514e7a019c73"
+    },
+    {
+      "path": "qwen3-tts/src/qwen3_tts.cpp",
+      "upstream_sha256": "b8a08a4d94bf66b50ab8eae4a42ac34e40068565ef0a299939c6de6ba5b7c0af"
+    },
+    {
+      "path": "qwen3-tts/src/qwen3_tts.h",
+      "upstream_sha256": "f7865b28785def4bf44e254eb2d29c563e7a16bf714f0a4a6d9f7796f460d083"
+    },
+    {
+      "path": "qwen3-tts/src/qwen3_tts_c.h",
+      "upstream_sha256": "96a5b93e602820f96e159ce2618cea8a101150c64d1821541f42f5f9e7c28ef5"
+    },
+    {
+      "path": "qwen3-tts/src/speech_tokenizer_encoder.cpp",
+      "upstream_sha256": "d436d3877ea4d27fa8ea5bd5f769698101425f491df59535c7558c7b0a9b073e"
+    },
+    {
+      "path": "qwen3-tts/src/speech_tokenizer_encoder.h",
+      "upstream_sha256": "e4c503efd3a7ddb5b53102368979891f1ece80a135f835a071e41159c10915a1"
+    },
+    {
+      "path": "qwen3-tts/src/text_tokenizer.cpp",
+      "upstream_sha256": "eda2d2bdd5222f9a6d9842c86f4abd9d472a64c8fb5fc1b45ad6c1e909e05bc6"
+    },
+    {
+      "path": "qwen3-tts/src/text_tokenizer.h",
+      "upstream_sha256": "8763a04fc2be8649a4b3b95cf78e23536c763e4d814426395e73240f0ff0bbe5"
+    },
+    {
+      "path": "qwen3-tts/src/tokenizer_unicode.cpp",
+      "upstream_sha256": "a7ae0e9bc07ea30d0b0921e60f292d1d297004260ea3c24357441cbdf24ff623"
+    },
+    {
+      "path": "qwen3-tts/src/tokenizer_unicode.h",
+      "upstream_sha256": "0452257ac4496aa96fbe4caeaf67ae57f596081eda6632e8c0ae31a9d8a2166b"
+    },
+    {
+      "path": "qwen3-tts/src/tokenizer_unicode_data.cpp",
+      "upstream_sha256": "e370bd579a3137bc67f38015794da74afe5a243944086473ce57294cfca1be14"
+    },
+    {
+      "path": "qwen3-tts/src/tokenizer_unicode_data.h",
+      "upstream_sha256": "1854f4494e5666db6036f0bf4cf818e01588b40b48a89e3372e775c4d5174402"
+    },
+    {
+      "path": "qwen3-tts/src/transformer/transformer_cache.cpp",
+      "upstream_sha256": "a1a3c7212f08163ee4849b2aa07afbcc6e82d64cdb4da23377c0af6e78b6791b"
+    },
+    {
+      "path": "qwen3-tts/src/transformer/transformer_debug.cpp",
+      "upstream_sha256": "5a2204c15bd5ba263243312d703877fbd6ddfadcdd70a8acbbf3154c3c9275ab"
+    },
+    {
+      "path": "qwen3-tts/src/transformer/transformer_embeddings.cpp",
+      "upstream_sha256": "42a82f50047c056a3d84045fdbedd36d9e0da52b9241bd6d15c5d5ea50867c0c"
+    },
+    {
+      "path": "qwen3-tts/src/transformer/transformer_generate.cpp",
+      "upstream_sha256": "a76050728ad4a9b39cbe472622d608a58eb3b272cae4ff9e83903aa239e82f40"
+    },
+    {
+      "path": "qwen3-tts/src/transformer/transformer_graph_code_pred.cpp",
+      "upstream_sha256": "2514bc4f82368c7ad02d9ae50cc0f196323f975fbd3d22fe11124b6a60e431fe"
+    },
+    {
+      "path": "qwen3-tts/src/transformer/transformer_graph_talker.cpp",
+      "upstream_sha256": "4ed2538984645fdb3735296ceef4c9b4461dda4bcb906dbd4de5ce32e6cf5a36"
+    },
+    {
+      "path": "qwen3-tts/src/transformer/transformer_internal.h",
+      "upstream_sha256": "9ed5b5239cc51f72f5120180932d41de12017c50ed45d5cd70fe630594aba5a7"
+    },
+    {
+      "path": "qwen3-tts/src/transformer/transformer_loader.cpp",
+      "upstream_sha256": "aabead9d2a9042c7e94d91202af4045067ec6e86737ad887cf9fea955eea8066"
+    },
+    {
+      "path": "qwen3-tts/src/transformer/transformer_loader_metadata.cpp",
+      "upstream_sha256": "4675053698402b0e899723a7e635736c8bad8163fd5eeade7c178726382c5ba8"
+    },
+    {
+      "path": "qwen3-tts/src/transformer/transformer_loader_tensors.cpp",
+      "upstream_sha256": "9e4fb3ca00a95bbf0a5d270b45fa4899a80742933ef6a110d375e57a936134ea"
+    },
+    {
+      "path": "qwen3-tts/src/transformer/transformer_runtime.cpp",
+      "upstream_sha256": "6f51ef979955b75cdb95be87eb4ffb6d96be75e687778d10f2a2ef9e52844bc8"
+    },
+    {
+      "path": "qwen3-tts/src/transformer/transformer_runtime_code_pred.cpp",
+      "upstream_sha256": "0dbe3a4299741c39b5b028ac0ce0237316484a5c2403d90e848c69e8e116276a"
+    },
+    {
+      "path": "qwen3-tts/src/transformer/transformer_sampling.h",
+      "upstream_sha256": "e5c9ed00e037469c03dc3d85d1436a421f3915c9a98769d5e52564f11a68984c"
+    },
+    {
+      "path": "qwen3-tts/src/transformer/transformer_state_internal.h",
+      "upstream_sha256": "7c57d7c882326aeef0586ab841ef68938bbb341fff0fe313e255e7d1f5041c8c"
+    },
+    {
+      "path": "qwen3-tts/src/tts_transformer.cpp",
+      "upstream_sha256": "590e748c33c8c4622a24f4efd26aa0f040c362be5c1e201d6b4e9450c92eb630"
+    },
+    {
+      "path": "qwen3-tts/src/tts_transformer.h",
+      "upstream_sha256": "3197ef14ec854caa6f56c5d3894cc73d5153c144338e193c84b64a43e6ef3988"
+    },
+    {
+      "path": "ggml/cmake/common.cmake",
+      "upstream_sha256": "438c57ef81c63b3b7b7a3078965ba081d53c3c2e9f9986c512e6f11b4937e816"
+    },
+    {
+      "path": "ggml/cmake/ggml-config.cmake.in",
+      "upstream_sha256": "2e63c0151de13892cc56fcdae4bcfdc4a0c059c4c46ab18d0b607fe6d104df4c"
+    },
+    {
+      "path": "ggml/CMakeLists.txt",
+      "upstream_sha256": "0780e8f21587496ab2f13a3b1d028d075d5c09f0e835c27eff04b5550f5c8510"
+    },
+    {
+      "path": "ggml/include/ggml-alloc.h",
+      "upstream_sha256": "94e4cd069b9313b2ceb35dacec901981e0bb478d8bb31035b7126be091998c23"
+    },
+    {
+      "path": "ggml/include/ggml-backend.h",
+      "upstream_sha256": "a620e815b43a44cc72d5f216629a3a91980335b61bc37eb6b2d0813368c3704f"
+    },
+    {
+      "path": "ggml/include/ggml-blas.h",
+      "upstream_sha256": "e76cb8594dc9866d99e7d63191b9fff6ab8b50244b4a28ce3af0f962964a6b5b"
+    },
+    {
+      "path": "ggml/include/ggml-cann.h",
+      "upstream_sha256": "2cdb134f27fe5c4ec19d52f1eb58f5355aa42b8f54bf385f0e487501c5df7362"
+    },
+    {
+      "path": "ggml/include/ggml-cpp.h",
+      "upstream_sha256": "bc15ba002c68685df23faae42df0d2b3d58032011f88b649021ab92485862c72"
+    },
+    {
+      "path": "ggml/include/ggml-cpu.h",
+      "upstream_sha256": "1aafe97e576ea38c0da57517fb2492955d0b69c1a799842481fc069d6d9d28ef"
+    },
+    {
+      "path": "ggml/include/ggml-cuda.h",
+      "upstream_sha256": "9cbfcea49f6da4d07f41dc22fa8dbf870825faaa2a68e34e65fe30ea6c41e042"
+    },
+    {
+      "path": "ggml/include/ggml-et.h",
+      "upstream_sha256": "33118c0642b8059a99ea930fd4e4a045e78ccb41760b173ede221f1297c35977"
+    },
+    {
+      "path": "ggml/include/ggml-hexagon.h",
+      "upstream_sha256": "b2c12bac390f14707b16bdd27c8c75ce4f075ed509c729ee28fd4f03b17e7375"
+    },
+    {
+      "path": "ggml/include/ggml-metal.h",
+      "upstream_sha256": "322f36cd30f3e9e7aad7b5b9bc63078012fd0b7706ac4e24f5721b604f3d8980"
+    },
+    {
+      "path": "ggml/include/ggml-opencl.h",
+      "upstream_sha256": "8e443e1aa9c8bc6e0cf116c4cc3f42f4858938fa15e65b06bc07b26686e1233a"
+    },
+    {
+      "path": "ggml/include/ggml-openvino.h",
+      "upstream_sha256": "c2e3f301e28ad815b4285888aad6130808a77e6acb4e8b558de63a648cf9743e"
+    },
+    {
+      "path": "ggml/include/ggml-opt.h",
+      "upstream_sha256": "3586de1bc8a934b5c72339e2b6937b0641e8f149b512231e666f67de0736eea2"
+    },
+    {
+      "path": "ggml/include/ggml-rpc.h",
+      "upstream_sha256": "0b53277745826cd2dc8fe6c6fe7b3617fc57074b343bfd61597369edf2860331"
+    },
+    {
+      "path": "ggml/include/ggml-sycl.h",
+      "upstream_sha256": "58429f8045b335f5e740faa2198caf72ba3beb04df0eb970103b932340daca8b"
+    },
+    {
+      "path": "ggml/include/ggml-virtgpu.h",
+      "upstream_sha256": "ed231e7db3f0f58b84073f5ee67f9ec9d63046d1a7ed091c36a6cfe9f685a463"
+    },
+    {
+      "path": "ggml/include/ggml-vulkan.h",
+      "upstream_sha256": "7eae5dad2cc7bb4d3eca828539f441816d5fd59fdc7b224d49aa229fc7b7248c"
+    },
+    {
+      "path": "ggml/include/ggml-webgpu.h",
+      "upstream_sha256": "a91d855313a9e85e75ba597ff869a267247dea936a2c0faef03aeb7f1ea6e79c"
+    },
+    {
+      "path": "ggml/include/ggml-zdnn.h",
+      "upstream_sha256": "ee1d79c95ade45ba195a6b71f59a05c18617de4a596d2b2b03ecf38975a9a448"
+    },
+    {
+      "path": "ggml/include/ggml-zendnn.h",
+      "upstream_sha256": "2cb034b842438281616ce647232d922fb224450323f0d422d2af567c334aa8ff"
+    },
+    {
+      "path": "ggml/include/ggml.h",
+      "upstream_sha256": "f13166d91f70e02991a9c1684080dd4f3a21b038e1d5b0581b3ad9c21ae1edc8"
+    },
+    {
+      "path": "ggml/include/gguf.h",
+      "upstream_sha256": "2ddb276a5bece743433160ad863279473431c9d4c171d468bf860a3cda3fbf3f"
+    },
+    {
+      "path": "ggml/LICENSE",
+      "upstream_sha256": "94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d"
+    },
+    {
+      "path": "ggml/src/CMakeLists.txt",
+      "upstream_sha256": "4bc9d1741b7f145c3ffb9fe50b9f52f0dfb404e170d282f0ddd2d23aa6d6880b"
+    },
+    {
+      "path": "ggml/src/ggml-alloc.c",
+      "upstream_sha256": "881083e2f5d0126738ffe5b246d60cacf7db7b524f1ea471f116697c3211026a"
+    },
+    {
+      "path": "ggml/src/ggml-backend-dl.cpp",
+      "upstream_sha256": "acd76df8b83bcdef6807bc7b0520f57b379d61b4ff1027c04aa4d140d16ad07f"
+    },
+    {
+      "path": "ggml/src/ggml-backend-dl.h",
+      "upstream_sha256": "225bd83a197c4e8b5f985717176824d1144e2b74a79f04838f51b84115c14dc5"
+    },
+    {
+      "path": "ggml/src/ggml-backend-impl.h",
+      "upstream_sha256": "d9c62d72b13bff67ef7ada8feccf90c9cd1b6d176eae85df3ed1d4f3d2240e52"
+    },
+    {
+      "path": "ggml/src/ggml-backend-meta.cpp",
+      "upstream_sha256": "c4cc4233571df2b578481c16da8f476891460815a4db7200153c206ef9696274"
+    },
+    {
+      "path": "ggml/src/ggml-backend-reg.cpp",
+      "upstream_sha256": "c0a61f47e7af0359cfff41317ae8e68717960483d141983bba914733b1f68906"
+    },
+    {
+      "path": "ggml/src/ggml-backend.cpp",
+      "upstream_sha256": "a96b54377e2b66732dcc5ed7ede82b6e0e873de53d515ac9fd6aa118b716bdd3"
+    },
+    {
+      "path": "ggml/src/ggml-common.h",
+      "upstream_sha256": "af255601767325f087313fa84b9435cb77aeec37df6b61b98d9ecc65f29fb4a0"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/amx/amx.cpp",
+      "upstream_sha256": "636d1e4b858a86ad6568100bbdb4bf9715d9dfb25d3831415d55e04e39acad86"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/amx/amx.h",
+      "upstream_sha256": "9d098ceee6a8114d4a660ff269064a27aa25b8a4f205d1e6984d17bec5104f0d"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/amx/common.h",
+      "upstream_sha256": "c694f6bb066a820b717f986914b0d112dca0d8d3a1e239e958fce30c864751c3"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/amx/mmq.cpp",
+      "upstream_sha256": "0f95c80e0300eca3b3a3df07272042fee708425e19cd5f2c4cba7b253b26d226"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/amx/mmq.h",
+      "upstream_sha256": "bd33d0713b12daf9eedea1619dd715619baaa36b98c44ec754d532909d80933a"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/arch/arm/cpu-feats.cpp",
+      "upstream_sha256": "9c6f7e49fa52f6ffe45a6e5daf31052c039ff1744842dbb1a650fccc3c014432"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/arch/arm/quants.c",
+      "upstream_sha256": "9fccd3897db24c9df89b8431b588175894e5f54697cf45768d0c6e6c5544093e"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/arch/arm/repack.cpp",
+      "upstream_sha256": "2e7ba6aaf10834601315fc8f5e7f52a1638076bf6c0435542247c3de1ee4cce7"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/arch/x86/cpu-feats.cpp",
+      "upstream_sha256": "b0f6aaaeb0b12a4f3e15ceec14d0c2031633f91e864a6c15954a001d6390f6d4"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/arch/x86/quants.c",
+      "upstream_sha256": "3c489fdc77e3ab484a5f188bff9c60c0e9483c951ed65c1a562a04c249d5628e"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/arch/x86/repack.cpp",
+      "upstream_sha256": "c69735f83caf854172cac78eed2cbc022ef81c077e5f6aca55a49d3404a02331"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/arch-fallback.h",
+      "upstream_sha256": "2dc6b116f732329effe45d3f9384d5ebae628f3c19e2f2ac69551fd2e3721917"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/binary-ops.cpp",
+      "upstream_sha256": "2df261aadce36a20f5e3bf6961d4ca27b8c2d461afc41488361ee6ad09c1730d"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/binary-ops.h",
+      "upstream_sha256": "5915519c4e2227db28239b2a5d3b8a5f9022730cc0ddb7880b24748ee78cd1f9"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/CMakeLists.txt",
+      "upstream_sha256": "b1ba1b4bb7cc2f2adf1cda4fa65fea7c7fe9a54fcec3b964dc1746846d30efbf"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/common.h",
+      "upstream_sha256": "db7c19747a28c819d18922aa43b91b224df3730e424e6d8a4cf4fd16bfb1db14"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/ggml-cpu-impl.h",
+      "upstream_sha256": "e7008069e3e46f1db5e3d2eaafb4ddec3c7d0ece5c0454f99c5a8e33a50f20ba"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/ggml-cpu.c",
+      "upstream_sha256": "49f83b9fef3dc1b31b3c7a3b4b556bd8e149d77c15e16ee911adb26df2636478"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/ggml-cpu.cpp",
+      "upstream_sha256": "b98d3f9949f950dc8ff4f34c746e31321e0135bac453f9748ac4f5d5f3cd305b"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/hbm.cpp",
+      "upstream_sha256": "3c75b5aaf9b51d17060ecfb93cb5f8b22ce3974d7eff3d76dec2156d2f194b80"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/hbm.h",
+      "upstream_sha256": "340c84ac6a1c83d2218a15d6d71c1efb6ba1a5517162c2fde4baa0a9204af26b"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/ops.cpp",
+      "upstream_sha256": "701c57328cc54ec1979a1dcd120b46c36928e9c4d6d017c86d042f9725cf98f6"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/ops.h",
+      "upstream_sha256": "83ec92a790b66f1aba38d514b485ecf6d6634a5a372ff26fb6a54e7c417aecf0"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/quants.c",
+      "upstream_sha256": "a61f1011e49d05b5f99d352b158d5b8e36cf008294bb0db309f72bdd7f1d4e35"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/quants.h",
+      "upstream_sha256": "918d6755b3e601ec7bb83c7dbf1d73304490651ccbb4072b0d31a2b45df751da"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/repack.cpp",
+      "upstream_sha256": "b3a1d6953fc61f2a4088337384166fb5102db617afe37a4b92f7cf07992a9f8a"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/repack.h",
+      "upstream_sha256": "fe472315b4106400d7890fca308659c74bcdedad1b011a9ba60c02dcd5bef57b"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/simd-gemm.h",
+      "upstream_sha256": "ce613195325cea048ede4c7a86c382ac6abf4c701c91eee640bd3cc78b39ce5e"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/simd-mappings.h",
+      "upstream_sha256": "c8371bfb028ccee0e5af76bf47a9ae1d029b38cfda35fa6f0ee1358d63428737"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/traits.cpp",
+      "upstream_sha256": "a85bd3ff50c91cb67d14221988544664dfe5975db0811b330dc4a2f385239de4"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/traits.h",
+      "upstream_sha256": "26e1b41879091a663325848aa82a4023b459fd1e688b3b0e2a9bde3e72a3a764"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/unary-ops.cpp",
+      "upstream_sha256": "e63b382766f1b8c5ded1577be9704e85cb4e9cd24584f3e1474911a40146df33"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/unary-ops.h",
+      "upstream_sha256": "280b7979055079d43bdde7790a7290bf04f75640481c59abc2364c46d6ac6d8e"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/vec.cpp",
+      "upstream_sha256": "cda0babb53f9c8ff1faa7459b2c49019d15e5970dfe0c613d58e2659e919f524"
+    },
+    {
+      "path": "ggml/src/ggml-cpu/vec.h",
+      "upstream_sha256": "926330bae1c5d003bd654035426e31381fafcdca23ffcc23201d219dbb97cbeb"
+    },
+    {
+      "path": "ggml/src/ggml-impl.h",
+      "upstream_sha256": "2ed56e264202906d107e26d08eabb242d3107b026ebfb78096fa1e5f94bdbbb8"
+    },
+    {
+      "path": "ggml/src/ggml-opt.cpp",
+      "upstream_sha256": "e35fd27856e37f3611d3bc6f17ee963be51bfe92bec96fad0a9fa2c7ebbe9c46"
+    },
+    {
+      "path": "ggml/src/ggml-quants.c",
+      "upstream_sha256": "07143d7068936ae46b3c528b2f3d4bbb666e74d88992165716174d243573965d"
+    },
+    {
+      "path": "ggml/src/ggml-quants.h",
+      "upstream_sha256": "28ae5fca1f3be636b36cd6c4fa2ca74fd42d229bfbd5352eaf66f3727bb8a6da"
+    },
+    {
+      "path": "ggml/src/ggml-threading.cpp",
+      "upstream_sha256": "13a18d885393722b7c9f42d4cf8575a4d41699926d656f78a867fa4fac9dad20"
+    },
+    {
+      "path": "ggml/src/ggml-threading.h",
+      "upstream_sha256": "9652729043ed91482392c1aa08af5d813190d0ace2e7982d2539d28240ab8d8b"
+    },
+    {
+      "path": "ggml/src/ggml.c",
+      "upstream_sha256": "e427d8c6767d2e0900689d4747177c3acc756b6de1dbfbb4df90ee9c49a1904d"
+    },
+    {
+      "path": "ggml/src/ggml.cpp",
+      "upstream_sha256": "64e6b5c8d716ae8697e45481a7153540be01f721be2dc7e753aa47b36a69c753"
+    },
+    {
+      "path": "ggml/src/gguf.cpp",
+      "upstream_sha256": "453dcec63e02206fe049123f984c4254ae6f87c1dc6e61e2d3e4bbcb5051fa3f"
+    }
+  ]
+}

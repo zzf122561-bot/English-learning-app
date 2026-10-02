@@ -9,7 +9,7 @@ $env:GRADLE_OPTS = "-Xmx3g -Dfile.encoding=UTF-8 -Djdk.net.hosts.file=$hostsPath
 $gradleArgs = @(
     '-p', (Join-Path $repoRoot '_manager/probes/tts-device'),
     '--no-daemon', '--no-configuration-cache',
-    ':runtime:testDebugUnitTest', ':runtime:compileDebugAndroidTestKotlin', ':runtime:assembleDebug'
+    ':runtime:testDebugUnitTest', ':runtime:compileDebugAndroidTestKotlin', ':runtime:assembleRelease'
 )
 if ($RerunTasks) { $gradleArgs += '--rerun-tasks' }
 & 'D:\CodexData\android-toolchain\gradle\gradle-9.5.0\bin\gradle.bat' @gradleArgs
