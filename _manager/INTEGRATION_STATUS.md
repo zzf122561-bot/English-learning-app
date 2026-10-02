@@ -20,6 +20,8 @@
 
 ## 状态与证据边界
 
+- 2026-10-02新增独立本地模型验证试验，用户要求适宜未来嵌入其他大模型；首期仅Qwen3-TTS英语朗读。隔离工程与权限见 [测试宿主入口](probes/tts-device/README.md)，不改变正式App版本、功能基线或设备验收状态。
+
 - 2026-08-24 用户概括确认 App v0.3.0 test.002 除词条内容链接及内部发音外其余正常，未提供设备型号、Android 版本、逐项截图或日志；该结论仅适用于当时版本，不自动提升 App 1.0.0 的验收状态。
 - 两套私有词典由总控在构建时校验并生成 Git 忽略的资产，文件登记与清单契约统一见 [BUILTIN_ASSETS.md](features/feature-02/BUILTIN_ASSETS.md)。
 - 发布与每份 APK 的正式记录以 [发布索引](releases/app/INDEX.md) 为入口；功能行为基线以各功能的 `FEATURE_BASELINE.md` 为准，模块自动验证状态在各自 `STATUS.md` 维护。

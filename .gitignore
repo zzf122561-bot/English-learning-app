@@ -32,3 +32,11 @@
 /app/src/main/assets/dictionaries/
 /app/src/main/assets/.dictionary-assets-staging-*/
 /app/src/main/assets/.dictionary-assets-backup-*/
+
+# Offline speech probe: model weights and user-derived test assets stay local.
+/experiments/tts-device-probe/.local/
+/experiments/tts-device-probe/vendor-downloads/
+/_manager/probes/tts-device/app/src/main/assets/probe-sample.txt
+/_manager/probes/tts-device/app/src/main/assets/models/
+*.gguf
+*.safetensors
