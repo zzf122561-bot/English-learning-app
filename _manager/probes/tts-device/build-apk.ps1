@@ -101,9 +101,9 @@ try {
         $checks.Add(@{entry=$name;size=$entry.Length;sha256=$hash})
     }
     $native = @($zip.Entries | Where-Object { $_.FullName -like 'lib/*/*.so' })
-    if ($native.Count -ne 2) { throw 'Unexpected native library set.' }
+    if ($native.Count -ne 3) { throw 'Unexpected native library set.' }
     foreach ($entry in $native) {
-        if ($entry.FullName -notmatch '^lib/arm64-v8a/(libmodel_probe_qwen|libc\+\+_shared)\.so$') { throw 'Unexpected native ABI/library.' }
+        if ($entry.FullName -notmatch '^lib/arm64-v8a/(libmodel_probe_qwen|libc\+\+_shared|libandroidx\.graphics\.path)\.so$') { throw 'Unexpected native ABI/library.' }
         $stream = $entry.Open()
         try { $hash = Hash-Stream $stream } finally { $stream.Dispose() }
         $output = Join-Path $stage $entry.Name
