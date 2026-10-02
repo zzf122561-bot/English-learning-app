@@ -39,3 +39,4 @@
 - [build-apk.ps1](build-apk.ps1)从干净提交构建独立Release，使用本机独立PKCS12测试身份；口令使用Windows DPAPI保存在忽略目录，不读取正式App密钥。打包固定manifest、两份未压缩GGUF、私有样例和许可证；验证最终APK内全量资产哈希、两个ARM64库、ELF/ZIP 16KiB对齐、包名/版本/权限及v2签名。
 - 模型清单正文为[model-manifest.json](model-manifest.json)。模型/样例的实际字节、APK和本机签名继续Git忽略；APK输出到`_manager/artifacts/tts-probe`，同名禁止覆盖。打包收据记录来源提交、模型身份、APK校验值和设备未测边界。
 - 应用采用公共模型管理、排他调度、测量与结果存储层，加独立引擎适配器及任务页面；未来新增模型仍需真实适配器/资产契约及验证，不能把当前Qwen设置伪装成通用能力。
+- 首次宿主Release编译通过（86任务，2m57s）。包装检查发现默认v3验证优先导致v2收据条件不匹配，现显式使用v2独立测试签名；权限检查仅允许AndroidX生成的本包signature级内部receiver权限，不允许联网/录音/存储权限。此次只修总控打包脚本，不复跑模块测试。

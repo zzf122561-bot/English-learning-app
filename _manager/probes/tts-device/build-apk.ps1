@@ -65,7 +65,7 @@ try {
     if (!(Test-Path -LiteralPath $key)) {
         Invoke-Checked (Join-Path $env:JAVA_HOME 'bin/keytool.exe') @('-genkeypair','-noprompt','-keystore',$key,'-storetype','PKCS12','-storepass:env','MODEL_PROBE_SIGN_PASS','-alias','probe','-keyalg','RSA','-keysize','3072','-validity','10000','-dname','CN=Local Model Probe, O=Personal Testing, C=CN')
     }
-    Invoke-Checked (Join-Path $env:JAVA_HOME 'bin/java.exe') @('-jar',(Join-Path $buildTools 'lib/apksigner.jar'),'sign','--ks',$key,'--ks-key-alias','probe','--ks-pass','env:MODEL_PROBE_SIGN_PASS','--v1-signing-enabled','false','--v2-signing-enabled','true','--v4-signing-enabled','false','--out',$signed,$aligned)
+    Invoke-Checked (Join-Path $env:JAVA_HOME 'bin/java.exe') @('-jar',(Join-Path $buildTools 'lib/apksigner.jar'),'sign','--ks',$key,'--ks-key-alias','probe','--ks-pass','env:MODEL_PROBE_SIGN_PASS','--v1-signing-enabled','false','--v2-signing-enabled','true','--v3-signing-enabled','false','--v4-signing-enabled','false','--out',$signed,$aligned)
 } finally { Remove-Item Env:MODEL_PROBE_SIGN_PASS }
 $signature = & (Join-Path $env:JAVA_HOME 'bin/java.exe') -jar (Join-Path $buildTools 'lib/apksigner.jar') verify --verbose --print-certs $signed
 if ($LASTEXITCODE -ne 0 -or !($signature -match 'v2 scheme.*true')) { throw 'APK v2 signature validation failed.' }
@@ -73,7 +73,8 @@ Invoke-Checked (Join-Path $buildTools 'zipalign.exe') @('-c','-P','16','4',$sign
 $badging = & (Join-Path $buildTools 'aapt2.exe') dump badging $signed
 if ($LASTEXITCODE -ne 0) { throw 'APK metadata read failed.' }
 if (!($badging -match "package: name='com.xuesui.englishapp.modelprobe' versionCode='1' versionName='0.1.0-probe'") -or !($badging -match "sdkVersion:'31'")) { throw 'Wrong package/version/minSdk.' }
-if ($badging -match '^uses-permission:') { throw 'Unexpected permission in independent offline probe.' }
+$unexpectedPermissions = $badging | Where-Object { $_ -match '^uses-permission:' -and $_ -ne "uses-permission: name='com.xuesui.englishapp.modelprobe.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'" }
+if ($unexpectedPermissions) { throw 'Unexpected permission in independent offline probe.' }
 $zip = [IO.Compression.ZipFile]::OpenRead($signed)
 $checks = [Collections.Generic.List[object]]::new()
 try {
