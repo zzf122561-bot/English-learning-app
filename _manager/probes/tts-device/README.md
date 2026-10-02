@@ -24,3 +24,10 @@
 - 固定工具：NDK28.2.13676358 / CMake3.22.1。新sdkmanager兼容层拆分分号包名且错误返回0，改用已安装android.exe原生sdk install和斜杠包路径；首次下载I/O中断，原范围重试中，不更新CLI或其他SDK、不改DNS/代理。安装完成必须检查两份source.properties而非仅看退出码。
 - 模型只取GGUF固定revision b7ee2e8c7459c3bea99da23e3d178125a7d1713c 的1.7B CustomVoice Q4与Q4 tokenizer；下载工具[fetch-models.ps1](fetch-models.ps1)严格检查尺寸及SHA256，支持断点，未校验文件保留.partial且不能启用。初次传输在约464MB处连接重置，续传中。
 - 所有本轮提交仅在本地；正式EnglishApp仍未集成试验代码。技术静态检查不能提高用户设备验收级别。
+
+### 阶段1B接收与模型就绪
+
+- 总控模型下载任务已退出0，两个文件完整尺寸/SHA256匹配SOURCE_MANIFEST，MODEL_PAIR_VERIFIED。NDK/CMake安装进程虽然最终非零退出，但两份source.properties与功能任务的实际native编译证明指定版本已可用；不重复安装。
+- 接收阶段1B：3项Kotlin测试通过、Android测试与ARM native契约入口仅编译、Release AAR 1,394,913字节/SHA256 47e4a65fc275092c4cd0a5d0a78c23f0277e2391f210d9ffe1122c4d3dd28d96、JNI与16KiB ELF/notice检查通过。唯一详细证据在功能分支SOURCE_MANIFEST第7节，不复跑相同检查。
+- 仍无native/JNI设备执行和真实模型运行；为避免无设备导致候选页前置死锁，已授权阶段2设备验证页面与公共基础，不提高compatibility验收级别。最终APK由总控打包，随后用户手机验证。
+- 阶段1B由总控提交到功能分支563ae58；上游vendor尾随空白保持原样，不因diff --check格式警告重写第三方代码。项目自有文件差异检查通过。模型已完整就绪通知与阶段2派工已成功发给功能任务。
