@@ -9,7 +9,7 @@
 | 功能2：词典 | `01a02fd4-7dcb-7882-aad0-0ed84ad3254c` | `app-feature`（用户于 2026-08-24 明确指定） | v0.2.1已集成；App 1.0.0 test.002已签名归档，等待用户实机 | `feature-02-dictionary` | `C:\Users\zzf86\.codex\worktrees\b83b\Codex_EnglishApp` / `codex/feature-02-dictionary` | 2026-08-26：test.002来源`5719bb3`，APK SHA-256 `6EF00A...160C` |
 | GitHub同步：EnglishApp | `01a0a8b9-837e-7252-935f-8c92ce0cdb1b` | `github-sync`（用户于 2026-09-16 明确指定） | `main`及五个标签已同步；两个功能分支待直接授权 | 不维护项目文件 | `C:\Users\zzf86\.codex\worktrees\299f\Codex_EnglishApp` / detached只读工作区 | 2026-09-16：远端`main=828313d`和五个标签已核对；功能分支只读预检通过、未push |
 | 英语语境短文生成器 | `01a024f4-f059-7dd1-a10f-04bbc4211e7b` | `skill` | 用户自行管理；总控不读取 | `short-story-generator` | 不纳入本仓库 | 不适用 |
-| 本地模型验证：Qwen语音 | 创建处理中；临时请求ID `client-new-thread:a3c50c42-f251-45e7-a2fa-a288f9df35c9`（不是正式任务ID，不可用于发消息） | `app-feature`（2026-10-02用户授权独立测试App开发及新对话，不是正式功能3） | 已提交创建及阶段1简报；等系统返回正式任务ID | `experiments/tts-device-probe` | `C:\Users\zzf86\.codex\worktrees\5551\Codex_EnglishApp` / detached at `951766d`（创建处理中）；请求GPT-6-astra / xhigh | 2026-10-02：总控脚手架AAR编译通过，无原生/模型/手机结果 |
+| 本地模型验证：Qwen语音 | `01a0fd10-c97b-7110-abab-9a56c6f3794b` | `app-feature`（2026-10-02用户授权独立测试App开发及新对话，不是正式功能3） | 阶段1静态审计已接收，已续派1B原生参数/取消适配 | `experiments/tts-device-probe` | `C:\Users\zzf86\.codex\worktrees\5551\Codex_EnglishApp` / `codex/model-probe`；GPT-6-astra / xhigh | 2026-10-02：阶段1静态交付由总控提交`69bc5df`；工具/完整模型取得中，非compatibility_gate_passed |
 
 ## 交接审计
 
