@@ -31,3 +31,11 @@
 - 接收阶段1B：3项Kotlin测试通过、Android测试与ARM native契约入口仅编译、Release AAR 1,394,913字节/SHA256 47e4a65fc275092c4cd0a5d0a78c23f0277e2391f210d9ffe1122c4d3dd28d96、JNI与16KiB ELF/notice检查通过。唯一详细证据在功能分支SOURCE_MANIFEST第7节，不复跑相同检查。
 - 仍无native/JNI设备执行和真实模型运行；为避免无设备导致候选页前置死锁，已授权阶段2设备验证页面与公共基础，不提高compatibility验收级别。最终APK由总控打包，随后用户手机验证。
 - 阶段1B由总控提交到功能分支563ae58；上游vendor尾随空白保持原样，不因diff --check格式警告重写第三方代码。项目自有文件差异检查通过。模型已完整就绪通知与阶段2派工已成功发给功能任务。
+
+### 阶段2接收与独立APK打包（2026-10-03）
+
+- 阶段2由总控提交为功能分支9f9cb88，并通过3dc3925合并；唯一冲突是STATUS的新旧状态，采用当前交付状态，旧脚手架证据保留在本文件和Git历史。未修改正式App或功能1/2。
+- 沿用SOURCE_MANIFEST第8节的25项新增JVM、Android源码编译、Release AAR及Lint证据，不重复运行。仍没有native执行、模型加载合成、手机交互或听感通过证据。
+- [build-apk.ps1](build-apk.ps1)从干净提交构建独立Release，使用本机独立PKCS12测试身份；口令使用Windows DPAPI保存在忽略目录，不读取正式App密钥。打包固定manifest、两份未压缩GGUF、私有样例和许可证；验证最终APK内全量资产哈希、两个ARM64库、ELF/ZIP 16KiB对齐、包名/版本/权限及v2签名。
+- 模型清单正文为[model-manifest.json](model-manifest.json)。模型/样例的实际字节、APK和本机签名继续Git忽略；APK输出到`_manager/artifacts/tts-probe`，同名禁止覆盖。打包收据记录来源提交、模型身份、APK校验值和设备未测边界。
+- 应用采用公共模型管理、排他调度、测量与结果存储层，加独立引擎适配器及任务页面；未来新增模型仍需真实适配器/资产契约及验证，不能把当前Qwen设置伪装成通用能力。

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "models": [{
+    "modelId": "qwen3-tts-1.7b-customvoice-q4",
+    "engineId": "qwen3tts-cpu",
+    "taskId": "speech.synthesis.v1",
+    "revision": "b7ee2e8c7459c3bea99da23e3d178125a7d1713c",
+    "license": "Apache-2.0",
+    "files": [{
+      "role": "talker",
+      "name": "qwen-talker-1.7b-customvoice-Q4_K_M.gguf",
+      "assetPath": "models/qwen-talker-1.7b-customvoice-Q4_K_M.gguf",
+      "sizeBytes": 1182631296,
+      "sha256": "cc328834a631bc08bf9f43e62fa23f8a1383d9b429864ce6690cfb172077fc4a"
+    }, {
+      "role": "tokenizer",
+      "name": "qwen-tokenizer-12hz-Q4_K_M.gguf",
+      "assetPath": "models/qwen-tokenizer-12hz-Q4_K_M.gguf",
+      "sizeBytes": 254974752,
+      "sha256": "cf3788b4d50aaa665fb6e57c170396aae03a3555fea52d2b5d0cda902d658039"
+    }]
+  }]
+}
