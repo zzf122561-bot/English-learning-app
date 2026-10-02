@@ -145,3 +145,66 @@ python experiments/tts-device-probe/tools/audit-qwen3-format.py
 [sdk-index]: https://dl.google.com/android/repository/repository2-3.xml
 [ndk]: https://github.com/android/ndk/releases/tag/r28c
 [pages16k]: https://developer.android.com/guide/practices/page-sizes
+
+## 7. 阶段1B追加：最小原生适配和 Android 编译证据
+
+2026-10-02，依据 MANAGER_LINK.md 的阶段1B续派实施。前六节保留首轮静态审计的历史状态；本节记录新增差异。404个talker张量/8项格式检查直接沿用，未重复执行。
+
+**当前结论：Android 原生 Library 构建及 ELF 检查通过；总体仍为 `blocked / phase1b_android_build_passed_runtime_pending`。** 没有主机或设备上的实际模型推理、取消执行证据，不能报告 `compatibility_gate_passed`，完整UI没有实施。
+
+### 固定源及本地差异
+
+- `tools/vendor-native.py` 从此前固定归档离线选取134个源/头/CMake/许可证文件，记录于 `vendor/UPSTREAM_FILES.json`，保留每个上游文件的 SHA-256。未执行上游脚本。35个引擎实现文件加 GGML CPU；未采用上游 CLI/JNI、下载器或其他后端实现。
+- 8个上游文件的本地改动完整保存在 `vendor/LOCAL_CHANGES.patch`，SHA-256：`08f2da86a52f4225435d80eab2a0d15935bd377705f2293e38c69faf7aea0af1`。`tools/write-vendor-patch.py` 用原始文件hash核对后生成差异，不调用 Git。内容为取消/阶段检查、分块读、token触顶标记及取消GGML构建时的Git探测；固定源码身份不变。
+- 自有 `src/main/cpp/probe_engine.*`、`probe_jni.cpp` 及 Kotlin `engines/qwen3tts/QwenNativeBindings.kt` 实现参数和生命周期；模块 CMake 明确列出源码、CPU及禁用后端，未改总控宿主。
+- AAR 的 `classes.jar!/META-INF/model-probe/` 包含 Qwen、GGML原始MIT全文、署名 NOTICE，以及 NDK 自带 LLVM工具链原始 NOTICE（涵盖libc++/libc++abi及LLVM例外）。文件版权头保留。未包含模型权重，模型许可/转换输入revision限制仍按第1–2节表述。
+
+### 实际接线和取消约束
+
+Kotlin/JNI/C++ 类型逐项传递英语ID、音色、instruction、线程数、temperature、top-k、top-p、repetition penalty、max audio tokens、seed。Kotlin与C++分别验证范围和有限数；随机请求 `seed=-1` 在适配器内解析为显式非负seed。真实调用 CPU setter/getter，随后再调用上游 batch synthesize；禁止自动挑选其他模型文件。requested与effective分开记录，尚未进入推理的取消或失败不产生effective参数快照。token数量达到上限时保留“可能截断”，不声称完整读完。
+
+本轮通过 `javap -s` 核对 Kotlin 参数/结果构造签名和9个native方法名，与JNI定义一致；最终 `.so` 中9个JNI导出均存在。这是字节码/链接接线证据。C++非默认参数映射测试、线程setter/CPU graph abort测试入口已编译，但尚未执行；不能据此声称参数的模型效果或运行时线程数已验收。
+
+排他 registry 只允许一个session，句柄不暴露裸指针；单调操作ID防过期取消。执行锁覆盖加载、推理和释放，close先设置取消并等待执行锁，再销毁引擎；backend abort回调只读取进程寿命的原子量，不保存Java/请求对象地址。失败/取消不返回PCM并卸载引擎，重新使用需load。原生安全退出的运行证据仍待设备测试，以上不是无竞态的实测结论。
+
+可中断点覆盖：load开始/张量循环/1MiB分块fread；batch tokenize前/预填充前；每个生成frame；decode前，以及这些阶段使用的实际GGML CPU backend abort。GGUF元数据解析、单次系统I/O、内存分配、张量转换和单个CPU计算节点未变为可抢占操作，停止响应不保证即时；取消后释放和返回也可能耗时。默认仍为完整段落batch，没有以分句或流式规避取消要求。首PCM延迟仍不可测，没有输出伪造的首音频指标。
+
+当前最小JNI只校验精确文件名/同目录/大小/加载后能力，完整SHA256与ModelLease尚未实现。因此只接受总控完成完整hash校验并保持不变的授权文件用于本轮验证，尚不是面向用户的模型导入功能。
+
+### 本次执行结果
+
+| 验证 | 结果与范围 |
+|---|---|
+| `:runtime:testDebugUnitTest` | 3项通过，0失败/错误/跳过；非默认参数、非法范围/NaN/Infinity、Unicode指令长度。纯Kotlin，不加载native/model |
+| `:runtime:compileDebugAndroidTestKotlin` | 通过；预取消、过期操作ID、绕过Kotlin后的native非法参数测试仅编译 |
+| `:runtime:assembleRelease` | 通过；NDK28.2.13676358 / CMake3.22.1 / arm64-v8a / API31 / C++17；CMake缓存为Release，实际编译flags含 `-O3 -DNDEBUG` |
+| `cmake --build … --target probe_native_contract_test --parallel 2` | 通过；AArch64 Android PIE、解释器 `/system/bin/linker64`，不是Windows可执行文件；未运行 |
+| `tools/inspect-native-artifact.py` | 最终AAR仅含两份预期arm64 `.so`；ELF/RELRO布局及4份notice字节检查通过；`runtime_or_apk_validation=false` |
+| `llvm-readelf` / `llvm-nm` / `javap` | ABI、程序段、依赖及JNI方法/构造签名核对通过；无Activity/Application/launcher，AAR manifest只有minSdk31 |
+
+主构建使用已授权独立宿主：`gradle.bat -p _manager/probes/tts-device --no-daemon --no-configuration-cache --max-workers=2 :runtime:testDebugUnitTest :runtime:compileDebugAndroidTestKotlin :runtime:assembleRelease`。可复用入口 `tools/test-module.ps1` 已改为生成Release AAR。后来仅补入LLVM notice，增量执行assembleRelease，不重复无关测试。
+
+初次构建因沙箱不能写Gradle native DLL lock而未启动；经工具批准访问既有缓存后运行。首轮C++编译缺少取消声明的include，补上后完整构建成功。单独CMake/Ninja在沙箱内无进展，中止本次会话后经批准用相同现有工具编译成功；未安装工具、未改变代理或凭据。JNI标准UTF转换使用C++17仍支持的codecvt/wstring_convert，编译器报告4条弃用警告；没有以屏蔽警告或改编码语义处理。
+
+持久证据入口：`build/test-results/testDebugUnitTest/TEST-com.xuesui.englishapp.modelprobe.engines.qwen3tts.QwenParametersTest.xml`、`build/reports/tests/testDebugUnitTest/index.html`、`.local/artifact-check/inspection.json`；构建目录均忽略，不提交模型、产物或缓存。
+
+### 产物与 ELF 结果
+
+| 产物 | 字节数 | SHA-256 |
+|---|---:|---|
+| `build/outputs/aar/runtime-release.aar` | 1,394,913 | `47e4a65fc275092c4cd0a5d0a78c23f0277e2391f210d9ffe1122c4d3dd28d96` |
+| AAR `libmodel_probe_qwen.so` | 2,302,096 | `d4fcb62d35e1754cea5c32af6f1f1aaed74630705d552f9d575df0c2a80e825c` |
+| AAR `libc++_shared.so` | 1,253,544 | `cd61762848882a16c8244c964a6f396c0caa0b440588a210ce9cc4ab0e6d9f0c` |
+| `build/intermediates/cxx/Release/39684l4y/obj/arm64-v8a/probe_native_contract_test` | 18,115,936 | `f87b5012c340ff664a4a11f15c421431708fa9972c37c745d54878e5ecf669c8` |
+
+两份AAR `.so` 的全部LOAD段 `p_align=0x4000`，地址与文件offset在16KiB上同余；与[Android官方ELF检查规则][pages16k]一致。JNI的RELRO结束于16KiB边界；NDK libc++的原始RELRO结束于 `0x13a000`，取整后的保护结束为 `0x13c000`，下一可写LOAD起于 `0x13d430`，没有误覆盖可写段。初版检查把“RELRO末端本身必须16KiB对齐”当作硬条件，经核对[AOSP固定源码 `_phdr_table_set_gnu_relro_prot`](https://android.googlesource.com/platform/bionic/+/0c0f92ca86264980d28c327e208a205af6e016a9/linker/linker_phdr.cpp#1352)的page_start/page_end规则后修正检查；没有改动NDK二进制。这是静态布局推断，不等同于设备加载。
+
+原生测试入口也为16KiB LOAD对齐，但没有打入AAR或APK。总控如在已授权ARM设备执行无模型契约测试，需把该可执行文件和同NDK的 `libc++_shared.so` 放在专用可执行测试目录，用该目录的LD_LIBRARY_PATH运行。JNI的Android测试源码还需由总控测试宿主执行。本任务未执行adb、未生成或安装APK。
+
+### 精确剩余缺口与交接
+
+在本轮发现范围内，PATH上没有可用的cl/clang++/g++主机C++工具链，标准vswhere路径也不存在；没有继续扫描其他项目或安装编译器。NDK里的clang用于Android交叉编译，不能把已生成ARM ELF当作Windows主机运行结果。因此本轮无主机短句WAV、时长或取消后恢复证据。
+
+截至交接未收到总控 `MODEL_PAIR_VERIFIED` 通知；没有读取所授权目录的两个完整模型，也没有读取.partial或重新下载。即使文件到位，也仍需主机工具链或ARM设备执行环境。
+
+总控最小后续动作：接收本Library差异与已有编译证据并登记本地提交；在完整模型hash确认后，安排原生契约/JNI测试及1.7B英语Ryan/Aiden短句实际加载与合成，记录effective参数、WAV真实样本数/时长、load/prefill/generate/decode各阶段取消以及取消后重新load+run。设备上的16KiB页大小、断网、停止延迟、内存/温度/热降频、听感，以及最终APK ZIP对齐仍未覆盖。无需重跑本节已通过且未变化的模块检查。后续UI范围等待总控下发。

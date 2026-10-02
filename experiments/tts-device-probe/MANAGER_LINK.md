@@ -58,3 +58,20 @@
 6. 模型目录精确只读授权为 D:/Codex_Project/Codex_EnglishApp/_manager/local/tts-models/qwen3-1.7b-customvoice-q4-b7ee2e8 下两个文件：qwen-talker-1.7b-customvoice-Q4_K_M.gguf、qwen-tokenizer-12hz-Q4_K_M.gguf。总控尚在取得文件时不读取.partial、不重新下载；收到完整hash验证通知后才用于本模块主机加载/短句合成。两文件绝不提交、修改或向外上传；不读取该目录其他文件。
 7. 若主机路径可用，固定无私有资料的短句先做1.7B命名英语音色合成、有效参数、WAV样本/时长与取消后安全再次运行。仍不替代ARM设备验收。若主机编译器不可用而Android库编译通过，报告精确剩余缺口供总控安排最小设备验证，不制造无限循环的前置门槛。
 8. SOURCE_MANIFEST只追加本次新增证据及局限，ARCHITECTURE按实现调整；STATUS更新本轮状态。依照已授权REPORTING_PROTOCOL主动回报一次给总控01a024cb-1fba-7b23-a357-67eb2ad592b4后等待。不复审未变化旧代码，不运行正式App构建或测试。
+
+## 2026-10-02 阶段2设备验证候选页面与公共基础
+
+阶段1B已交接Android Release AAR、3项JVM测试、Android/native测试入口编译、JNI导出和ELF/notice证据。总控直接沿用，不重复审查或复跑上述范围；设备运行门槛仍未通过。由于没有设备且本机无既有主机编译器，不再把“尚未运行模型”作为制作设备测试页面的前置死锁。现授权按已批准完整模块设计/ARCHITECTURE实现设备验证候选，状态必须标注 ready_for_device_validation 而非 compatibility_gate_passed。本节取代前文“完整UI待门槛通过”的执行顺序，不改变原生/设备验收标准。
+
+- MODEL_PAIR_VERIFIED：总控下载脚本已完整校验两文件，revision b7ee2e8c7459c3bea99da23e3d178125a7d1713c；talker bytes1182631296 SHA256 cc328834a631bc08bf9f43e62fa23f8a1383d9b429864ce6690cfb172077fc4a；tokenizer bytes254974752 SHA256 cf3788b4d50aaa665fb6e57c170396aae03a3555fea52d2b5d0cda902d658039。可以按上一节精确路径只读使用，不再对同一管理端文件重复整文件hash。Android初次安装自己的副本仍必须校验，这是新目标验证。
+- NDK28.2.13676358和CMake3.22.1两份安装source.properties已核对，沿用本轮真实native编译环境。下载CLI曾异常返回，但安装收据及实际编译是成功依据，不重复安装。
+- 实现core模型安装/租约/任务排他/报告存储与Qwen适配器，连接当前ModelProbeFeature，中文界面应可真实使用。Qwen源及取消补丁不重写，仅在新增接线确有缺口时最小修正并增加对应证据。
+- 界面分基本操作/高级设置/结果：可编辑样例、恢复样例、显式安装与校验模型、加载/卸载、生成/停止、播放/重播、暖运行批次、缓存和SAF导出。按前文开放真实参数，尚未安装的Q8/0.6B显示未安装/不可选择，不出现假GPU/NPU开关。无录音、联网下载、云TTS、正式App接线。
+- 总控注入 assets/probe-sample.txt 和 assets/models/manifest.json，以及清单列出的两个GGUF。清单schemaVersion=1，models数组中首项 modelId=qwen3-tts-1.7b-customvoice-q4、engineId=qwen3tts-cpu、taskId=speech.synthesis.v1、revision=b7ee2e8c7459c3bea99da23e3d178125a7d1713c、license=Apache-2.0；files字段为role(talker/tokenizer)、name、assetPath(models/<name>)、sizeBytes、sha256。不得默认扫描assets或猜测模型名。version1清单可拒绝未知modelId/任意路径，通用schema保留扩展。
+- 应能检查模型文件缺失、空间不足、错误hash并显示具体原因；首次从assets原子复制到私有目录，安装取消/失败不留下Ready半成品。安装进度不伪装下载进度；提示模型合计约1.44GB且首次安装私有副本另占空间。取消安装后残留仅限受控staging，下次可安全清理，不删除原assets。
+- 模型文件与私有样例仍不进Git；模拟/单元测试仅使用合成小文件/通用短句，实际私有正文由总控注入。不读取原DOCX或其他目录。
+- 首次进入明确标注“实验性设备验证，1.7B实际运行尚待本机确认”；完整加载/合成真实返回才显示成功。取消请求与native退出分别显示。出现native未响应不能宣称已停止，也不free仍占用的句柄。
+- 提供非模型native smoke/契约自检的可调用路径，或独立androidTest测试方法给总控执行；已编译ARM PIE不等于执行过。不要为了自检放开任意shell/动态代码接口。
+- 沿用已批准ARCHITECTURE分层，UI不得直接操纵native句柄；记录requested/effective配置与cold/warm/cache，保存WAV和JSON一致性，模型删除不删历史。按任务能力分层，不写死整个App都是TTS。
+- 只运行本模块受影响的新测试及必要AAR/native构建；完整自动化结果可合并报告，不重复已有静态来源审计。无设备则androidTest仍仅编译，不冒充运行。
+- 交接报告包括新增差异、资产清单解析契约、是否需宿主权限/依赖、测试结果、AAR/ELF变化和全部设备待测项，状态 ready_for_device_validation / awaiting_manager_apk；报告一次给总控后等待。Git、App壳、签名、最终APK和包内模型校验归总控。

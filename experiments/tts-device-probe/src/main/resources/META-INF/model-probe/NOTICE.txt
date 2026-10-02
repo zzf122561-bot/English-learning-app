@@ -1,0 +1,29 @@
+Qwen native adapter for the isolated EnglishApp model probe
+
+This Library includes a CPU source subset of:
+
+Danmoreng/qwen3-tts.cpp
+Commit: 16bb5afcd06311031c72a8488f8d59660dc2fb46
+https://github.com/Danmoreng/qwen3-tts.cpp
+Copyright (c) 2026 Danmoreng. MIT license; see LICENSE-qwen3-tts.txt.
+
+ggml-org/ggml
+Commit: af97976c7810cdabb1863172f31c432dab767de7
+https://github.com/ggml-org/ggml
+Copyright (c) 2023-2026 The ggml authors. MIT license; see LICENSE-ggml.txt.
+Individual adopted source files retain their original copyright notices.
+GGML CPU attention code also credits Jeffrey Quesnelle and Bowen Peng,
+Copyright (c) 2023, under the MIT license.
+
+The AAR also packages the Android NDK r28c (28.2.13676358) libc++ shared
+runtime. NOTICE-llvm.txt preserves the supplied LLVM toolchain notices,
+including the libc++/libc++abi license and LLVM exceptions, without alteration.
+
+Local modifications add cooperative cancellation, a token-limit result marker,
+and a fixed build revision without invoking Git. The module source distribution
+records originals in vendor/UPSTREAM_FILES.json and changes in
+vendor/LOCAL_CHANGES.patch. The JNI and lifecycle adapter are module-owned code.
+
+No model weights are included in this AAR. Model-license declarations and the
+undisclosed original conversion-input revision are documented separately in
+SOURCE_MANIFEST.md; this notice does not claim a model repository LICENSE file.

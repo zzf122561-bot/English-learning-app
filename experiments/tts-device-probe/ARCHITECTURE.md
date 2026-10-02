@@ -1,6 +1,6 @@
 # 本地模型验证 Library 架构草案
 
-阶段1设计，2026-10-02。尚未实现引擎、页面或存储；能力事实与阻塞以 [SOURCE_MANIFEST.md](SOURCE_MANIFEST.md) 为唯一正文。本轮只为 Qwen 英语 TTS 实例化能力，正式 EnglishApp / 功能1 / 功能2完全隔离。
+阶段1B设计与最小原生实现，2026-10-02。已实现引擎内部的类型化 JNI、排他生命周期及合作取消，并完成 Android Library 编译；页面、通用调度、模型安装和存储仍为下述草案。构建证据及未运行范围以 [SOURCE_MANIFEST.md](SOURCE_MANIFEST.md) 第7节为唯一正文。本轮只为 Qwen 英语 TTS 实例化能力，正式 EnglishApp / 功能1 / 功能2完全隔离。
 
 ## 边界与依赖
 
@@ -30,6 +30,16 @@ flowchart LR
 ```
 
 现在只建立必要实现，不预建聊天/文本/图像空页面或空 Gradle 模块。第二个实际引擎到来时，由总控决定是否拆分 Gradle 模块。
+
+### 阶段1B已实现的内部边界
+
+- `engines/qwen3tts/QwenNativeBindings.kt`：引擎专属参数与结果 DTO、Kotlin 校验、requested/effective 快照、阻塞 JNI 入口。仅验证入口使用，不从占位页面调用；没有通用层依赖这些 Qwen 字段。
+- `src/main/cpp/probe_engine.*`：进程内单一 session，整数句柄通过受锁 registry 取得 shared ownership；prepare 生成单次操作 ID，过期 cancel 不影响新任务。load/synthesize/close 用 execution 锁防止运行和释放重叠；close 先取消，再等待 native 退出。错误/取消丢弃本次 PCM 并卸载引擎，后续必须重新 load，不能算 warm run。
+- `src/main/cpp/probe_jni.cpp`：明确字段与构造签名、UTF-16/UTF-8 转换、C++ 异常边界；R8 keep 规则保持所需成员。effective 仅在实际进入 synthesize 调用后返回，随机 seed 在调用前解析为显式非负值。
+- `vendor/`：固定 CPU 源子集；取消原子量具有进程寿命，CPU abort 回调不保存 Java/单次请求指针。加载分块读、预填充/生成/解码检查与实际 CPU graph abort 是合作式停止；OS I/O、GGUF 元数据解析、内存分配、单个 CPU 节点/张量转换仍可能延迟响应。
+- 目前文件入口只验证精确名字、同目录、实际长度与加载后能力。完整 SHA256/原子安装/ModelLease 仍属于阶段2的 `core/model`；当前只允许总控已校验且保持不变的精确文件用于验证，不能把此 JNI 当成任意文件导入功能。
+
+这些生命周期约束已有代码与编译证据；Android JNI/原生契约测试尚未在设备执行，真实加载、取消阶段和重新运行仍需验收。取消延迟或不存在竞态不能仅凭编译结果宣称已验证。
 
 ## 契约草案
 
@@ -63,7 +73,7 @@ flowchart LR
 
 状态至少为 `Absent → Verifying → Installed → Loading → Ready → Running → Cancelling → Ready/Error`，保存结果为单独原子步骤。单个 coordinator 串行化模型加载、全局 CPU backend 配置和推理；UI 控制请求立即返回，计算在工作线程。允许停止请求与工作线程并行设置原子标志，但必须等 native 确认退出后释放句柄/租约。失败或 abort 后若无法证明 native 状态可复用，则销毁并重新加载；不把该次列为成功 warm run。
 
-原 JNI 不满足完整参数/批量取消要求，因此后续采用本模块 JNI 直接接 C++；对 load 循环、frame loop、prefill/decode CPU abort 的最小补丁单独留痕。不能以 Coroutine.cancel、停止播放、抛异常越过 C 边界或立即 free 模型冒充停止推理。若无法实现可靠退出，上报阻塞。ViewModel 保持旋转时的任务归属；退出页面请求取消，不留下失去所有者的计算。当前无需 Service/录音权限。
+阶段1B已采用本模块 JNI 直接接 C++；对 load 循环、frame loop、prefill/decode CPU abort 的最小补丁在 `vendor/LOCAL_CHANGES.patch` 留痕。后续调用者不能以 Coroutine.cancel、停止播放、抛异常越过 C 边界或立即 free 模型冒充停止推理。若实测无法可靠退出，上报阻塞。阶段2的 ViewModel 需保持旋转时的任务归属；退出页面请求取消，不留下失去所有者的计算。当前无需 Service/录音权限。
 
 默认完整段落一次批量合成，逐句测试独立选择，保留原句顺序/标点，记录分句算法版本、每段 seed 和拼接策略；不能用分句结果充当完整段落结果。批次有限（拟定1…5次，默认3），逐次保存，不并发加载多个模型。任何失败/取消停止剩余批次。
 

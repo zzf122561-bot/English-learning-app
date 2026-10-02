@@ -1,2 +1,5 @@
 # Public upstream audit downloads and bounded model headers; never ship as sources.
 /vendor-downloads/
+/.local/
+/.cxx/
+/build/

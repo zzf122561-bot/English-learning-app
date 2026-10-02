@@ -1,0 +1,239 @@
+--- a/vendor/qwen3-tts/src/gguf_loader.cpp
++++ b/vendor/qwen3-tts/src/gguf_loader.cpp
+@@ -1,13 +1,19 @@
+ #include "gguf_loader.h"
++#include "ggml-cpu.h"
+ 
+ #include <cstdio>
+ #include <cstring>
+ #include <fstream>
+ #include <thread>
++#include <atomic>
++#include <algorithm>
+ 
+ namespace qwen3_tts {
+ 
+ namespace {
++// Local probe patch: backend callbacks never retain an operation/Java pointer.
++std::atomic<bool> probe_cancelled{false};
++std::atomic<int> probe_phase{0};
+ struct shared_backend_state {
+     ggml_backend_t backend = nullptr;
+     int32_t ref_count = 0;
+@@ -46,6 +52,8 @@
+     if (set_fn) {
+         set_fn(backend, get_cpu_thread_count());
+     }
++    ggml_backend_cpu_set_abort_callback(backend,
++        [](void *) { return probe_cancel_requested(); }, nullptr);
+ }
+ 
+ ggml_backend_t init_backend_by_type(enum ggml_backend_dev_type type) {
+@@ -67,6 +75,24 @@
+ }
+ 
+ GGUFLoader::GGUFLoader() = default;
++
++void probe_reset_cancel() { probe_cancelled.store(false); }
++void probe_request_cancel() { probe_cancelled.store(true); }
++bool probe_cancel_requested() { return probe_cancelled.load(); }
++void probe_set_phase(int phase) { probe_phase.store(phase); }
++int probe_get_phase() { return probe_phase.load(); }
++
++bool probe_read_tensor(FILE * file, void * destination, size_t bytes) {
++    auto * output = static_cast<unsigned char *>(destination);
++    size_t offset = 0;
++    while (offset < bytes) {
++        if (probe_cancel_requested()) return false;
++        const size_t chunk = std::min<size_t>(bytes - offset, 1024 * 1024);
++        if (fread(output + offset, 1, chunk, file) != chunk) return false;
++        offset += chunk;
++    }
++    return !probe_cancel_requested();
++}
+ 
+ GGUFLoader::~GGUFLoader() {
+     close();
+@@ -227,6 +253,7 @@
+ 
+ bool GGUFLoader::open(const std::string & path) {
+     close();  // Close any previously opened file
++    if (probe_cancel_requested()) { error_msg_ = "Cancelled"; return false; }
+     
+     file_path_ = path;
+     
+@@ -236,6 +263,7 @@
+     };
+     
+     ctx_ = gguf_init_from_file(path.c_str(), params);
++    if (probe_cancel_requested()) { close(); error_msg_ = "Cancelled"; return false; }
+     if (!ctx_) {
+         error_msg_ = "Failed to open GGUF file: " + path;
+         return false;
+@@ -360,6 +388,12 @@
+     std::vector<uint8_t> read_buf;
+     
+     for (int64_t i = 0; i < n_tensors; ++i) {
++        if (probe_cancel_requested()) {
++            error_msg = "Cancelled";
++            fclose(f);
++            ggml_backend_free(backend);
++            return false;
++        }
+         const char * name = gguf_get_tensor_name(ctx, i);
+         size_t offset = gguf_get_tensor_offset(ctx, i);
+         
+@@ -386,7 +420,7 @@
+             return false;
+         }
+         
+-        if (fread(read_buf.data(), 1, source_nbytes, f) != source_nbytes) {
++        if (!probe_read_tensor(f, read_buf.data(), source_nbytes)) {
+             error_msg = "Failed to read tensor data: " + std::string(name);
+             fclose(f);
+             ggml_backend_free(backend);
+--- a/vendor/qwen3-tts/src/gguf_loader.h
++++ b/vendor/qwen3-tts/src/gguf_loader.h
+@@ -9,8 +9,18 @@
+ #include <vector>
+ #include <memory>
+ #include <cstdint>
++#include <cstdio>
+ 
+ namespace qwen3_tts {
++
++// Local probe patch (2026-10-02). One serialized owner, process-lifetime state.
++// Reset only when no operation is executing. Request is safe from another thread.
++void probe_reset_cancel();
++void probe_request_cancel();
++bool probe_cancel_requested();
++void probe_set_phase(int phase); // 0 idle, 1 load, 2 prefill, 3 generate, 4 decode
++int probe_get_phase();
++bool probe_read_tensor(FILE * file, void * destination, size_t bytes);
+ 
+ enum class backend_preference {
+     auto_select = 0,
+--- a/vendor/qwen3-tts/src/pipeline/pipeline_models.cpp
++++ b/vendor/qwen3-tts/src/pipeline/pipeline_models.cpp
+@@ -181,6 +181,8 @@
+ bool Qwen3TTS::load_models(const std::string & model_dir,
+                            const std::string & model_name,
+                            const std::string & tokenizer_model_override) {
++    probe_set_phase(1);
++    if (probe_cancel_requested()) { error_msg_ = "Cancelled"; return false; }
+     configure_ggml_logging_once();
+ 
+     int64_t t_start = get_time_ms();
+--- a/vendor/qwen3-tts/src/pipeline/pipeline_synthesize.cpp
++++ b/vendor/qwen3-tts/src/pipeline/pipeline_synthesize.cpp
+@@ -1317,6 +1317,8 @@
+     sample_memory("synth/start");
+ 
+     int64_t t_tokenize_start = get_time_ms();
++    probe_set_phase(2);
++    if (probe_cancel_requested()) { result.error_msg = "Cancelled"; return result; }
+     std::vector<int32_t> text_tokens = self.tokenizer_.encode_for_tts(text);
+     std::vector<int32_t> instruct_tokens;
+     if (!params.instruction.empty()) {
+@@ -1502,6 +1504,8 @@
+ 
+     int n_codebooks = self.transformer_.get_config().n_codebooks;
+     int n_frames = (int) generated_codes.size() / n_codebooks;
++    // Local probe patch: conservative marker, not proof of missing speech.
++    result.hit_token_limit = n_frames >= params.max_audio_tokens;
+ 
+     if (params.print_progress) {
+         fprintf(stderr, "Speech codes generated: %d frames x %d codebooks\n", n_frames, n_codebooks);
+@@ -1664,6 +1668,8 @@
+         }
+     }
+ 
++    probe_set_phase(4);
++    if (probe_cancel_requested()) { result.error_msg = "Cancelled"; return result; }
+     if (!self.audio_decoder_.decode(decoder_code_data, decoder_frames, result.audio)) {
+         result.error_msg = "Failed to decode speech codes: " + self.audio_decoder_.get_error();
+         return result;
+--- a/vendor/qwen3-tts/src/qwen3_tts.h
++++ b/vendor/qwen3-tts/src/qwen3_tts.h
+@@ -95,6 +95,8 @@
+     
+     // Success flag
+     bool success = false;
++    // Local probe patch (2026-10-02): possible truncation at requested frame cap.
++    bool hit_token_limit = false;
+     
+     // Error message if failed
+     std::string error_msg;
+--- a/vendor/qwen3-tts/src/transformer/transformer_generate.cpp
++++ b/vendor/qwen3-tts/src/transformer/transformer_generate.cpp
+@@ -1,4 +1,5 @@
+ #include "tts_transformer.h"
++#include "gguf_loader.h"
+ #include "transformer/transformer_state_internal.h"
+ #include "transformer/transformer_internal.h"
+ #include "transformer/transformer_sampling.h"
+@@ -94,6 +95,8 @@
+     }
+ 
+     std::vector<float> prefill_embd;
++    probe_set_phase(2);
++    if (probe_cancel_requested()) { error_msg_ = "Cancelled"; return false; }
+     std::vector<float> trailing_text_hidden;
+     std::vector<float> tts_pad_embed;
+ 
+@@ -230,6 +233,8 @@
+     const int32_t suppress_start = std::min(cfg.code_pred_vocab_size, cfg.codec_vocab_size);
+ 
+     for (int frame = 0; frame < max_len; ++frame) {
++        probe_set_phase(3);
++        if (probe_cancel_requested()) { error_msg_ = "Cancelled"; return false; }
+         const bool trace_frame = transformer_internal::debug_trace_should_dump_frame(trace_cfg, frame);
+         if (trace_frame) {
+             char raw_name[128];
+--- a/vendor/qwen3-tts/src/transformer/transformer_loader_tensors.cpp
++++ b/vendor/qwen3-tts/src/transformer/transformer_loader_tensors.cpp
+@@ -44,6 +44,7 @@
+     impl->model.code_pred_head.resize(cfg.n_codebooks - 1);
+ 
+     for (int64_t i = 0; i < n_tensors; ++i) {
++        if (probe_cancel_requested()) { error_msg = "Cancelled"; return false; }
+         const char * name = gguf_get_tensor_name(ctx, i);
+         enum ggml_type type = gguf_get_tensor_type(ctx, i);
+ 
+@@ -422,7 +423,7 @@
+             return false;
+         }
+ 
+-        if (fread(read_buf.data(), 1, nbytes, f) != nbytes) {
++        if (!probe_read_tensor(f, read_buf.data(), nbytes)) {
+             error_msg = "Failed to read tensor data: " + std::string(name);
+             fclose(f);
+             release_preferred_backend(backend);
+--- a/vendor/ggml/CMakeLists.txt
++++ b/vendor/ggml/CMakeLists.txt
+@@ -10,23 +10,8 @@
+ 
+ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
+ 
+-find_program(GIT_EXE NAMES git git.exe NO_CMAKE_FIND_ROOT_PATH)
+-if(GIT_EXE)
+-    # Get current git commit hash
+-    execute_process(COMMAND ${GIT_EXE} rev-parse --short HEAD
+-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+-        OUTPUT_VARIABLE GGML_BUILD_COMMIT
+-        OUTPUT_STRIP_TRAILING_WHITESPACE
+-        ERROR_QUIET
+-    )
+-
+-    # Check if the working directory is dirty (i.e., has uncommitted changes)
+-    execute_process(COMMAND ${GIT_EXE} diff-index --quiet HEAD -- .
+-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+-        RESULT_VARIABLE GGML_GIT_DIRTY
+-        ERROR_QUIET
+-    )
+-endif()
++# Local probe patch (2026-10-02): fixed archive provenance; never inspect Git.
++set(GGML_BUILD_COMMIT "af97976c7810cdabb1863172f31c432dab767de7")
+ 
+ set(GGML_VERSION "${GGML_VERSION_BASE}")
+ 
