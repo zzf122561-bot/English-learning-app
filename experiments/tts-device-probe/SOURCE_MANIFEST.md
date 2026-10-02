@@ -208,3 +208,120 @@ Kotlin/JNI/C++ 类型逐项传递英语ID、音色、instruction、线程数、t
 截至交接未收到总控 `MODEL_PAIR_VERIFIED` 通知；没有读取所授权目录的两个完整模型，也没有读取.partial或重新下载。即使文件到位，也仍需主机工具链或ARM设备执行环境。
 
 总控最小后续动作：接收本Library差异与已有编译证据并登记本地提交；在完整模型hash确认后，安排原生契约/JNI测试及1.7B英语Ryan/Aiden短句实际加载与合成，记录effective参数、WAV真实样本数/时长、load/prefill/generate/decode各阶段取消以及取消后重新load+run。设备上的16KiB页大小、断网、停止延迟、内存/温度/热降频、听感，以及最终APK ZIP对齐仍未覆盖。无需重跑本节已通过且未变化的模块检查。后续UI范围等待总控下发。
+
+## 8. 阶段2追加：设备验证候选
+
+2026-10-03，依据 MANAGER_LINK.md 最后一节授权，完成独立 Library 的公共基础、Qwen 适配器和中文测试页面。**当前状态为 `ready_for_device_validation / awaiting_manager_apk`；不是 `compatibility_gate_passed`。** 第1–7节保留原轮次历史；本节取代其中对“完整UI尚未实施”“未收到模型通知”的当前状态描述，不改写旧证据。
+
+### 接收的条件与实现范围
+
+已接收总控 `MODEL_PAIR_VERIFIED`：第2节首选两文件的完整大小/SHA-256已由总控验证，模型 revision 不变。直接沿用该收据，本轮没有重新读取或计算管理端两份完整模型哈希，没有读取私有DOCX、私有样例正文或.partial。NDK/CMake安装结果与阶段1B实际编译证据也直接沿用，没有重新安装工具。
+
+本轮仅修改 `experiments/tts-device-probe/`：新增 core/model、core/runtime、core/metrics、core/storage、contracts/speech、Qwen Kotlin 适配器/参数编辑器、features/speech、runtime/ProbeViewModel，替换原占位入口并增加模块依赖和测试。实际职责、默认值、设置schema、事务存储、任务退出和测量语义统一见 [ARCHITECTURE.md](ARCHITECTURE.md)。本轮没有修改 C++、JNI、vendor源、CMake或原生补丁；适配器版本为 `16bb5afc-ggml-af97976c-patch-08f2da86-adapter2`。
+
+中文页面按操作/设置/结果组织，连接模型安装/全量校验/租约、加载/卸载、JNI无模型契约自检、文本编辑/恢复、真实参数、完整段落/逐句、冷启动/暖运行/有限批次/显式缓存、取消、播放/变速、历史和SAF WAV/JSON导出。模型替换或删除保留历史，缓存清理仅移除索引。跨控制器租约和活动草稿保护覆盖旧页面退出尚未完成时的新页面初始化。
+
+同一暖运行批次只解析一次随机seed，使各次条件相同；失败、取消、音频帧触顶停止余下批次。requested/effective分别保存，包括原生失败调用实际返回的effective；未返回则为null。语音模式、批次数、播放速度与全部生成参数一起保存/恢复。以上是实现及模拟测试覆盖，尚无真实设备交互或模型执行证据。
+
+### 总控宿主的资产契约
+
+宿主仍调用同一个 `ModelProbeFeature()`；本轮不新增宿主权限、Activity、Application、Service或正式App依赖。MediaPlayer、PSS、热状态、电池温度与SAF使用现有平台API；不申请联网、录音、广泛存储或唤醒锁权限。
+
+模块新增依赖为已有catalog中的 `androidx.compose.foundation`、`androidx.activity.compose`、`androidx.lifecycle.runtime.compose`；仅JVM测试增加 `org.json:json:20250517`，Android运行时使用平台org.json。根catalog/全局Gradle未改。运行要求沿用 arm64-v8a、API31及现有Compose宿主。
+
+总控需要注入以下资产。文件名与字节身份都是固定契约，解析器不扫描目录或猜测替代文件：
+
+- `assets/probe-sample.txt`：总控处理后的指定68词5句英文段落，正文保持原样；本模块不复制私有正文。读取上限65536 bytes，空白或含汉字拒绝，缺失显示原因并允许手动输入，不自动造样例。
+- `assets/models/qwen-talker-1.7b-customvoice-Q4_K_M.gguf` 与 `assets/models/qwen-tokenizer-12hz-Q4_K_M.gguf`：第2节的精确配对。
+- `assets/models/manifest.json`：schemaVersion数值1，当前只有一个受信任注册项。最小完整内容如下；sizeBytes必须是JSON整数，sha256为表中小写字符串。
+
+```json
+{
+  "schemaVersion": 1,
+  "models": [{
+    "modelId": "qwen3-tts-1.7b-customvoice-q4",
+    "engineId": "qwen3tts-cpu",
+    "taskId": "speech.synthesis.v1",
+    "revision": "b7ee2e8c7459c3bea99da23e3d178125a7d1713c",
+    "license": "Apache-2.0",
+    "files": [{
+      "role": "talker",
+      "name": "qwen-talker-1.7b-customvoice-Q4_K_M.gguf",
+      "assetPath": "models/qwen-talker-1.7b-customvoice-Q4_K_M.gguf",
+      "sizeBytes": 1182631296,
+      "sha256": "cc328834a631bc08bf9f43e62fa23f8a1383d9b429864ce6690cfb172077fc4a"
+    }, {
+      "role": "tokenizer",
+      "name": "qwen-tokenizer-12hz-Q4_K_M.gguf",
+      "assetPath": "models/qwen-tokenizer-12hz-Q4_K_M.gguf",
+      "sizeBytes": 254974752,
+      "sha256": "cf3788b4d50aaa665fb6e57c170396aae03a3555fea52d2b5d0cda902d658039"
+    }]
+  }]
+}
+```
+
+未知modelId、身份/revision不一致、角色重复/缺失或文件路径/大小/hash不符均拒绝。内置清单通过只说明声明匹配；设备首次安装仍须对新私有副本做完整字节校验。SAF调试导入也只接受相同两个hash，不能替代宿主内嵌交付。合计1,437,606,048 bytes；安装私有副本另占相同空间，并要求64MiB余量，重装还要保留旧版直至原子切换成功。
+
+### 本轮验证与可复用证据
+
+最后一次受影响范围构建于北京时间2026-10-03完成，`BUILD SUCCESSFUL in 1m29s`，74 tasks（24 executed、50 up-to-date）。测试XML时间为2026-10-02T16:57:57–16:58:00Z。本次有意只运行stage2新增测试，未重复阶段1B三项参数测试、404项张量静态比对、JNI符号/构造签名审计或无变化的原生契约编译。
+
+```powershell
+$env:JAVA_HOME = 'D:\CodexData\android-toolchain\jdk-17'
+$env:ANDROID_HOME = 'D:\CodexData\android-toolchain\android-sdk'
+$env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
+$env:GRADLE_OPTS = '-Xmx3g -Dfile.encoding=UTF-8 -Djdk.net.hosts.file=C:/Users/zzf86/.codex/worktrees/5551/Codex_EnglishApp/_manager/tools/gradle-hosts.txt'
+& 'D:\CodexData\android-toolchain\gradle\gradle-9.5.0\bin\gradle.bat' `
+  -p '_manager/probes/tts-device' --no-daemon --no-configuration-cache --max-workers=2 `
+  :runtime:testDebugUnitTest --tests 'com.xuesui.englishapp.modelprobe.stage2.*' `
+  :runtime:compileDebugAndroidTestKotlin :runtime:assembleRelease :runtime:lintDebug
+python 'experiments/tts-device-probe/tools/inspect-native-artifact.py'
+```
+
+以上在本worktree根运行；Gradle使用经工具批准的现有缓存访问，未生成APK。新增测试均用合成小文件、fake引擎与可控时钟，不含私有资料或大模型。
+
+| 验证 | 结果与覆盖 |
+|---|---|
+| ModelStoreTest | 7项通过：精确清单、配对完整校验/租约、失败保留旧安装、取消/空间不足、损坏/重启复验、受控残留清理、跨控制器租约 |
+| StorageSettingsTest | 7项通过：原子结果/音频hash、损坏不命中缓存、清缓存及删模型保留历史、参数保存与版本变化、非法编辑值、活动草稿保护、页面偏好保存/范围 |
+| SpeechServiceTest | 9项通过：真实WAV头/样本/RTF计算、cold/warm/cache分流、完整缓存身份、取消无PCM及重新加载、逐句顺序/seed、触顶停止、不杜撰样例、同条件随机seed批次、失败native有效参数快照 |
+| TaskRunnerTest | 2项通过：取消保持busy直至真实退出、清理排在退出后、回调登记前取消 |
+| `compileDebugAndroidTestKotlin` | 通过；既有JNI契约和新增合成小文件私有存储/原子安装/租约测试仅编译，未在Android执行 |
+| `assembleRelease` | 通过；最终Release AAR含新页面/核心/适配器，无模型权重；未构建APK |
+| `lintDebug` | 完成，0 errors、6 warnings，说明见下表 |
+| 最终AAR检查 | 两份预期arm64 `.so`与阶段1B逐字节一致；16KiB ELF布局、RELRO边界及4份notice字节匹配通过；不替代APK ZIP或设备加载 |
+
+新增JVM合计 **25项，0失败、0错误、0跳过**。明细在 `build/test-results/testDebugUnitTest/TEST-com.xuesui.englishapp.modelprobe.stage2.*.xml`，汇总在 `build/reports/tests/testDebugUnitTest/index.html`。Lint报告在 `build/reports/lint-results-debug.html` / `.sarif`。产物检查在 `.local/artifact-check/inspection.json`。这些目录是本地忽略产物，测试过滤会重写当前测试报告目录，阶段1B结论仍以第7节当时记录为准。
+
+| Lint警告 | 数量 | 本轮处理与边界 |
+|---|---:|---|
+| GradleDependency | 1 | 建议compileSdk37；沿用总控既定36，不扩展宿主/工具升级范围 |
+| NewerVersionAvailable | 1 | org.json有更新；本次测试固定20250517并通过，不为无关升级重跑 |
+| ChromeOsAbiSupport | 1 | 本候选明确仅arm64，不添加未经验证的x86_64 |
+| UsableSpace | 2 | 当前采用保守usableSpace + 64MiB检查；没有用可回收其他缓存空间扩大可用容量 |
+| UseTomlInstead | 1 | 新org.json只属于此Library的JVM测试；根catalog不在写权限内 |
+
+定时测量/阶段提示改用固定延迟，避免Android固定频率定时器积压后密集回补；ViewModel显式持有Application上下文。相关Lint问题已修复，无警告屏蔽。SAF提供方、音频焦点、页面布局/输入法、Activity重建等平台交互尚未执行，不能由JVM或Lint通过推定。
+
+### 最终产物
+
+| 产物 | 字节数 | SHA-256 |
+|---|---:|---|
+| `build/outputs/aar/runtime-release.aar` | 1,630,998 | `8c5df2adfa20345a31c64189177f18740c09065ec6f81e398b4efb6d4a101544` |
+| AAR `libmodel_probe_qwen.so` | 2,302,096 | `d4fcb62d35e1754cea5c32af6f1f1aaed74630705d552f9d575df0c2a80e825c` |
+| AAR `libc++_shared.so` | 1,253,544 | `cd61762848882a16c8244c964a6f396c0caa0b440588a210ce9cc4ab0e6d9f0c` |
+
+AAR哈希变化来自阶段2Kotlin/Compose内容；原生源、补丁及两份最终SO身份不变，沿用第7节JNI和ELF深入分析。最终AAR manifest只有库package与minSdk31；四份notice仍在classes.jar的META-INF/model-probe内。APK中的模型大小/hash、所有SO、ZIP16KiB对齐、签名及包可安装性属于总控新增包装验证，不能以本表替代。
+
+### 待总控安排的设备验证
+
+1. 从总控登记的干净提交注入精确资产、制作独立候选APK，验证包内模型/notice、签名与ZIP16KiB对齐。记录目标设备与实际PAGE_SIZE，不从Android版本猜测16KiB。Library产物不能直接安装。
+2. 执行已有原生契约入口/JNI instrumentation和新增Android存储测试；页面“JNI无模型契约自检”可作为便捷入口，但不覆盖运行中CPU取消。首次安装验证约1.44GB私有副本，覆盖资产缺失、错误hash、空间不足、取消、重新打开及重装失败保留旧版。
+3. 用1.7B首选模型实际加载并合成英语Ryan/Aiden短句，再使用总控指定段落；检查instruction、线程回读、非默认参数、requested/effective、token触顶与WAV样本数/时长。必须依据实际返回记录，不能把本轮fake引擎WAV当模型音频。
+4. 在load、prefill、generate、decode阶段分别取消，记录请求到原生退出的延迟和结果；取消后重新load/run，覆盖连续执行与释放。旋转不应启动重复任务，退出/后台请求停止，旧实例退出期间不能被新实例删除模型或草稿。无法退出或native崩溃须回报，不提高验收级别。
+5. 比较完整段落与逐句、cold/warm/batch/cache；确认同一批次seed一致、逐句派生seed可追溯、缓存不计推理RTF、播放速度不改变WAV。保存/重启/恢复默认应覆盖全部参数和页面偏好。
+6. 验证小屏滚动/输入法/状态反馈、播放/重播/焦点、切后台、SAF导出及取消/提供方失败；WAV/JSON应绑定所选历史，删模型/清缓存后历史仍可播放导出。记录当前私有结果长期积累的空间使用；本候选没有自动删除历史。
+7. 断网实际合成，观察采样PSS、真实采样间隔、电池温度、Android热等级与连续运行速度变化，用户听查漏读、重复、截断和自然度。首PCM仍不可测，不编造首声指标。native成功、设备流程、断网和听感分开验收。
+
+本轮没有主机/手机native执行、完整模型加载或合成、真实短句WAV、Android测试执行、UI视觉运行、APK、断网或听感证据。唯一宿主公共入口未变；无数据库、正式App基线或全局构建变化。总控接收本轮报告后负责Git、宿主资产/打包与设备验证；已有明确模块证据不重复审查或复跑。本功能任务交接后进入 `awaiting_manager_apk` 等待状态。
