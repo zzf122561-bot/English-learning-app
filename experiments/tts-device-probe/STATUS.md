@@ -1,5 +1,7 @@
 # 当前状态
 
+- 总控2026-10-03补充：阶段2已提交9f9cb88并集成；独立`ModelProbe-v0.1.0-test.001-f098fda.apk`完成宿主构建、签名、资产哈希及原生打包对齐检查，当前为`awaiting_user_device_validation`。以下阶段2交接证据沿用；仍无模型/手机运行通过证据。
+
 - 2026-10-03：`ready_for_device_validation / awaiting_manager_apk`。阶段2完整设备验证候选已实现；原生/模型实际运行门槛仍未通过，不能标记 compatibility_gate_passed。
 - 授权、资产注入与回复对象见 [MANAGER_LINK.md](MANAGER_LINK.md)。总控 MODEL_PAIR_VERIFIED 及固定工具安装证据已接收并沿用，没有重复整文件hash或安装。
 - 中文操作/设置/结果页面、公共模型安装/租约/调度/存储、Qwen适配器、生成取消、播放、缓存/历史及SAF导出已接线。实际架构与设置/测量语义见 [ARCHITECTURE.md](ARCHITECTURE.md)。
