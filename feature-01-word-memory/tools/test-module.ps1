@@ -37,7 +37,7 @@ $env:GRADLE_OPTS = "-Xmx3g -Dfile.encoding=UTF-8 -Djdk.net.hosts.file=$javaHosts
 
 Push-Location -LiteralPath $projectRoot
 try {
-    & $gradle @('--no-daemon', '--no-configuration-cache') @Tasks
+    & $gradle @('--no-daemon', '--no-configuration-cache', '--configure-on-demand') @Tasks
     if ($LASTEXITCODE -ne 0) { throw "Feature module tests failed with exit code $LASTEXITCODE" }
 } finally {
     Pop-Location
