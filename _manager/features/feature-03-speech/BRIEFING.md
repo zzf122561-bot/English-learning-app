@@ -40,6 +40,7 @@ fun SpeechFeature(
 - FULL读取全部英文段落；PARAGRAPH读取选中段落；SENTENCE读取该段中回传的具体英文句子（校验非空并确实属于该段，禁止越界静默全文回退）。requestId一次消费；相同重组不重复生成，不同请求即使同文本也可进入；新请求不能在旧native运行中偷偷并发或覆写旧任务，需可取消切换提示。
 - 正式页收到文章请求先显示选择范围/文本/设置及生成按钮，不突然耗费数分钟。支持生成后保存/重播、停止、播放暂停/继续及逐段/逐句选择；全文长文用受限串行分段执行而非一次塞超长上下文。准确保持英文顺序、范围与段落/句子标识，显示完成/当前/待执行；取消后不继续队列，截断不得报完整成功。
 - 回到文章由根App负责，只回调onClose；保留学习页面/滚动/默写状态。模块不访问功能1数据库、解析器或导航。
+- 宿主实际接线已写在 D:/Codex_Project/Codex_EnglishApp/app/src/main/java/com/xuesui/englishapp/EnglishAppShell.kt，额外授权只读这个单文件以核对生命周期。正式“语音”Tab传request=null，文章覆盖页传有requestId的请求；两者位于同一个Activity，可能复用同类ViewModel。覆盖页关闭后再进null入口不能遗留“返回文章”管理态，也不得因重组/旋转重复生成；不同requestId可靠切换。App只把文章请求保留在Activity ViewModel内，不把整篇文章放入Bundle，进程死亡回到持久化学习页。请把同Activity两入口往返纳入此次新增测试。正式App不注入probe-sample.txt，null入口允许空白编辑/粘贴，不应因缺少实验样例而阻止使用；独立测试App原样例仍保留。
 
 ## 音色、速度和个性化
 
