@@ -38,6 +38,40 @@ internal fun QwenSettings(form: QwenForm, enabled: Boolean, instructionEnabled: 
         OutlinedTextField(form.instruction, { onChange(form.copy(instruction = it)) }, Modifier.fillMaxWidth(),
             label = { Text("语气指令（可留空，最多512字符）") }, enabled = enabled && instructionEnabled, minLines = 2)
         if (!instructionEnabled) Text("载入后的模型未报告语气指令支持。")
+        QwenAdvancedSettings(form, enabled, onChange)
+    }
+}
+
+@Composable
+internal fun QwenVoiceSettings(form: QwenForm, enabled: Boolean, instructionEnabled: Boolean, onChange: (QwenForm) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("ryan" to "Ryan", "aiden" to "Aiden").forEach { (id, label) ->
+                FilterChip(selected = form.speaker == id, onClick = { onChange(form.copy(speaker = id)) }, enabled = enabled, label = { Text(label) })
+            }
+        }
+        Text("生成风格", style = MaterialTheme.typography.labelLarge)
+        val styles = listOf("自然" to "", "慢速" to "Speak slowly and clearly, with natural pauses.", "轻快" to "Speak at a slightly faster, lively pace while staying clear.")
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            styles.forEach { (label, instruction) ->
+                FilterChip(selected = form.instruction == instruction, onClick = { onChange(form.copy(instruction = instruction)) },
+                    enabled = enabled && instructionEnabled, label = { Text(label) })
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            TextButton(onClick = { onChange(form.copy(instruction = "Speak clearly and gently, at a slow pace suitable for English dictation.")) }, enabled = enabled && instructionEnabled) { Text("填入听写要求") }
+            TextButton(onClick = { onChange(form.copy(instruction = "Speak in a warm, calm and gentle voice.")) }, enabled = enabled && instructionEnabled) { Text("填入温和要求") }
+        }
+        OutlinedTextField(form.instruction, { onChange(form.copy(instruction = it)) }, Modifier.fillMaxWidth(), minLines = 2,
+            enabled = enabled && instructionEnabled, label = { Text("个性化语音要求（可编辑、可留空）") }, supportingText = { Text("例如清晰、温和、适合听写。要求原样传给模型，不改写英文正文。最多512个字符。") })
+        Text("生成风格通过模型语气指令表达快慢，无法承诺精确数值语速。播放倍速在下方单独调整。", style = MaterialTheme.typography.bodySmall)
+        if (!instructionEnabled) Text("当前载入模型未提供语气指令能力。")
+    }
+}
+
+@Composable
+internal fun QwenAdvancedSettings(form: QwenForm, enabled: Boolean, onChange: (QwenForm) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         NumericField("CPU线程 · 1…${Runtime.getRuntime().availableProcessors()}", form.threads, enabled) { onChange(form.copy(threads = it)) }
         NumericField("Temperature · 0…2（0为greedy）", form.temperature, enabled) { onChange(form.copy(temperature = it)) }
         NumericField("Top-k · 0…2048（0关闭）", form.topK, enabled) { onChange(form.copy(topK = it)) }
@@ -45,7 +79,7 @@ internal fun QwenSettings(form: QwenForm, enabled: Boolean, instructionEnabled: 
         NumericField("Repetition penalty · 1…2", form.repetition, enabled) { onChange(form.copy(repetition = it)) }
         NumericField("最大音频帧 · 1…4096", form.maxTokens, enabled) { onChange(form.copy(maxTokens = it)) }
         NumericField("Seed · -1随机，或0…2147483647", form.seed, enabled, signed = true) { onChange(form.copy(seed = it)) }
-        Text("触及最大音频帧会标记可能截断。逐句模式依次使用seed、seed+1…；随机模式记录每次实际seed。GPU/NPU及合成端语速尚不支持。", style = MaterialTheme.typography.bodySmall)
+        Text("触及最大音频帧会标记可能截断。队列/逐句依次使用seed、seed+1…；随机模式记录实际seed。当前使用CPU，无精确合成语速参数。", style = MaterialTheme.typography.bodySmall)
     }
 }
 

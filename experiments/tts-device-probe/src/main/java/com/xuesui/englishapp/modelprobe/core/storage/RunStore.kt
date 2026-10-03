@@ -78,8 +78,10 @@ internal class RunStore(private val root: File, private val cache: File) {
         }
         return run
     }
-    fun history(): List<SavedRun> = root.listFiles().orEmpty().filter { it.name.matches(Regex("[a-f0-9-]{36}")) }
-        .mapNotNull { runCatching { read(it.name, false) }.getOrNull() }.sortedByDescending { it.report.optLong("createdAtEpochMillis") }.take(100)
+    fun history(include: (SavedRun) -> Boolean = { true }): List<SavedRun> = root.listFiles().orEmpty().asSequence()
+        .filter { it.name.matches(Regex("[a-f0-9-]{36}")) }
+        .mapNotNull { runCatching { read(it.name, false) }.getOrNull() }.filter(include)
+        .sortedByDescending { it.report.optLong("createdAtEpochMillis") }.take(100).toList()
     fun cached(key: String): SavedRun? {
         require(key.matches(Regex("[0-9a-f]{64}")))
         val pointer = child(cache, "$key.json")

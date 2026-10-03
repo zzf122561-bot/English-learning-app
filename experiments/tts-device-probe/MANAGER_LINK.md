@@ -75,3 +75,11 @@
 - 沿用已批准ARCHITECTURE分层，UI不得直接操纵native句柄；记录requested/effective配置与cold/warm/cache，保存WAV和JSON一致性，模型删除不删历史。按任务能力分层，不写死整个App都是TTS。
 - 只运行本模块受影响的新测试及必要AAR/native构建；完整自动化结果可合并报告，不重复已有静态来源审计。无设备则androidTest仍仅编译，不冒充运行。
 - 交接报告包括新增差异、资产清单解析契约、是否需宿主权限/依赖、测试结果、AAR/ELF变化和全部设备待测项，状态 ready_for_device_validation / awaiting_manager_apk；报告一次给总控后等待。Git、App壳、签名、最终APK和包内模型校验归总控。
+
+## 2026-10-03 正式语音0.2.0续派
+
+用户在本对话要求与总控商量后续；总控随后转发用户明确确认“接入原英语App，独立测试App也保留”，并下发正式实施。唯一新增只读路径为 `D:/Codex_Project/Codex_EnglishApp/_manager/features/feature-03-speech/BRIEFING.md`，已完整读取；它取代旧阶段“不得正式集成”的限制，其他读写边界不扩大。
+
+继续只修改本Library，保留ModelProbeFeature并新增简报精确SpeechFeature/SpeechReadingRequest契约，实现全文/段/句串行队列、正式设置和历史播放/暂停继续，兼容宿主minSdk29。原1.7B Q4与用户认可音质保留，设备性能研究不作为实施前置。模块目标0.2.0，宿主/Git/APK与App版本由总控负责；只补受影响测试，完成一次完整报告后等待。公开契约问题或真实阻塞即时向既定总控报告。
+
+总控同轮补充单文件只读授权：`D:/Codex_Project/Codex_EnglishApp/app/src/main/java/com/xuesui/englishapp/EnglishAppShell.kt`。用于覆盖同Activity的独立语音Tab（request=null）与文章覆盖入口（requestId）往返；不得编辑宿主。正式App不提供probe-sample.txt，正式页空白输入不依赖此资产；独立测试入口仍沿用私有样例。

@@ -325,3 +325,105 @@ AAR哈希变化来自阶段2Kotlin/Compose内容；原生源、补丁及两份�
 7. 断网实际合成，观察采样PSS、真实采样间隔、电池温度、Android热等级与连续运行速度变化，用户听查漏读、重复、截断和自然度。首PCM仍不可测，不编造首声指标。native成功、设备流程、断网和听感分开验收。
 
 本轮没有主机/手机native执行、完整模型加载或合成、真实短句WAV、Android测试执行、UI视觉运行、APK、断网或听感证据。唯一宿主公共入口未变；无数据库、正式App基线或全局构建变化。总控接收本轮报告后负责Git、宿主资产/打包与设备验证；已有明确模块证据不重复审查或复跑。本功能任务交接后进入 `awaiting_manager_apk` 等待状态。
+
+## 9. 2026-10-03 设备截图与用户试听反馈
+
+证据来自本功能对话中用户提供的三张截图及随后直接反馈。三图展示同一个结果ID，并非三次成功运行。截图文件名为 `8d1a541cac4ff8f39612ca344982338b.jpg`、`14b7bdd1de3b4b9c92d7b4637b1a0839.jpg`、`23d4e8bb065ae23caffdc420b11cb062.jpg`；未复制图片或私有正文进入仓库。本节只追加本次新证据，第8节的交接时点记录保持不变。
+
+| 项目 | 截图所示 / 用户反馈 |
+|---|---|
+| 结果ID | d7a7b157-0733-4d30-8e6b-28e841dbc59d |
+| 页面状态 / 运行 | 合成完成；cold；paragraph |
+| 音频 | 817,920个样本，24,000Hz，34.08秒；样本数/采样率与显示时长一致 |
+| 原生加载 | 2,252ms |
+| RTF | 4.71，生成+解码/音频时长；由两位小数显示值估算生成+解码约160.5秒，不能作为精确原始耗时 |
+| 采样内存 | 峰值PSS 4,071.27MiB，约3.98GiB；是进程采样峰值，不是模型权重大小或瞬时绝对峰值 |
+| 采样 | 567次，间隔目标200ms；尚无本次原始JSON的真实间隔/最大gap，不能用次数×目标间隔反推总耗时 |
+| 热状态 / 温度 | Android正常→中度，末次电池38.80°C；不能据此认定已发生CPU降频或把电池温度当CPU温度 |
+| 参数 | Ryan、英语、4线程、seed42、temperature0.9、top-k50、top-p1.0、repetition penalty1.05、最大1024帧、无instruction；截图中请求配置与生效片段1一致 |
+| 模型 / 引擎 | qwen3-tts-1.7b-customvoice-q4；16bb5afc-ggml-af97976c-patch-08f2da86-adapter2 |
+| 用户试听 | 先反馈“听着不错”；随后明确选择“完整且清晰，没有明显漏读或重复” |
+
+当前可确认的是：用户手机端报告完成一次1.7B Q4、Ryan、4线程的冷启动完整段落合成，并正面确认这一条音频的完整度和清晰度。该证据已超出仅编译阶段；不再将当前状态写为“尚无任何手机合成/试听证据”。本任务没有亲自运行设备、读取实际WAV或原始JSON；截图未提供设备型号、实际PAGE_SIZE、APK版本/hash、文本hash，也不证明其他音色、断网、各阶段取消、长期稳定性或全部参数组合通过。因此仍不标记 compatibility_gate_passed 或正式功能验收。
+
+性能判断：当前生成34.08秒音频约需160.5秒，尚未达到实时速度。2.252秒原生加载相比生成+解码很小，仅维持模型驻留不能消除主要等待时间；具体瓶颈在生成还是解码，需要现成JSON的分段计时。热状态变化是进一步比较时需要控制的条件，暂不据单次样本认定因果。保留这条用户认可的1.7B音质基线，不擅自降低模型规格、改采样参数或开启未验证后端。
+
+用户已明确要求与管理员商量后续推进。本轮仅更新证据/状态并向登记总控提出收敛方案：先沿用总控已有包/设备证据；取得本次JSON后判断生成/解码占比，少量补暖运行、断网及取消后恢复的缺口；如需性能对照，固定样例/seed/模型，控制温度后一次只改线程条件。正式接入、是否采用提前生成/缓存，以及0.6B/GPU/NPU/其他引擎研究由总控结合用途另行决定并下发范围。本轮不改代码、不复跑构建或既有测试。
+
+## 10. 正式语音0.2.0内嵌候选
+
+2026-10-03，用户要求与管理员商量后，总控转发用户正式批准“接入原英语App，独立测试App也保留”，并给出精确实施简报及宿主接线只读文件（授权记录在MANAGER_LINK.md）。方案已对齐为保留1.7B Q4音质、提前生成、串行分段、保存/缓存与重复播放，不把新的性能实验作为实现前置。本节是0.2.0模块交付证据，不能把第9节的0.1候选单次试听提升为全部新代码实机验收。
+
+### 差异、契约和宿主条件
+
+新增同包 `com.xuesui.englishapp.modelprobe.runtime` 的公开 `SpeechReadingScope`、`SpeechReadingRequest` 与 `SpeechFeature(request: SpeechReadingRequest? = null, onClose: () -> Unit = {})`，字段/可空默认值与总控简报完全一致；原 `ModelProbeFeature()` 保留。最终AAR内两入口/请求类型存在，javap核对新增公开入口及request各getter/构造签名通过。除这些公开契约外，新增业务类型保持internal。
+
+- `runtime/SpeechReadingRequest.kt`、`SpeechFeature.kt`：正式公共入口及宿主请求映射，只通过onClose返回，不访问文章模块、数据库或导航。
+- `features/reading/ReadingPlan.kt`、`ReadingQueue.kt`、`ReadingUiState.kt`、`ReadingScreen.kt`：范围提取、受限原文切片、串行队列、整篇/子片段历史、请求去重/停止后切换，以及正式界面。
+- `features/speech/SpeechPlayback.kt`、`runtime/AndroidAudioFactory.kt`、`RuntimeLifecycle.kt`：可测试播放状态机、真实平台播放器、暂停/继续/倍速/焦点与退出绑定；两入口复用。
+- `runtime/ProbeViewModel.kt`：共享装配；正式request=null与文章入口同Activity往返分别保留草稿，重复请求不触发推理；正式页不读取probe-sample.txt，空白输入可用。
+- `contracts/speech/SpeechContracts.kt`、`SpeechService.kt`、`core/storage/RunStore.kt`：可选reading来源元数据、精确匹配的缓存复用、流式PCM16合并和在分组后截取历史。原诊断cold/warm/cache语义保留。
+- `engines/qwen3tts/QwenSettings.kt`：Ryan/Aiden、定性生成风格与可编辑个性化instruction，完整高级参数保留。没有新增引擎/量化、精确native速度开关、联网/克隆或GPU/NPU。
+- 模块build.gradle.kts、新增reading JVM测试与ReadingRuntimeDeviceTest，以及本模块既有文档。没有编辑正式宿主、其他功能、根配置、C++/JNI/vendor/CMake源；没有Git或APK操作。
+
+完整运行/分层/存储语义集中在 [ARCHITECTURE.md](ARCHITECTURE.md) 的正式朗读与播放部分，不在此复制实现细节。正式范围最多256段/100000字符，最多256片，每片最多800个code point；全文保持原文顺序和范围标识。失败、取消、触顶不继续后续片段，已完成部分独立保存，合并WAV明确标记全部或部分完成。已提交子音频在进程中断而父报告尚未提交时仍可找回；长队列不会用上百个子记录挤掉整篇历史。
+
+新增公开契约由总控按已约定brief接入；本任务仅只读了明确授权的EnglishAppShell.kt，以补覆盖两个入口往返。没有读取或修改功能1/2。正式宿主无需probe-sample.txt，只需第8节固定manifest和配对模型；独立测试宿主继续使用样例。两个App各用自己的私有目录，不互读或自动搬运模型/音频。
+
+### API29与原生兼容方案
+
+Library minSdk由31降至29，NDK实际重新编译/链接的目标同时为API29，没有使用tools:overrideLibrary或要求提高正式App最低版本。CMake本次目录 `.cxx/Release/362z5g3x/arm64-v8a/CMakeCache.txt` 中 `ANDROID_PLATFORM=android-29`、`CMAKE_SYSTEM_VERSION=29`；最终AAR manifest为minSdk29，没有Activity/Application/uses-permission。
+
+现有平台API经minSdk29下的Lint校验，没有NewApi错误。Android [getCurrentThermalStatus](https://developer.android.com/reference/android/os/PowerManager#getCurrentThermalStatus()) 从API29提供；[MediaPlayer.setPlaybackParams](https://developer.android.com/reference/android/media/MediaPlayer#setPlaybackParams(android.media.PlaybackParams)) 从API23提供，准备完成后设置非零速度可能启动播放，因此实现仅在播放/明确继续时调用，暂停状态只保存新倍速。pitch显式设1，并回读speed；不支持的设置报错/释放，不虚报已经生效。API29安装和实际播放/加载仍需总控设备或模拟环境确认，编译/链接通过不是设备执行证据。
+
+原生源、模型、取消补丁与Qwen参数schema未改，仍是固定CPU/armv8-a；因目标API变化，JNI二进制hash/段布局变化，需要用本次AAR。引擎源码/适配器身份保持adapter2，不无故丢弃已存参数；本轮未安装工具或重复审计上游来源。ABI仅arm64，非支持设备入口不会调用生成。原生C++17 UTF转换的4条已知弃用警告沿用记录，没有屏蔽警告或改编码语义。
+
+### 增量验证
+
+本轮首批完成20项新增JVM测试与9项受影响SpeechService测试；随后发现长文历史的父子分组/进程中断可见性缺口，仅补改该处并执行对应8项队列测试及1项原历史事务检查。**合计31个不同测试用例通过（21项新增、10项受影响已有），0失败/错误/跳过；第二批包含对第一批7项队列测试的必要回归，不把重复次数算成新用例。** 没有重跑无变化的来源/许可、404项张量、原3项参数审计或其他功能测试。
+
+| 测试范围 | 不同用例数 | 结果与覆盖 |
+|---|---:|---|
+| ReadingPlanTest | 8 | 全文/段/句边界、长文有界且不丢/乱原文、Unicode不截断surrogate、非法输入、公共请求字段、同ID/连续新ID、同Activity草稿切换 |
+| ReadingQueueTest | 8 | 串行顺序/来源ID/实际样本合并、取消后不启动下一片及恢复、失败/触顶非全成功、同内容新请求缓存、音色/自然语言指令接线、随机seed派生、损坏合并失败、父子历史与中断片段可见性 |
+| SpeechPlaybackTest | 5 | 暂停/原位置继续/重播、prepare期间暂停、退出后的迟到回调隔离、焦点中断/不支持倍速、速度边界/完成释放 |
+| 阶段2 SpeechServiceTest | 9 | 本轮新增preferCache/reading元数据/WAV合并涉及的原服务链回归；cold/warm/cache、参数身份、RTF/样本、取消/截断和effective快照保持 |
+| 原StorageSettingsTest指定用例 | 1 | history筛选调整后，只有原子提交结果进入原诊断历史的行为保持 |
+
+以下沿用第8节JDK/SDK/GRADLE_OPTS，仅列本次任务参数；均在本worktree根，以已授权既有工具与缓存执行：
+
+```powershell
+# 首批：29项，BUILD SUCCESSFUL in 1m57s，74 tasks（38 executed / 36 up-to-date）
+& 'D:\CodexData\android-toolchain\gradle\gradle-9.5.0\bin\gradle.bat' `
+  -p '_manager/probes/tts-device' --no-daemon --no-configuration-cache --max-workers=2 `
+  :runtime:testDebugUnitTest --tests 'com.xuesui.englishapp.modelprobe.reading.*' `
+  --tests 'com.xuesui.englishapp.modelprobe.stage2.SpeechServiceTest' `
+  :runtime:compileDebugAndroidTestKotlin :runtime:assembleRelease :runtime:lintDebug
+# 最终历史差异：9项，BUILD SUCCESSFUL in 1m35s，74 tasks（24 executed / 50 up-to-date）
+& 'D:\CodexData\android-toolchain\gradle\gradle-9.5.0\bin\gradle.bat' `
+  -p '_manager/probes/tts-device' --no-daemon --no-configuration-cache --max-workers=2 `
+  :runtime:testDebugUnitTest --tests 'com.xuesui.englishapp.modelprobe.reading.ReadingQueueTest' `
+  --tests 'com.xuesui.englishapp.modelprobe.stage2.StorageSettingsTest.onlyAtomicallyCommittedAudioReportPairsBecomeHistory' `
+  :runtime:compileDebugAndroidTestKotlin :runtime:assembleRelease :runtime:lintDebug
+python 'experiments/tts-device-probe/tools/inspect-native-artifact.py'
+```
+
+当前 `build/test-results/testDebugUnitTest/` 与 `build/reports/tests/testDebugUnitTest/index.html` 是最后过滤执行的9项结果（XML时间2026-10-03T02:42:41–02:42:47Z）。首批29项结果已从当轮XML/构建输出读出并记于上表；过滤执行会覆盖报告，未为生成一份合并报告重复跑31项。
+
+Android测试源码编译通过，新增 `runtime/ReadingRuntimeDeviceTest.kt` 使用合成小文件和独立cache子目录，覆盖正式页无样例、同Activity入口/重复请求无推理副作用及真实MediaPlayer准备/暂停/继续/重播测试入口。它与已有JNI/私有模型存储测试本轮都只编译，未执行；没有新增手机或API29运行通过结论。
+
+Release AAR构建、API29原生编译/链接、最终ELF与notice检查通过。Lint完成：0 errors、6 warnings，仍是第8节记录的compileSdk更新建议、org.json更新/catalog、arm64-only和2处保守usableSpace提示；没有新增API兼容问题。报告为 `build/reports/lint-results-debug.html` / `.sarif`，产物检查为 `.local/artifact-check/inspection.json`。新增页面未做Android视觉或触摸验收。
+
+### 最终0.2.0产物与宿主交接
+
+| 产物 | 字节数 | SHA-256 |
+|---|---:|---|
+| `build/outputs/aar/runtime-release.aar` | 1,814,831 | `09ba4e90f95c1a4e2890cc6ea206d23eb697c1f3ccbf12f8f9e7c409b065b438` |
+| AAR `libmodel_probe_qwen.so`（API29） | 2,302,032 | `1e90f7d682ef31332a89c70e831f857efeb2dcd7cb23aa96f374dc3b389c1c29` |
+| AAR `libc++_shared.so` | 1,253,544 | `cd61762848882a16c8244c964a6f396c0caa0b440588a210ce9cc4ab0e6d9f0c` |
+
+最终只有预期两份arm64 SO，LOAD为16KiB对齐，RELRO取整不覆盖其他可写LOAD；四份notice与源文件字节匹配。JNI段布局随API29链接变化，本表取代第8节产物作为当前候选；源许可、模型revision/哈希、原生补丁不变。未包含权重、样例、APK、签名或其他功能代码。
+
+数据库迁移：无。设置schema2与原目录保持；单片报告schema1新增可选reading字段，父报告以新taskId标识，旧历史兼容，无清库/删历史。新增公开契约是总控已约定的正式接口，没有临时改名或额外宿主参数；没有新增依赖/权限超出第8节模块依赖。
+
+总控接收后：登记本地提交，正式speech-runtime别名与文章回调接线、双宿主构建、注入固定资产、APK包内hash/ZIP16KiB/签名/安装由总控完成。需补的新增设备范围是文章全文/段/句及返回保留学习状态、同Activity独立页往返、队列取消/重开与部分历史、暂停/继续/焦点/倍速、个性化实际效果、长文截断反馈、SAF导出和API29兼容；断网/持续热状态等旧缺口继续保留。总控已有包或设备证据直接沿用，仅对新接线补验证。本任务状态为 `ready_for_integration / awaiting_manager_integration`，不是App发布完成或全部设备验收。
