@@ -1,9 +1,6 @@
 param(
     [string[]] $Tasks = @(
-        ':feature-01-word-memory:testDebugUnitTest',
-        ':feature-01-word-memory:compileDebugAndroidTestKotlin',
-        ':feature-02-dictionary:testDebugUnitTest',
-        ':feature-02-dictionary:compileDebugAndroidTestKotlin',
+        ':app:testDebugUnitTest',
         ':app:assembleRelease'
     ),
     [switch] $AllowDirty
@@ -20,6 +17,7 @@ $gradle = Join-Path $toolchainRoot 'gradle\gradle-9.5.0\bin\gradle.bat'
 $hostsFile = Join-Path $PSScriptRoot 'gradle-hosts.txt'
 $boundaryVerifier = Join-Path $PSScriptRoot 'verify-boundaries.ps1'
 $dictionaryAssetPreparer = Join-Path $PSScriptRoot 'prepare-dictionary-assets.ps1'
+$speechAssetPreparer = Join-Path $PSScriptRoot 'prepare-speech-assets.ps1'
 $signingProperties = Join-Path $projectRoot '_manager\local\signing.properties'
 
 foreach ($requiredFile in @(
@@ -29,6 +27,7 @@ foreach ($requiredFile in @(
     $hostsFile,
     $boundaryVerifier,
     $dictionaryAssetPreparer,
+    $speechAssetPreparer,
     $signingProperties
 )) {
     if (-not (Test-Path -LiteralPath $requiredFile)) {
@@ -52,6 +51,8 @@ if (-not $AllowDirty) {
         throw "Manager APK builds require a clean Git commit."
     }
 }
+$sourceCommit = (& git -C $projectRoot rev-parse HEAD).Trim()
+if ($LASTEXITCODE -ne 0) { throw 'Cannot identify build source' }
 
 & pwsh.exe -NoLogo -NoProfile -NonInteractive -File $dictionaryAssetPreparer
 if ($LASTEXITCODE -ne 0) {
@@ -63,7 +64,10 @@ if ($LASTEXITCODE -ne 0) {
     throw "Architecture boundary verification failed with exit code $LASTEXITCODE"
 }
 
-$gradleArguments = @('--no-daemon', '--no-configuration-cache') + $Tasks
+& pwsh.exe -NoLogo -NoProfile -NonInteractive -File $speechAssetPreparer
+if ($LASTEXITCODE -ne 0) { throw 'Speech asset preparation failed' }
+
+$gradleArguments = @('--no-daemon', '--no-configuration-cache', '--max-workers=2') + $Tasks
 Push-Location -LiteralPath $projectRoot
 try {
     & $gradle @gradleArguments
@@ -73,4 +77,22 @@ try {
     }
 } finally {
     Pop-Location
+}
+
+if ($Tasks -contains ':app:assembleRelease' -and -not $AllowDirty) {
+    $afterStatus = @(& git -C $projectRoot status --porcelain)
+    if ($LASTEXITCODE -ne 0 -or $afterStatus.Count -ne 0 -or (& git -C $projectRoot rev-parse HEAD).Trim() -ne $sourceCommit) {
+        throw 'Checkout changed during release build; do not archive.'
+    }
+    $apk = Join-Path $projectRoot 'app/build/outputs/apk/release/app-release.apk'
+    $receipt = [ordered]@{
+        sourceCommit = $sourceCommit
+        apkPath = $apk
+        apkSha256 = (Get-FileHash -LiteralPath $apk -Algorithm SHA256).Hash.ToLowerInvariant()
+        completedUtc = [DateTime]::UtcNow.ToString('o')
+        tasks = $Tasks
+        clean = $true
+    }
+    $receipt | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $projectRoot '_manager/local/build-app-receipt.json') -Encoding utf8NoBOM
+    'MANAGER_BUILD_RECEIPT_READY: signed APK still requires asset/signature/archive checks'
 }

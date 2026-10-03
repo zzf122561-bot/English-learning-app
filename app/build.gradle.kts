@@ -21,8 +21,9 @@ android {
         applicationId = "com.xuesui.englishapp"
         minSdk = 29
         targetSdk = 36
-        versionCode = 5
-        versionName = "1.0.0"
+        versionCode = 6
+        versionName = "1.1.0"
+        ndk { abiFilters += "arm64-v8a" }
     }
 
     signingConfigs {
@@ -47,6 +48,7 @@ android {
     buildFeatures {
         compose = true
     }
+    androidResources { noCompress += "gguf" }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -61,6 +63,7 @@ android {
 dependencies {
     implementation(project(":feature-01-word-memory"))
     implementation(project(":feature-02-dictionary"))
+    implementation(project(":speech-runtime"))
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
@@ -68,4 +71,6 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.extended)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    testImplementation(libs.junit)
 }

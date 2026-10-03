@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -23,13 +24,18 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.xuesui.englishapp.dictionary.DictionaryFeature
 import com.xuesui.englishapp.dictionary.DictionaryPresentation
 import com.xuesui.englishapp.feature.WordMemoryFeature
+import com.xuesui.englishapp.modelprobe.runtime.SpeechFeature
+import com.xuesui.englishapp.modelprobe.runtime.SpeechReadingRequest
+import com.xuesui.englishapp.modelprobe.runtime.SpeechReadingScope
 
 private enum class MainSection {
     WORD_MEMORY,
     DICTIONARY,
+    SPEECH,
 }
 
 private val AppShellColors = lightColorScheme(
@@ -46,10 +52,30 @@ internal fun EnglishAppShell() {
     var quickLookupQuery by rememberSaveable { mutableStateOf<String?>(null) }
     val stateHolder = rememberSaveableStateHolder()
     val selectedSection = MainSection.valueOf(selectedSectionName)
+    val readingNavigation: ReadingNavigationModel = viewModel()
 
     MaterialTheme(colorScheme = AppShellColors) {
         val activeQuickQuery = quickLookupQuery
-        if (activeQuickQuery != null) {
+        val reading = readingNavigation.request
+        if (reading != null) {
+            stateHolder.SaveableStateProvider("article-reading") {
+                SpeechFeature(
+                    request = SpeechReadingRequest(
+                        requestId = reading.requestId,
+                        title = reading.title,
+                        englishParagraphs = reading.englishParagraphs,
+                        scope = when (reading.scope) {
+                            ReadingScope.FULL -> SpeechReadingScope.FULL
+                            ReadingScope.PARAGRAPH -> SpeechReadingScope.PARAGRAPH
+                            ReadingScope.SENTENCE -> SpeechReadingScope.SENTENCE
+                        },
+                        paragraphIndex = reading.paragraphIndex,
+                        sentenceText = reading.sentenceText,
+                    ),
+                    onClose = readingNavigation::close,
+                )
+            }
+        } else if (activeQuickQuery != null) {
             stateHolder.SaveableStateProvider("quick-lookup") {
                 DictionaryFeature(
                     initialQuery = activeQuickQuery,
@@ -73,6 +99,12 @@ internal fun EnglishAppShell() {
                             icon = { Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null) },
                             label = { Text("词典") },
                         )
+                        NavigationBarItem(
+                            selected = selectedSection == MainSection.SPEECH,
+                            onClick = { selectedSectionName = MainSection.SPEECH.name },
+                            icon = { Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = null) },
+                            label = { Text("语音") },
+                        )
                     }
                 },
                 contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -89,10 +121,14 @@ internal fun EnglishAppShell() {
                                 onLookupRequested = { word ->
                                     if (word.isNotEmpty()) quickLookupQuery = word
                                 },
+                                onReadingRequested = readingNavigation::open,
                             )
 
                             MainSection.DICTIONARY -> DictionaryFeature(
                                 presentation = DictionaryPresentation.FULL,
+                            )
+                            MainSection.SPEECH -> SpeechFeature(
+                                onClose = { selectedSectionName = MainSection.WORD_MEMORY.name },
                             )
                         }
                     }

@@ -5,6 +5,12 @@ $projectRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 $appBuild = Join-Path $projectRoot 'app\build.gradle.kts'
 $appManifest = Join-Path $projectRoot 'app\src\main\AndroidManifest.xml'
 $featureDirs = @(Get-ChildItem -LiteralPath $projectRoot -Directory -Filter 'feature-*')
+$rootSettings = Get-Content -LiteralPath (Join-Path $projectRoot 'settings.gradle.kts') -Raw
+$speechDir = Get-Item -LiteralPath (Join-Path $projectRoot 'experiments/tts-device-probe')
+if ($rootSettings -notmatch 'include\(":speech-runtime"\)' -or $rootSettings -match 'include\(":runtime"\)|probes/tts-device/app') {
+    throw 'Formal App must include the shared speech Library, never the independent test Application.'
+}
+$featureDirs += $speechDir
 
 if (-not (Test-Path -LiteralPath $appBuild) -or -not (Test-Path -LiteralPath $appManifest)) {
     throw 'The manager-owned App shell is incomplete.'
@@ -25,7 +31,7 @@ foreach ($featureDir in $featureDirs) {
     foreach ($forbidden in @('applicationId', 'versionCode', 'versionName', 'signingConfig')) {
         if ($buildText -match $forbidden) { throw "Forbidden feature build token '$forbidden': $($featureDir.Name)" }
     }
-    if ($buildText -match 'project\(\s*"?:feature-') {
+    if ($buildText -match 'project\(\s*"?:(feature-|app|speech-runtime|runtime)') {
         throw "Feature-to-feature dependency is forbidden: $($featureDir.Name)"
     }
     if (Test-Path -LiteralPath $manifestFile) {

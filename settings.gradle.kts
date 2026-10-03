@@ -25,3 +25,5 @@ rootProject.name = "EnglishApp"
 include(":app")
 include(":feature-01-word-memory")
 include(":feature-02-dictionary")
+include(":speech-runtime")
+project(":speech-runtime").projectDir = file("experiments/tts-device-probe")

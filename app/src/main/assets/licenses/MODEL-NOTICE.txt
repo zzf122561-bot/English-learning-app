@@ -1,0 +1,18 @@
+Qwen3-TTS offline English device probe
+
+Original models: Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice and Qwen/Qwen3-TTS-Tokenizer-12Hz.
+Original model cards declare Apache-2.0. Copyright 2026 Alibaba Cloud.
+GGUF quantization: Serveurperso/Qwen3-TTS-GGUF on Hugging Face.
+Fixed distribution revision: b7ee2e8c7459c3bea99da23e3d178125a7d1713c.
+This package uses Q4_K_M quantized talker and tokenizer, not the original full-precision weights.
+The quantizer does not disclose the exact original conversion input revision; it is not claimed here.
+Exact filenames, sizes and SHA-256 are in assets/models/manifest.json.
+No weights were modified locally. Quantization quality and Android runtime behavior require device testing.
+
+The model repository cards declare Apache-2.0 but do not carry a separate LICENSE file.
+The accompanying full Apache-2.0 text is retained from official Qwen3-TTS code revision
+022e286b98fbec7e1e916cb940cdf532cd9f488e, LICENSE, including its original attribution.
+It is not represented as a file downloaded from the GGUF model repository.
+
+Native runtime attribution and retained licenses are in META-INF/model-probe/.
+This is a private test package; it makes no claim of official Qwen endorsement.

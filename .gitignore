@@ -40,3 +40,4 @@
 /_manager/probes/tts-device/app/src/main/assets/models/
 *.gguf
 *.safetensors
+/app/src/main/assets/models/
