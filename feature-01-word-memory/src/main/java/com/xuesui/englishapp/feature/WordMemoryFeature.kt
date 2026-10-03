@@ -12,11 +12,12 @@ import com.xuesui.englishapp.ui.theme.WordMemoryTheme
 @Composable
 fun WordMemoryFeature(
     onLookupRequested: (String) -> Unit = {},
+    onReadingRequested: (title: String, englishParagraphs: List<String>, paragraphIndex: Int?, sentenceText: String?) -> Unit = { _, _, _, _ -> },
 ) {
     val context = LocalContext.current.applicationContext
     val repository = NotebookRepository(WordMemoryDatabase.getInstance(context))
     WordMemoryTheme {
         val model: WordMemoryViewModel = viewModel(factory = WordMemoryViewModel.Factory(repository))
-        WordMemoryApp(model, onLookupRequested)
+        WordMemoryApp(model, onLookupRequested, onReadingRequested)
     }
 }

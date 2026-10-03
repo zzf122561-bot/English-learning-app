@@ -15,11 +15,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -37,6 +39,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -67,7 +70,9 @@ import com.xuesui.englishapp.data.NotebookEntity
 import com.xuesui.englishapp.data.StudySegmentWithTargets
 import com.xuesui.englishapp.data.TargetEntity
 import com.xuesui.englishapp.study.StudyFontScale
+import com.xuesui.englishapp.study.dispatchReadingRequest
 import com.xuesui.englishapp.study.findLatinWordAtOffset
+import com.xuesui.englishapp.study.splitEnglishSentences
 import com.xuesui.englishapp.ui.theme.Cobalt
 import com.xuesui.englishapp.ui.theme.Hairline
 import com.xuesui.englishapp.ui.theme.Ink
@@ -79,6 +84,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 fun WordMemoryApp(
     model: WordMemoryViewModel,
     onLookupRequested: (String) -> Unit,
+    onReadingRequested: (String, List<String>, Int?, String?) -> Unit,
 ) {
     val notebooks by model.notebooks.collectAsStateWithLifecycle(initialValue = emptyList())
     val activeNotebook by model.activeNotebook.collectAsStateWithLifecycle(initialValue = null)
@@ -107,6 +113,7 @@ fun WordMemoryApp(
             onPositionChange = model::savePosition,
             onFontLevelChange = model::setFontLevel,
             onLookupRequested = onLookupRequested,
+            onReadingRequested = onReadingRequested,
         )
     }
 
@@ -237,6 +244,7 @@ private fun StudyScreen(
     onPositionChange: (Int) -> Unit,
     onFontLevelChange: (Int) -> Unit,
     onLookupRequested: (String) -> Unit,
+    onReadingRequested: (String, List<String>, Int?, String?) -> Unit,
 ) {
     BackHandler(onBack = onBack)
     var displayedFontLevel by remember(notebook.id) {
@@ -248,6 +256,18 @@ private fun StudyScreen(
     }
     val startIndex = notebook.lastSegmentIndex.coerceIn(0, (notebook.segmentCount - 1).coerceAtLeast(0))
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = startIndex)
+    val orderedSegments = remember(segments) { segments.sortedBy { it.segment.position } }
+    val englishParagraphs = remember(orderedSegments) { orderedSegments.map { it.segment.englishText } }
+    val currentReadingRequested by rememberUpdatedState(onReadingRequested)
+    val submitReadingRequest = { paragraphIndex: Int?, sentenceText: String? ->
+        dispatchReadingRequest(
+            title = notebook.title,
+            englishParagraphs = englishParagraphs,
+            paragraphIndex = paragraphIndex,
+            sentenceText = sentenceText,
+            onReadingRequested = currentReadingRequested,
+        )
+    }
     LaunchedEffect(listState, notebook.id) {
         snapshotFlow { listState.firstVisibleItemIndex }
             .distinctUntilChanged()
@@ -264,6 +284,12 @@ private fun StudyScreen(
                     Text(notebook.title, style = MaterialTheme.typography.titleLarge, maxLines = 1)
                     Text("${notebook.segmentCount} 段  ·  ${notebook.targetCount} 个目标", style = MaterialTheme.typography.labelMedium, color = Slate)
                 }
+                TextButton(
+                    onClick = { submitReadingRequest(null, null) },
+                    enabled = englishParagraphs.isNotEmpty(),
+                ) {
+                    Text("全文朗读")
+                }
                 IconButton(onClick = { showFontDialog = true }) {
                     Text("Aa", fontWeight = FontWeight.Bold)
                 }
@@ -273,13 +299,16 @@ private fun StudyScreen(
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             } else {
                 LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-                    items(segments, key = { it.segment.id }) { item ->
+                    itemsIndexed(orderedSegments, key = { _, item -> item.segment.id }) { paragraphIndex, item ->
                         StudySegment(
                             data = item,
                             onVisibilityChange = { onVisibilityChange(item.segment.id, it) },
                             onDictationChange = { onDictationChange(item.segment.id, it) },
                             fontLevel = displayedFontLevel,
                             onLookupRequested = onLookupRequested,
+                            onReadingRequested = { sentenceText ->
+                                submitReadingRequest(paragraphIndex, sentenceText)
+                            },
                         )
                     }
                     item { Spacer(Modifier.height(42.dp)) }
@@ -306,6 +335,7 @@ private fun StudySegment(
     onDictationChange: (String) -> Unit,
     fontLevel: Int,
     onLookupRequested: (String) -> Unit,
+    onReadingRequested: (String?) -> Unit,
 ) {
     val segment = data.segment
     val targets = data.targets.sortedBy { it.position }
@@ -316,6 +346,7 @@ private fun StudySegment(
     )
     var draft by remember(segment.id, segment.dictationText) { mutableStateOf(segment.dictationText) }
     var englishLayout by remember(segment.id, segment.englishText) { mutableStateOf<TextLayoutResult?>(null) }
+    var showReadingDialog by remember(segment.id) { mutableStateOf(false) }
     val currentLookupRequested by rememberUpdatedState(onLookupRequested)
     Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 26.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -324,6 +355,10 @@ private fun StudySegment(
             HorizontalDivider(Modifier.weight(1f), color = Hairline)
             Spacer(Modifier.width(12.dp))
             Text("${targets.size} TARGETS", style = MaterialTheme.typography.labelMedium, color = Slate)
+            Spacer(Modifier.width(6.dp))
+            TextButton(onClick = { showReadingDialog = true }) {
+                Text("朗读")
+            }
         }
         Spacer(Modifier.height(19.dp))
         Text(
@@ -365,7 +400,80 @@ private fun StudySegment(
             Text(highlightedText(segment.chineseText, targets, true), style = studyTextStyle, color = Ink)
         }
     }
+    if (showReadingDialog) {
+        ReadingSelectionDialog(
+            paragraphText = segment.englishText,
+            onDismiss = { showReadingDialog = false },
+            onConfirm = { sentenceText ->
+                onReadingRequested(sentenceText)
+                showReadingDialog = false
+            },
+        )
+    }
     HorizontalDivider(color = Hairline)
+}
+
+@Composable
+private fun ReadingSelectionDialog(
+    paragraphText: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String?) -> Unit,
+) {
+    val sentences = remember(paragraphText) { splitEnglishSentences(paragraphText) }
+    var selectedSentenceIndex by remember(paragraphText) { mutableIntStateOf(-1) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("选择朗读范围") },
+        text = {
+            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 420.dp)) {
+                item {
+                    ReadingChoice(
+                        selected = selectedSentenceIndex == -1,
+                        label = "本段",
+                        content = paragraphText,
+                        onClick = { selectedSentenceIndex = -1 },
+                    )
+                }
+                itemsIndexed(sentences) { index, sentence ->
+                    ReadingChoice(
+                        selected = selectedSentenceIndex == index,
+                        label = "第 ${index + 1} 句",
+                        content = sentence,
+                        onClick = { selectedSentenceIndex = index },
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(sentences.getOrNull(selectedSentenceIndex)) },
+            ) {
+                Text("开始朗读")
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+    )
+}
+
+@Composable
+private fun ReadingChoice(
+    selected: Boolean,
+    label: String,
+    content: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 8.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        RadioButton(selected = selected, onClick = onClick)
+        Spacer(Modifier.width(8.dp))
+        Column(Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.labelLarge, color = Cobalt)
+            Spacer(Modifier.height(4.dp))
+            Text(content, style = MaterialTheme.typography.bodyMedium, color = Ink)
+        }
+    }
 }
 
 @Composable
