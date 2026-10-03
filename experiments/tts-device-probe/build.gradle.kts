@@ -8,7 +8,7 @@ android {
     compileSdk = 36
     ndkVersion = "28.2.13676358"
     defaultConfig {
-        minSdk = 31
+        minSdk = 29
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
         ndk { abiFilters += "arm64-v8a" }

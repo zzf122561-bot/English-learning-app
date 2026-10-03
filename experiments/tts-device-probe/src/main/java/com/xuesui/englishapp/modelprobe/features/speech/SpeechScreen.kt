@@ -196,7 +196,8 @@ private fun ResultDetails(run: SavedRun, parameterSummary: @Composable (JSONObje
     val report = run.report
     Text(runStatusTitle(run.status), style = MaterialTheme.typography.titleMedium)
     Text("结果ID：${run.id}", style = MaterialTheme.typography.bodySmall)
-    if (report.has("error")) Text(report.getString("error"), color = MaterialTheme.colorScheme.error)
+    if (!report.isNull("error")) Text(report.getString("error"), color = MaterialTheme.colorScheme.error)
+    if (report.optString("taskId") == "speech.reading.v1") Text("${report.optString("title")} · ${report.optInt("completedCount")}/${report.optInt("plannedCount")}片段完成")
     if (report.has("message")) Text(report.getString("message"))
     if (run.status == "token_limit") Text("音频可能漏掉末尾内容，请提高上限或缩短文本后重新测试。", color = MaterialTheme.colorScheme.error)
     report.optJSONObject("audio")?.let { audio ->

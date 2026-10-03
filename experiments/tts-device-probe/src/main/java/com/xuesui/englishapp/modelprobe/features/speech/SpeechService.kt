@@ -11,6 +11,8 @@ import java.io.InputStream
 import java.io.RandomAccessFile
 import java.text.BreakIterator
 import java.util.Locale
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -60,6 +62,28 @@ internal class WavWriter(file: File) : Closeable {
         if (used > 0) out.write(buffer, 0, used)
         samples += pcm.size
     }
+    fun appendWave(file: File) {
+        file.inputStream().use { input ->
+            val header = ByteArray(44)
+            var read = 0
+            while (read < header.size) { val n = input.read(header, read, header.size - read); require(n > 0) { "WAV头不完整" }; read += n }
+            val h = ByteBuffer.wrap(header).order(ByteOrder.LITTLE_ENDIAN)
+            require(String(header, 0, 4, Charsets.US_ASCII) == "RIFF" && String(header, 8, 8, Charsets.US_ASCII) == "WAVEfmt " &&
+                String(header, 36, 4, Charsets.US_ASCII) == "data" && h.getInt(16) == 16 && h.getShort(20).toInt() == 1 &&
+                h.getShort(22).toInt() == 1 && h.getShort(34).toInt() == 16) { "队列只合并本模块的单声道PCM16 WAV" }
+            val rate = h.getInt(24); val bytes = h.getInt(40).toLong()
+            require(rate in 8000..192000 && bytes > 0 && bytes % 2 == 0L && file.length() == bytes + 44 &&
+                h.getInt(4).toLong() == bytes + 36 && h.getInt(28) == rate * 2 && h.getShort(32).toInt() == 2) { "WAV长度或采样率无效" }
+            require(sampleRate == 0 || sampleRate == rate) { "队列音频采样率不一致" }
+            require(samples * 2 + bytes < 2_000_000_000L) { "合并音频超过本模块大小限制" }
+            sampleRate = rate
+            val buffer = ByteArray(65536)
+            var copied = 0L
+            while (copied < bytes) { val n = input.read(buffer, 0, minOf(buffer.size.toLong(), bytes - copied).toInt()); require(n > 0); out.write(buffer, 0, n); copied += n }
+            require(input.read() == -1)
+            samples += bytes / 2
+        }
+    }
     fun finish() {
         require(samples > 0 && sampleRate > 0)
         fun u32(value: Long) { repeat(4) { out.write((value shr (it * 8)).toInt() and 255) } }
@@ -92,10 +116,13 @@ internal class SpeechService(
             if (run.status != "success" && run.status != "cache") return
         }
     }
-    fun run(request: SpeechRequest, token: WorkToken, batchParameters: SpeechParameters? = null): SavedRun {
+    fun run(request: SpeechRequest, token: WorkToken, batchParameters: SpeechParameters? = null, preferCache: Boolean = false): SavedRun {
         request.validate(); token.check()
         val resolved = (batchParameters ?: request.parameters.resolved()).also { it.validate() }
         val key = SpeechText.key(engine, request, resolved)
+        if (request.kind == RunKind.CACHE) require(!request.parameters.randomSeed) { "随机seed每次不同，不能请求同参数缓存" }
+        val cached = if (request.kind == RunKind.CACHE || (preferCache && !request.parameters.randomSeed)) runs.cached(key) else null
+        val actualKind = if (cached != null) RunKind.CACHE else request.kind
         val descriptor = engine.descriptor
         val created = System.currentTimeMillis()
         val start = metrics.nowNanos()
@@ -103,7 +130,8 @@ internal class SpeechService(
             .put("engineId", descriptor.engineId).put("engineVersion", descriptor.engineVersion)
             .put("modelRevision", descriptor.revision).put("modelFingerprint", descriptor.fingerprint).put("modelLicense", descriptor.license)
             .put("modelFiles", JSONArray().also { a -> descriptor.files.forEach { f -> a.put(JSONObject().put("role", f.role).put("name", f.name).put("bytes", f.sizeBytes).put("sha256", f.sha256)) } })
-            .put("createdAtEpochMillis", created).put("runKind", request.kind.name.lowercase(Locale.ROOT))
+            .put("createdAtEpochMillis", created).put("runKind", actualKind.name.lowercase(Locale.ROOT))
+            .put("reading", request.origin?.snapshot() ?: JSONObject.NULL)
             .put("mode", request.mode.name.lowercase(Locale.ROOT)).put("splitterVersion", SpeechText.SPLITTER)
             .put("textSha256", request.text.toByteArray(Charsets.UTF_8).sha256())
             .put("textCodePoints", request.text.codePointCount(0, request.text.length))
@@ -113,9 +141,8 @@ internal class SpeechService(
             .put("validation", JSONObject().put("compatibilityGate", "pending").put("listening", "unreviewed").put("offlineTest", "not_recorded"))
         runs.begin().use { draft ->
             val waveFile = draft.file("audio.wav")
-            if (request.kind == RunKind.CACHE) {
-                require(!request.parameters.randomSeed) { "随机seed每次不同，不能请求同参数缓存" }
-                val cached = runs.cached(key) ?: error("没有匹配且完整的缓存；请先真实生成")
+            if (actualKind == RunKind.CACHE) {
+                checkNotNull(cached) { "没有匹配且完整的缓存；请先真实生成" }
                 cached.artifact("audio").inputStream().use { input -> waveFile.outputStream().use { output ->
                     val buffer = ByteArray(65536)
                     while (true) { token.check(); val n = input.read(buffer); if (n < 0) break; output.write(buffer, 0, n) }

@@ -1,8 +1,9 @@
 # 当前状态
 
-- 2026-10-03：`ready_for_device_validation / awaiting_manager_apk`。阶段2完整设备验证候选已实现；原生/模型实际运行门槛仍未通过，不能标记 compatibility_gate_passed。
-- 授权、资产注入与回复对象见 [MANAGER_LINK.md](MANAGER_LINK.md)。总控 MODEL_PAIR_VERIFIED 及固定工具安装证据已接收并沿用，没有重复整文件hash或安装。
-- 中文操作/设置/结果页面、公共模型安装/租约/调度/存储、Qwen适配器、生成取消、播放、缓存/历史及SAF导出已接线。实际架构与设置/测量语义见 [ARCHITECTURE.md](ARCHITECTURE.md)。
-- 本轮25项新增JVM测试通过；Android测试源码编译、Release AAR构建完成；Lint 0错误、6警告。最终AAR的两份原生SO与阶段1B一致，ELF/notice检查通过。精确命令、范围、警告、哈希和产物路径统一见 [SOURCE_MANIFEST.md 第8节](SOURCE_MANIFEST.md#8-阶段2追加设备验证候选)。
-- 没有主机/手机模型执行、Android测试执行、UI视觉运行、APK、断网或听感验收证据。总控需注入精确样例/清单/模型，制作独立APK并安排设备检查；清单契约与设备检查表也在来源清单第8节。
-- 阶段1静态与阶段1B原生报告已交接并获续派；阶段2完整FEATURE_MILESTONE于2026-10-03成功发送给登记总控01a024cb-1fba-7b23-a357-67eb2ad592b4（消息工具isError=false）。现等待总控APK/设备验证或下一项明确范围，不轮询，不主动扩大到Git、宿主、APK或其他功能。
+- 2026-10-03：模块0.2.0为 `ready_for_integration / awaiting_manager_integration`。用户已批准正式内嵌并保留独立测试App；本模块实现及增量编译/测试完成，正式App接线、Git、APK归总控。
+- 保留ModelProbeFeature，新增总控约定的SpeechFeature/SpeechReadingRequest/SpeechReadingScope精确公共契约。正式页支持全文/段落/句子串行队列、个性化要求、保存/缓存、历史、暂停/继续、倍速及导出；同Activity独立页与文章入口分别保留草稿，正式页不依赖probe-sample.txt。
+- 31个不同JVM用例通过（21新增、10受影响已有）；Android测试源码编译、API29原生及Release AAR构建、ELF/notice检查通过；Lint 0错误、6项已说明警告。完整命令、两批测试覆盖、最终AAR/hash和兼容边界统一见 [SOURCE_MANIFEST.md 第10节](SOURCE_MANIFEST.md#10-正式语音020内嵌候选)。
+- Library/native实际目标API29，无宿主最低版本提升、无overrideLibrary。原模型、源码/补丁及音质策略保留；新流程没有手机运行或视觉验收证据，不标记compatibility_gate_passed或App发布完成。
+- 用户此前一次设备合成及“完整且清晰，没有明显漏读或重复”的试听反馈见 [SOURCE_MANIFEST.md 第9节](SOURCE_MANIFEST.md#9-2026-10-03-设备截图与用户试听反馈)。该次34.08秒音频/RTF4.71不推广为0.2.0新队列、取消、倍速、API29或全部场景通过；原始JSON/WAV不作为本轮实现前置。
+- 当前架构、存储/缓存、队列和生命周期语义见 [ARCHITECTURE.md](ARCHITECTURE.md)，授权及总控回复对象见 [MANAGER_LINK.md](MANAGER_LINK.md)。历史阶段证据直接沿用，仅为本次差异补验证。
+- 阶段1/1B/2报告与设备反馈均已成功交接；0.2.0最终完整FEATURE_MILESTONE于2026-10-03成功发送至总控01a024cb-1fba-7b23-a357-67eb2ad592b4（消息工具isError=false）。现等待总控集成或新范围，不轮询或自行扩展。

@@ -1,10 +1,10 @@
-# 本地模型验证 Library 架构
+# 共享本地语音 Library 架构
 
-阶段2实现，2026-10-03。当前为设备验证候选；构建、测试、产物与验收边界的唯一证据正文见 [SOURCE_MANIFEST.md 第8节](SOURCE_MANIFEST.md#8-阶段2追加设备验证候选)。本轮只注册 Qwen 英语语音任务；正式 EnglishApp 与其他功能没有接线。
+0.2.0正式内嵌候选，2026-10-03。保留独立测试入口，新增供正式App装配的朗读入口；只注册Qwen英语语音任务，不读取其他功能内部实现。构建与验收证据以 [SOURCE_MANIFEST.md](SOURCE_MANIFEST.md) 第10节为当前正文；第8节记录阶段2，第9节记录用户一次设备成功和正面试听，不能代替0.2.0新增流程的设备验收。
 
 ## 边界与依赖
 
-仍为单个 Android Library，唯一宿主公开入口为 `com.xuesui.englishapp.modelprobe.runtime.ModelProbeFeature()`。Activity、Application、包名、assets、签名与 APK 由总控维护。新增业务类型均为 internal，原有 JNI 也只用于本模块。
+仍为单个Android Library，保留 `com.xuesui.englishapp.modelprobe.runtime.ModelProbeFeature()`，新增同包 `SpeechFeature(request, onClose)` 及精确的 `SpeechReadingScope`、`SpeechReadingRequest` 公共类型，定义见 `runtime/SpeechReadingRequest.kt`。Activity、Application、包名、assets、签名与APK由总控维护；其余新增业务类型为internal，JNI只用于本模块。正式App与测试App各用自己的私有目录，不互读或自动迁移。
 
 | 目录 | 已实现责任 | 依赖边界 |
 |---|---|---|
@@ -14,12 +14,15 @@
 | `core/storage` | 私有文件边界、原子 JSON、RunStore、SettingsStore | 通用 artifact 与报告事务，不依赖 Qwen |
 | `contracts/speech` | SpeechParameters、SpeechEngine、SpeechRequest、SpeechAudio、失败快照 | 任务专属类型，无 UI 或具体引擎依赖 |
 | `engines/qwen3tts` | 受信任模型描述、类型化参数、参数编辑器/摘要、JNI 适配 | 实现 speech 契约并使用 core；不依赖语音页面 |
-| `features/speech` | SpeechService、PCM16 WAV、运行/缓存策略、SpeechScreen、SpeechActions、页面状态/偏好 | 使用任务契约和 core；不引用具体引擎、runtime ViewModel 或 native 句柄 |
-| `runtime` | ModelProbeFeature、ProbeViewModel，装配引擎及编辑器、SAF、MediaPlayer、生命周期 | 具体 Qwen 实现只在此处选择和接入页面 |
+| `features/speech` | SpeechService、PCM16 WAV及合并、诊断页面、纯播放状态机、页面偏好 | 使用任务契约和core；不引用具体引擎、runtime ViewModel或native句柄 |
+| `features/reading` | 正式页面、范围规划、串行队列、请求去重/切换、入口草稿、历史分组 | 使用speech任务契约与服务；不访问文章模块、导航或数据库 |
+| `runtime` | 两个公开入口及请求映射、ProbeViewModel、SAF、AndroidAudioFactory、生命周期 | 唯一具体装配处，选择Qwen编辑器/适配器；onClose交还宿主 |
 
 ```mermaid
 flowchart LR
-  H[总控宿主] --> R[ModelProbeFeature / ProbeViewModel]
+  H[总控宿主] --> R[SpeechFeature / ModelProbeFeature / ProbeViewModel]
+  R --> A[features/reading]
+  A --> S[features/speech]
   R --> S[features/speech]
   R --> Q[engines/qwen3tts]
   S --> C[contracts/speech]
@@ -99,4 +102,28 @@ Android 端使用 elapsedRealtimeNanos 单调计时；PSS 以200ms固定延迟�
 
 新增精确 ModelDescriptor、受信任 engines/<id>、任务专属 contracts/<task> 和 features/<task>，由 runtime 显式装配并增加入口。复用 core 的安装、租约、任务排他、取消、通用采样、事务存储；新任务返回自身结果/指标，不实现虚假的语音接口或 WAV/RTF。新引擎自行拥有参数 schema 与显式迁移，不引用 Qwen 内部实现。是否拆分 Gradle 模块留给实际第二引擎加入时由总控决定。
 
-下一步是总控生成独立候选 APK 并安排设备验证，精确资产契约与检查表见来源清单第8节。已有模块证据直接沿用，只补宿主包装和设备执行范围。
+下一步由总控完成正式App及保留的独立测试App集成/打包，新增接口、API29构建及设备待测范围见来源清单第10节。既有模块证据和第9节单次试听基线沿用。
+
+## 正式朗读入口、队列和同Activity往返
+
+SpeechFeature的request=null入口从空白输入/粘贴开始，不读取probe-sample.txt，也不会因缺少样例阻塞。ModelProbeFeature继续使用原样例与诊断UI。正式入口收到请求只展示预览和设置，用户点击生成才计算。FULL取所有英文段落，PARAGRAPH必须有有效索引，SENTENCE必须非空且是指定段落的精确子串；越界或不匹配显示错误，不回退到全文。
+
+ReadingPlanner最多接收256段、100000个UTF-16字符，生成最多256片，每片最多800个Unicode code point。优先在句末切分，超长句优先在空白处切分，极端长词按完整code point切分。每片都是原文连续切片，保留顺序/标点及段、句、offset标识；范围选择与个性化要求不会改写正文。固定68词段落可在一片内保持原样；诊断入口的完整段落模式仍未改成队列。
+
+ReadingInbox按requestId去重；新ID同文本可进入，忙时保留待切换请求，用户确认停止后等待原任务真实退出再打开新预览，不自动生成。正式两个入口共享同Activity的speech-runtime ViewModel和任务串行器，ReadingEntryMemory分别保存独立页草稿与文章请求状态。request=null恢复自己的输入，返回模式由本次入口参数决定；旋转/重复重组不重复消费或启动生成。
+
+ReadingQueue顺序调用SpeechService，每片先保存WAV和子报告，再开始下一片；优先复用正文/模型/参数全部匹配的缓存，随机seed仍真实生成。整次只解析一个显式base seed，逐片派生；group报告保留原requested与resolved base，子报告记录实际effective。失败、取消、触顶立即停止余下队列，保留已完成片段，完整完成状态只在所有计划片段成功或命中缓存时成立。
+
+子报告新增可选reading上下文（session/request ID、标题、范围、片段及原文offset），不保存正文。最后把可用子WAV按原顺序流式合并成独立PCM16 WAV与speech.reading.v1父报告，不额外加静音；部分完成明确标注，合并失败仍保留子文件。取消后的保存只完成已有片段的事务，不启动新的native任务。进程在父报告提交前结束时，已经提交的子音频作为可恢复历史显示；不会隐藏或自动续跑。
+
+正式历史先合并父子关系再限制最近100条，长队列的数百个子报告不会挤掉整篇历史；存在父报告的片段在父记录下选择播放。RunStore按需顺序读取/筛选，避免为正式历史同时保留全部子采样报告。旧诊断报告仍可识别，私有目录、设置schema2、模型fingerprint及引擎参数schema1未变，无数据库或破坏式迁移。
+
+## 播放与低版本方案
+
+两个入口共用SpeechPlayback状态机和AndroidAudioFactory。异步prepare、暂停/原位置继续、完成后重播、焦点丢失暂停、页面退出停止，都以播放代次阻止迟到回调。倍速0.5–2.0，Android端显式pitch=1；暂停时先保存新倍速，继续时才应用，避免setPlaybackParams的隐式启动行为。不支持的设置报错并释放播放器，不声称已经生效。媒体提供方或系统能力仍以设备实测为准。
+
+正式页突出Ryan/Aiden、自然/慢速/轻快指令预设、可编辑个性化要求和播放倍速；高级采样参数完整保留。风格预设写入同一个真实instruction字段并原样持久化/进入缓存及报告，生成快慢是定性要求，没有虚构native数值速度。保存/恢复默认沿用全部生成参数及页面偏好，无新参数schema迁移。
+
+Library minSdk改为29，native也实际以aarch64-linux-android29重新编译，不使用tools:overrideLibrary。现用热状态API从29提供，播放器倍速等API更早；API29的Lint与NDK链接验证见当前证据。ABI仍仅arm64，低于能力的设备在入口显示不支持而不调用生成。目标Android16与API29真机的新流程均待总控验收。
+
+页面/后台退出会请求取消并在真实退出后卸载模型；选择SAF文档期间仅停止播放，避免把文件选择器当成离开页面而启动卸载、丢失导出回调。正式页返回只调用宿主onClose，不修改文章、滚动或默写状态；已有结果继续保存。

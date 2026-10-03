@@ -1,10 +1,6 @@
 package com.xuesui.englishapp.modelprobe.runtime
 
 import android.content.Context
-import android.media.AudioAttributes
-import android.media.AudioFocusRequest
-import android.media.AudioManager
-import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
 import android.os.Handler
@@ -19,7 +15,9 @@ import com.xuesui.englishapp.modelprobe.core.runtime.*
 import com.xuesui.englishapp.modelprobe.core.storage.*
 import com.xuesui.englishapp.modelprobe.engines.qwen3tts.*
 import com.xuesui.englishapp.modelprobe.features.speech.*
+import com.xuesui.englishapp.modelprobe.features.reading.*
 import java.io.File
+import java.util.UUID
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +26,7 @@ import kotlinx.coroutines.flow.update
 import org.json.JSONObject
 
 /** Composition root: only this layer selects the concrete trusted engine and its editor/codec. */
-internal class ProbeViewModel(context: Context) : ViewModel(), SpeechActions {
+internal class ProbeViewModel(context: Context, private val diagnostic: Boolean = true, private val privateDirectory: File? = null) : ViewModel(), SpeechActions, ReadingActions {
     private val app = context.applicationContext as android.app.Application
     val descriptor = QwenModel.descriptor
     val supportedAbi = Build.SUPPORTED_ABIS.contains(descriptor.abi)
@@ -36,7 +34,15 @@ internal class ProbeViewModel(context: Context) : ViewModel(), SpeechActions {
     val state = mutable.asStateFlow()
     private val mutableForm = MutableStateFlow(QwenForm.from(QwenConfiguration()))
     val form = mutableForm.asStateFlow()
-    private val root by lazy { File(app.noBackupFilesDir, "model-probe-v1").also { it.mkdirs() } }
+    private val mutableReading = MutableStateFlow(ReadingUiState())
+    val reading = mutableReading.asStateFlow()
+    private val inbox = ReadingInbox()
+    private val entryMemory = ReadingEntryMemory()
+    private var standaloneAfterExit = false
+    private var switchAfterExit = false
+    private var releaseAfterExit = false
+    @Volatile private var initialized = false
+    private val root by lazy { (privateDirectory ?: File(app.noBackupFilesDir, "model-probe-v1")).also { it.mkdirs() } }
     private val models by lazy { ModelStore(File(root, "models")) }
     private val runs by lazy { RunStore(File(root, "results"), File(root, "cache-index")) }
     private val settings by lazy { SettingsStore(File(root, "settings")) }
@@ -44,18 +50,20 @@ internal class ProbeViewModel(context: Context) : ViewModel(), SpeechActions {
     private val metrics = AndroidMetrics(app)
     private val service by lazy { SpeechService(engine, models, runs, metrics) { message -> mutable.update { it.copy(message = message) } } }
     private val main = Handler(Looper.getMainLooper())
-    private var player: MediaPlayer? = null
-    private var focus: AudioFocusRequest? = null
-    private var playbackGeneration = 0L
-    private val audio = app.getSystemService(AudioManager::class.java)
+    private val playback = SpeechPlayback(AndroidAudioFactory(app)) { value ->
+        mutable.update { it.copy(playback = value.label) }
+        mutableReading.update { it.copy(playback = value) }
+    }
     private var sample: String? = null
     private var talker: Uri? = null
     private var tokenizer: Uri? = null
     private val exports = mutableMapOf<String, String>()
+    private var documentSelection = false
     @Volatile private var disposed = false
     @Volatile private var started = 0L
     private val runner = TaskRunner { busy, cancelling ->
         mutable.update { it.copy(busy = busy, cancelling = cancelling, phase = if (busy) it.phase else "", progress = if (busy) it.progress else null) }
+        if (!busy) main.post { onWorkerIdle() }
     }
     private val ticker = Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "probe-progress").also { it.isDaemon = true } }
     init {
@@ -63,8 +71,8 @@ internal class ProbeViewModel(context: Context) : ViewModel(), SpeechActions {
             if (state.value.busy) mutable.update { it.copy(phase = engine.phase(), elapsedSeconds = (SystemClock.elapsedRealtimeNanos() - started) / 1_000_000_000) }
         }, 500, 500, TimeUnit.MILLISECONDS)
         work("读取样例与模型清单") {
-            val sampleResult = runCatching { SpeechText.sample { app.assets.open("probe-sample.txt") } }
-            sample = sampleResult.getOrNull()
+            val sampleResult = runCatching { if (diagnostic) SpeechText.sample { app.assets.open("probe-sample.txt") } else "" }
+            sample = if (diagnostic) sampleResult.getOrNull() else null
             val manifest = runCatching { app.assets.open("models/manifest.json").use { ModelCatalog(listOf(descriptor)).parseManifest(it.boundedText(65536)) } }
             var settingMessage = ""
             val (config, preferences) = runCatching {
@@ -74,16 +82,18 @@ internal class ProbeViewModel(context: Context) : ViewModel(), SpeechActions {
             }.getOrElse { settingMessage = "设置读取失败，已恢复默认，原文件保留：${it.message}"; QwenConfiguration() to SpeechPreferences() }
             mutableForm.value = QwenForm.from(config)
             mutable.update { it.copy(text = sample.orEmpty(), sampleAvailable = sample != null,
-                sampleMessage = if (sample != null) "已读入宿主固定样例，可编辑或恢复" else "样例缺失或无效：${sampleResult.exceptionOrNull()?.message}；可手动输入",
+                sampleMessage = if (!diagnostic) "" else if (sample != null) "已读入宿主固定样例，可编辑或恢复" else "样例缺失或无效：${sampleResult.exceptionOrNull()?.message}；可手动输入",
                 manifestReady = manifest.isSuccess, manifestMessage = if (manifest.isSuccess) "内置模型清单身份匹配；安装时校验完整副本" else "内置模型清单不可用：${manifest.exceptionOrNull()?.message}",
                 mode = preferences.mode, batchCount = preferences.batchCount, playbackSpeed = preferences.playbackSpeed,
-                cacheAllowed = !config.randomSeed, message = settingMessage.ifBlank { "实验性设备验证候选；请先安装并载入模型" }) }
+                cacheAllowed = !config.randomSeed, message = settingMessage.ifBlank { if (diagnostic) "实验性设备验证候选；请先安装并载入模型" else "选择英文和朗读范围，点击生成后开始。音频保存后可以反复播放。" }) }
+            main.post { if (!disposed) playback.setSpeed(preferences.playbackSpeed) }
+            initialized = true
         }
     }
     private fun refresh() {
         val presence = runCatching { models.present(descriptor) }
         val installed = presence.getOrDefault(false)
-        val history = runs.history()
+        val history = if (diagnostic) runs.history() else ReadingHistory.read(runs)
         mutable.update { it.copy(installed = installed, loaded = engine.loaded, modelIssue = presence.exceptionOrNull()?.message.orEmpty(),
             instructionSupported = !engine.loaded || engine.instructionSupported, history = history,
             hasSynthesis = it.hasSynthesis || history.any { run -> run.status == "success" || run.status == "token_limit" }) }
@@ -184,54 +194,31 @@ internal class ProbeViewModel(context: Context) : ViewModel(), SpeechActions {
     }
     override fun cancel() { runner.cancel(); mutable.update { if (it.busy) it.copy(message = "已请求取消，仍在等待原生/文件操作退出；不会提前释放") else it } }
     override fun setPlaybackSpeed(speed: Float) {
-        if (speed !in 0.5f..2f) return
+        if (!speed.isFinite() || speed !in 0.5f..2f) return
         mutable.update { it.copy(playbackSpeed = speed) }
-        runCatching { player?.let { p -> if (p.isPlaying) p.playbackParams = p.playbackParams.setSpeed(speed) } }
+        playback.setSpeed(speed)
     }
     override fun play(id: String) {
         stopPlayback()
-        val generation = playbackGeneration
+        val generation = playback.epoch
         work("核对所选音频") { token ->
             val run = runs.read(id)
             val file = run.artifact("audio")
+            mutable.update { it.copy(selected = run) }
             token.check()
-            main.post { if (!disposed && generation == playbackGeneration && !token.cancelled.get()) startPlayback(file, id) }
+            main.post { if (!disposed && generation == playback.epoch && !token.cancelled.get()) playback.play(file, id) }
         }
     }
-    private fun startPlayback(file: File, id: String) {
-        stopPlayback()
-        try {
-            val attributes = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build()
-            val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT).setAudioAttributes(attributes)
-                .setOnAudioFocusChangeListener { change -> if (change < 0) stopPlayback() }.build()
-            check(audio.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) { "未取得音频焦点" }
-            focus = request
-            val p = MediaPlayer(); player = p
-            p.setAudioAttributes(attributes); p.setDataSource(file.path)
-            p.setOnPreparedListener {
-                if (player === it && !disposed) {
-                    it.playbackParams = it.playbackParams.setSpeed(state.value.playbackSpeed); it.start()
-                    mutable.update { s -> s.copy(playback = "播放结果 ${id.take(8)} · ${s.playbackSpeed}×") }
-                }
-            }
-            p.setOnCompletionListener { if (player === it) stopPlayback() }
-            p.setOnErrorListener { source, what, extra ->
-                if (player === source) { stopPlayback(); mutable.update { it.copy(playback = "播放失败：$what / $extra") } }
-                true
-            }
-            p.prepareAsync()
-        } catch (failure: Exception) { stopPlayback(); mutable.update { it.copy(playback = "播放失败：${failure.message}") } }
-    }
-    override fun stopPlayback() {
-        playbackGeneration++
-        player?.release(); player = null
-        focus?.let { audio.abandonAudioFocusRequest(it) }; focus = null
-        mutable.update { it.copy(playback = "未播放") }
-    }
+    override fun stopPlayback() = playback.stop()
+    override fun pausePlayback() = playback.pause()
+    override fun resumePlayback() = playback.resume()
     fun prepareExport(role: String): Boolean {
+        if (state.value.busy) return false
         val id = state.value.selected?.id ?: return false
         exports[role] = id; return true
     }
+    fun selectingDocument(selecting: Boolean) { documentSelection = selecting; if (selecting) stopPlayback() }
+    fun hostStopped() { if (documentSelection) stopPlayback() else pageStopped() }
     fun export(role: String, uri: Uri?) {
         val id = exports.remove(role) ?: return
         if (uri == null) return
@@ -254,7 +241,142 @@ internal class ProbeViewModel(context: Context) : ViewModel(), SpeechActions {
             }
         }
     }
-    fun pageStopped() { stopPlayback(); if (state.value.busy) cancel() }
+    fun enterReading(request: SpeechReadingRequest?) {
+        if (request == null) {
+            inbox.dismiss(); switchAfterExit = false
+            if (entryMemory.articleId != null && state.value.busy) {
+                standaloneAfterExit = true; cancel()
+                mutableReading.update { it.copy(switching = true, pendingTitle = null) }
+            } else if (entryMemory.articleId != null) openStandalone()
+            else mutableReading.update { it.copy(pendingTitle = null, switching = false) }
+            return
+        }
+        standaloneAfterExit = false
+        val input = ReadingInput(request.requestId, request.title, request.englishParagraphs.toList(),
+            ReadingSelection(ReadingScope.valueOf(request.scope.name), request.paragraphIndex, request.sentenceText))
+        try {
+            when (inbox.offer(input, state.value.busy && initialized)) {
+                RequestOffer.OPENED -> openArticle(input)
+                RequestOffer.PENDING -> mutableReading.update { it.copy(pendingTitle = input.title.ifBlank { "新的文章朗读" }, requestError = "") }
+                RequestOffer.DUPLICATE -> {
+                    if (entryMemory.articleId != input.id && !state.value.busy) {
+                        stopPlayback()
+                        mutableReading.value = entryMemory.article(input.id, reading.value, null)
+                        mutable.update { it.copy(selected = reading.value.selectedSession) }
+                    }
+                }
+            }
+        } catch (error: Exception) { mutableReading.update { it.copy(requestError = error.message ?: "朗读请求无效") } }
+    }
+    private fun openArticle(input: ReadingInput) {
+        stopPlayback()
+        val plan = ReadingPlanner.create(input)
+        val fresh = ReadingUiState(title = input.title.ifBlank { "文章朗读" }, text = input.paragraphs.joinToString("\n\n"),
+            input = plan.input, selection = input.selection, rows = plan.items.map { ReadingRow(it.label, it.text.trim().take(160)) })
+        mutableReading.value = entryMemory.article(input.id, reading.value, fresh)
+        mutable.update { it.copy(selected = null, message = "已准备朗读范围；请确认设置并点击生成") }
+        switchAfterExit = false
+    }
+    private fun openStandalone() {
+        stopPlayback()
+        mutableReading.value = entryMemory.standalone(reading.value).copy(pendingTitle = null, switching = false)
+        mutable.update { it.copy(selected = reading.value.selectedSession) }
+        standaloneAfterExit = false
+    }
+    override fun switchReadingRequest() {
+        if (inbox.pending == null) return
+        switchAfterExit = true
+        mutableReading.update { it.copy(switching = true) }
+        if (state.value.busy) cancel() else onWorkerIdle()
+    }
+    override fun keepReadingRequest() {
+        inbox.dismiss(); switchAfterExit = false
+        mutableReading.update { it.copy(pendingTitle = null, switching = false) }
+    }
+    private fun onWorkerIdle() {
+        if (disposed || state.value.busy) return
+        if (releaseAfterExit) {
+            releaseAfterExit = false
+            if (engine.loaded) { work("释放语音模型内存") { engine.unload() }; return }
+        }
+        if (standaloneAfterExit) openStandalone()
+        else if (switchAfterExit) inbox.takePending(false)?.let(::openArticle)
+    }
+    override fun editReadingText(text: String) {
+        if (state.value.busy || text.length > ReadingPlanner.MAX_TEXT) return
+        val selection = ReadingSelection()
+        val input = ReadingInput("manual-${UUID.randomUUID()}", "我的朗读", ReadingPlanner.paragraphs(text), selection)
+        mutableReading.update { it.copy(title = "我的朗读", text = text, input = input, selection = selection, selectedSession = null) }
+        rebuildReadingPreview()
+    }
+    override fun chooseReadingScope(scope: ReadingScope) {
+        if (state.value.busy) return
+        val current = reading.value
+        val paragraphs = current.input?.paragraphs.orEmpty()
+        val index = current.selection.paragraph?.takeIf { it in paragraphs.indices } ?: 0
+        val sentence = current.selection.sentence ?: paragraphs.getOrNull(index)?.let { ReadingPlanner.sentences(it).firstOrNull() }
+        mutableReading.update { it.copy(selection = ReadingSelection(scope, index, sentence), selectedSession = null) }
+        rebuildReadingPreview()
+    }
+    override fun chooseParagraph(index: Int) {
+        if (state.value.busy) return
+        val paragraph = reading.value.input?.paragraphs?.getOrNull(index) ?: return
+        mutableReading.update { it.copy(selection = it.selection.copy(paragraph = index, sentence = ReadingPlanner.sentences(paragraph).firstOrNull()), selectedSession = null) }
+        rebuildReadingPreview()
+    }
+    override fun chooseSentence(sentence: String) {
+        if (state.value.busy) return
+        mutableReading.update { it.copy(selection = it.selection.copy(sentence = sentence), selectedSession = null) }
+        rebuildReadingPreview()
+    }
+    private fun selectedPlan(): ReadingPlan {
+        val current = reading.value
+        val input = current.input ?: error("请粘贴英文内容或从文章发起朗读")
+        return ReadingPlanner.create(input.copy(selection = current.selection))
+    }
+    private fun rebuildReadingPreview() {
+        stopPlayback(); mutable.update { it.copy(selected = null) }
+        val result = runCatching { selectedPlan() }
+        mutableReading.update { it.copy(rows = result.getOrNull()?.items?.map { item -> ReadingRow(item.label, item.text.trim().take(160)) }.orEmpty(),
+            requestError = if (it.text.isBlank()) "" else result.exceptionOrNull()?.message.orEmpty()) }
+    }
+    override fun generateReading(reuse: Boolean) {
+        if (state.value.busy) return
+        val plan = runCatching { selectedPlan() }.getOrElse { error -> mutableReading.update { it.copy(requestError = error.message.orEmpty()) }; return }
+        val config = runCatching { mutableForm.value.parse() }.getOrElse { error -> mutable.update { it.copy(message = "参数无效：${error.message}") }; return }
+        stopPlayback()
+        mutableReading.update { it.copy(selectedSession = null, rows = plan.items.map { item -> ReadingRow(item.label, item.text.trim().take(160)) }) }
+        work("准备朗读队列；${plan.items.size}个片段") { token ->
+            check(supportedAbi) { "语音生成要求arm64-v8a设备" }
+            val saved = ReadingQueue(service, runs, metrics::nowNanos).generate(plan, config, token, reuse) { update ->
+                mutableReading.update { old -> old.copy(rows = old.rows.mapIndexed { i, row -> if (i == update.item.index)
+                    row.copy(status = update.state, runId = update.run?.id, hasAudio = update.run?.report?.has("audio") == true) else row }) }
+                if (update.run != null) mutable.update { it.copy(selected = update.run) }
+            }
+            mutableReading.update { it.copy(selectedSession = saved, rows = readingRows(saved)) }
+            mutable.update { it.copy(selected = saved, message = "${runStatusTitle(saved.status)} · 已完成 ${saved.report.optInt("completedCount")}/${plan.items.size}片段") }
+        }
+    }
+    private fun readingRows(run: SavedRun): List<ReadingRow> {
+        val items = run.report.optJSONArray("items") ?: return emptyList()
+        return (0 until items.length()).map { i ->
+            val item = items.getJSONObject(i); val status = item.getString("status")
+            ReadingRow(item.getString("label"), status = status, runId = if (item.isNull("runId")) null else item.getString("runId"),
+                hasAudio = status in setOf("success", "cache", "token_limit"))
+        }
+    }
+    override fun selectReadingHistory(id: String) {
+        stopPlayback()
+        work("读取保存的朗读") {
+            val run = runs.read(id)
+            mutable.update { it.copy(selected = run, message = "已选择保存的音频，播放和导出绑定此结果") }
+            mutableReading.update { it.copy(selectedSession = run, rows = readingRows(run)) }
+        }
+    }
+    fun pageStopped() {
+        stopPlayback(); releaseAfterExit = true
+        if (state.value.busy) cancel() else onWorkerIdle()
+    }
     override fun onCleared() {
         disposed = true; ticker.shutdownNow(); stopPlayback()
         runner.closeAfterExit { runCatching { engine.unload() } }
