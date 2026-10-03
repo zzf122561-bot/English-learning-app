@@ -1,5 +1,7 @@
 # 当前状态
 
+- 总控集成补充（2026-10-03）：0.2.0已提交0f18a3b、合并47286c4并用于App1.1.0 test.001；正式APK签名/资产验证及两个宿主连接编译通过。模块任务保持等待；本次新增设备流程待用户自测。以下交接时状态为历史来源，不再表示等待构建。
+
 - 总控历史记录：阶段2已提交9f9cb88并集成；独立`ModelProbe-v0.1.0-test.001-f098fda.apk`完成宿主构建、签名、资产哈希与原生打包对齐检查并永久保留。打包当时尚无手机证据，随后收到下述第9节的单次用户反馈；不将该反馈扩大为当前新流程验收。
 - 2026-10-03：模块0.2.0为 `ready_for_integration / awaiting_manager_integration`。用户已批准正式内嵌并保留独立测试App；本模块实现及增量编译/测试完成，正式App接线、Git、APK归总控。
 - 保留ModelProbeFeature，新增总控约定的SpeechFeature/SpeechReadingRequest/SpeechReadingScope精确公共契约。正式页支持全文/段落/句子串行队列、个性化要求、保存/缓存、历史、暂停/继续、倍速及导出；同Activity独立页与文章入口分别保留草稿，正式页不依赖probe-sample.txt。

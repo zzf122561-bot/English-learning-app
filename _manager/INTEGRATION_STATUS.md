@@ -8,7 +8,8 @@
 | 当前用户验收基线 | App v0.3.0 / versionCode 4 / 功能1 v0.3.0 / 功能2 v0.1.1；正式标签 `app-v0.3.0`，同一 test.002 二进制提升正式版；该历史版本接受 `F02-LINK-001`、`F02-AUDIO-001` 并暂缓修复，后续候选已由用户重新授权处理 |
 | 功能1 | v0.4.0 全文/本段/单句回调已由总控提交ebfd6d8并合并4139f75；26 tests/0 failures，Android源码编译和AAR通过，沿用模块交接证据。Room/原学习行为不变；新增朗读交互尚未实机验收 |
 | 功能2 | v0.2.1已增量审查、独立复测并合并：63 tests/0 failures，3个androidTest源码共10项编译，AAR 468,724 bytes；Oxford9真实快捷定位为`onclick/className`，受控词典内部默认放行 |
-| 根 App 壳 | 开发中的1.1.0 / versionCode 6，新增“语音”第三入口与文章朗读接线；等待新模块契约交付后集成编译。包名、签名、minSdk29、原词典INTERNET权限不变；唯一正式Application集成三个Library，独立测试宿主保留但不被正式工程包含 |
+| 根 App 壳 | 1.1.0 / versionCode 6 test.001已从干净47286c4构建、签名并归档；三入口与文章朗读接线编译通过，宿主8测试通过，等待用户自测。包名、签名、minSdk29及原权限不变；独立宿主保留，不进入正式工程 |
+| 共享语音 | 0.2.0已提交0f18a3b并合并47286c4；沿用31个不同用例、Android源码编译、API29/AAR/Lint交接证据；正式与独立宿主连接均已编译。新流程尚未手机验收 |
 | 内置词典 | 四个 MDX/MDD 构建前校验登记 SHA-256；生成 schemaVersion 1 清单，Git 忽略且不修改用户原文件 |
 | 长期签名 | 已复制到 Git 外总控位置，证书指纹与 v0.2.0 一致 |
 | v0.2.1 测试 APK | `test.001` 已从提交 `d18054e` 完整重建、签名并归档；仅标记自动构建通过 |
@@ -19,6 +20,11 @@
 | 设备实机验证 | 2026-08-26用户确认v1.0.0 test.001词典内部链接仍不可用；其余本候选验收项未在本次反馈中确认；总控无设备 |
 
 ## 状态与证据边界
+
+- 2026-10-03完成正式内嵌候选：三范围、音色/个性化要求、播放倍速及历史/缓存的模块证据按交接沿用；新增主App集成构建、8项宿主测试、1 Application/3 Library边界、签名及全部包内资产检查通过。交付[1.1.0 test.001](releases/app/v1.1.0/test.001/RELEASE.md)，本次目标处于`awaiting_user_device_validation`，不冒称实机通过或正式发布。
+- 独立宿主与新共享模块兼容编译：2026-10-03在根工程使用既有JDK/SDK/hosts环境执行Gradle `-p _manager/probes/tts-device --no-daemon --no-configuration-cache --max-workers=2 :app:compileDebugKotlin`，BUILD SUCCESSFUL in 53s，14 tasks（9 executed / 5 up-to-date）。只编译新连接，不生成/覆盖旧独立APK；原测试App继续保留。
+
+### 历史阶段记录（以下“等待开发/构建”为当时状态，已由上述交付取代）
 
 - 宿主返回增量（2026-10-03）：关闭文章朗读按requestId校验，旧页面延迟回调不能清除新请求；重复关闭安全。新增1项测试后，ReadingRoute真实源的8项JVM测试全部通过；本轮精确源哈希证据为`_manager/local/reading-route-test/1d32bc54f5694f688d8cf303872699df/RESULT.json`，取代下述7项对当前源的覆盖，历史结果仍保留。不扩大为Compose/设备验证。
 

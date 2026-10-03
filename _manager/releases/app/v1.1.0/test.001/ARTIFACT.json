@@ -1,0 +1,410 @@
+{
+  "sourceCommit": "47286c45709d30053aaf900fd62a17bdc778a33c",
+  "buildCompletedUtc": "2026-10-03T02:58:25.2293686Z",
+  "archivedUtc": "2026-10-03T02:58:47.3538307Z",
+  "filename": "EnglishApp-v1.1.0-test.001-47286c4.apk",
+  "sizeBytes": 1547719962,
+  "sha256": "07ee51d722f02d680bd97102be0d03876d4869895e280fdccbee3c59afe10d8b",
+  "package": "com.xuesui.englishapp",
+  "versionName": "1.1.0",
+  "versionCode": 6,
+  "minSdk": 29,
+  "features": {
+    "wordMemory": "0.4.0",
+    "dictionary": "0.2.1",
+    "speech": "0.2.0"
+  },
+  "signature": [
+    "Verifies",
+    "Verified using v1 scheme (JAR signing): false",
+    "Verified using v2 scheme (APK Signature Scheme v2): true",
+    "Verified using v3 scheme (APK Signature Scheme v3): false",
+    "Verified using v3.1 scheme (APK Signature Scheme v3.1): false",
+    "Verified using v4 scheme (APK Signature Scheme v4): false",
+    "Verified for SourceStamp: false",
+    "Number of signers: 1",
+    "Signer #1 certificate DN: C=US, O=Android, CN=Android Debug",
+    "Signer #1 certificate SHA-256 digest: 1b8799f7712d1de409daf80034dbbf8465c37aa807567f3eb1996ef17179a788",
+    "Signer #1 certificate SHA-1 digest: 5453919759fdae642b47895993cd33870ad9784f",
+    "Signer #1 certificate MD5 digest: 74032b6d8171c1687e46710aee65c698",
+    "Signer #1 key algorithm: RSA",
+    "Signer #1 key size (bits): 2048",
+    "Signer #1 public key SHA-256 digest: d769df36c6f7885ba904dfc06984675bbd3c1c270cea5ba87b95a716b9a2ac23",
+    "Signer #1 public key SHA-1 digest: df1eb0c6fec88b242fca4b5e3f0556f7a6cba01b",
+    "Signer #1 public key MD5 digest: ddce95bd265105c041ad75fa4b8c8b59"
+  ],
+  "badging": [
+    "package: name='com.xuesui.englishapp' versionCode='6' versionName='1.1.0' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'",
+    "minSdkVersion:'29'",
+    "targetSdkVersion:'36'",
+    "uses-permission: name='android.permission.INTERNET'",
+    "uses-permission: name='com.xuesui.englishapp.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'",
+    "application-label:'语境记忆'",
+    "application-label-af:'语境记忆'",
+    "application-label-am:'语境记忆'",
+    "application-label-ar:'语境记忆'",
+    "application-label-as:'语境记忆'",
+    "application-label-az:'语境记忆'",
+    "application-label-be:'语境记忆'",
+    "application-label-bg:'语境记忆'",
+    "application-label-bn:'语境记忆'",
+    "application-label-bs:'语境记忆'",
+    "application-label-ca:'语境记忆'",
+    "application-label-cs:'语境记忆'",
+    "application-label-da:'语境记忆'",
+    "application-label-de:'语境记忆'",
+    "application-label-el:'语境记忆'",
+    "application-label-en-AU:'语境记忆'",
+    "application-label-en-CA:'语境记忆'",
+    "application-label-en-GB:'语境记忆'",
+    "application-label-en-IN:'语境记忆'",
+    "application-label-en-XC:'语境记忆'",
+    "application-label-es:'语境记忆'",
+    "application-label-es-US:'语境记忆'",
+    "application-label-et:'语境记忆'",
+    "application-label-eu:'语境记忆'",
+    "application-label-fa:'语境记忆'",
+    "application-label-fi:'语境记忆'",
+    "application-label-fr:'语境记忆'",
+    "application-label-fr-CA:'语境记忆'",
+    "application-label-gl:'语境记忆'",
+    "application-label-gu:'语境记忆'",
+    "application-label-hi:'语境记忆'",
+    "application-label-hr:'语境记忆'",
+    "application-label-hu:'语境记忆'",
+    "application-label-hy:'语境记忆'",
+    "application-label-in:'语境记忆'",
+    "application-label-is:'语境记忆'",
+    "application-label-it:'语境记忆'",
+    "application-label-iw:'语境记忆'",
+    "application-label-ja:'语境记忆'",
+    "application-label-ka:'语境记忆'",
+    "application-label-kk:'语境记忆'",
+    "application-label-km:'语境记忆'",
+    "application-label-kn:'语境记忆'",
+    "application-label-ko:'语境记忆'",
+    "application-label-ky:'语境记忆'",
+    "application-label-lo:'语境记忆'",
+    "application-label-lt:'语境记忆'",
+    "application-label-lv:'语境记忆'",
+    "application-label-mk:'语境记忆'",
+    "application-label-ml:'语境记忆'",
+    "application-label-mn:'语境记忆'",
+    "application-label-mr:'语境记忆'",
+    "application-label-ms:'语境记忆'",
+    "application-label-my:'语境记忆'",
+    "application-label-nb:'语境记忆'",
+    "application-label-ne:'语境记忆'",
+    "application-label-nl:'语境记忆'",
+    "application-label-or:'语境记忆'",
+    "application-label-pa:'语境记忆'",
+    "application-label-pl:'语境记忆'",
+    "application-label-pt:'语境记忆'",
+    "application-label-pt-BR:'语境记忆'",
+    "application-label-pt-PT:'语境记忆'",
+    "application-label-ro:'语境记忆'",
+    "application-label-ru:'语境记忆'",
+    "application-label-si:'语境记忆'",
+    "application-label-sk:'语境记忆'",
+    "application-label-sl:'语境记忆'",
+    "application-label-sq:'语境记忆'",
+    "application-label-sr:'语境记忆'",
+    "application-label-sr-Latn:'语境记忆'",
+    "application-label-sv:'语境记忆'",
+    "application-label-sw:'语境记忆'",
+    "application-label-ta:'语境记忆'",
+    "application-label-te:'语境记忆'",
+    "application-label-th:'语境记忆'",
+    "application-label-tl:'语境记忆'",
+    "application-label-tr:'语境记忆'",
+    "application-label-uk:'语境记忆'",
+    "application-label-ur:'语境记忆'",
+    "application-label-uz:'语境记忆'",
+    "application-label-vi:'语境记忆'",
+    "application-label-zh-CN:'语境记忆'",
+    "application-label-zh-HK:'语境记忆'",
+    "application-label-zh-TW:'语境记忆'",
+    "application-label-zu:'语境记忆'",
+    "application: label='语境记忆' icon=''",
+    "launchable-activity: name='com.xuesui.englishapp.MainActivity'  label='' icon=''",
+    "uses-library-not-required:'androidx.window.extensions'",
+    "uses-library-not-required:'androidx.window.sidecar'",
+    "feature-group: label=''",
+    "  uses-feature: name='android.hardware.faketouch'",
+    "  uses-implied-feature: name='android.hardware.faketouch' reason='default feature for all apps'",
+    "main",
+    "other-receivers",
+    "other-services",
+    "supports-screens: 'small' 'normal' 'large' 'xlarge'",
+    "supports-any-density: 'true'",
+    "locales: '--_--' 'af' 'am' 'ar' 'as' 'az' 'be' 'bg' 'bn' 'bs' 'ca' 'cs' 'da' 'de' 'el' 'en-AU' 'en-CA' 'en-GB' 'en-IN' 'en-XC' 'es' 'es-US' 'et' 'eu' 'fa' 'fi' 'fr' 'fr-CA' 'gl' 'gu' 'hi' 'hr' 'hu' 'hy' 'in' 'is' 'it' 'iw' 'ja' 'ka' 'kk' 'km' 'kn' 'ko' 'ky' 'lo' 'lt' 'lv' 'mk' 'ml' 'mn' 'mr' 'ms' 'my' 'nb' 'ne' 'nl' 'or' 'pa' 'pl' 'pt' 'pt-BR' 'pt-PT' 'ro' 'ru' 'si' 'sk' 'sl' 'sq' 'sr' 'sr-Latn' 'sv' 'sw' 'ta' 'te' 'th' 'tl' 'tr' 'uk' 'ur' 'uz' 'vi' 'zh-CN' 'zh-HK' 'zh-TW' 'zu'",
+    "densities: '160' '240' '320'",
+    "native-code: 'arm64-v8a'"
+  ],
+  "modelManifest": {
+    "schemaVersion": 1,
+    "models": [
+      {
+        "modelId": "qwen3-tts-1.7b-customvoice-q4",
+        "engineId": "qwen3tts-cpu",
+        "taskId": "speech.synthesis.v1",
+        "revision": "b7ee2e8c7459c3bea99da23e3d178125a7d1713c",
+        "license": "Apache-2.0",
+        "files": [
+          {
+            "role": "talker",
+            "name": "qwen-talker-1.7b-customvoice-Q4_K_M.gguf",
+            "assetPath": "models/qwen-talker-1.7b-customvoice-Q4_K_M.gguf",
+            "sizeBytes": 1182631296,
+            "sha256": "cc328834a631bc08bf9f43e62fa23f8a1383d9b429864ce6690cfb172077fc4a"
+          },
+          {
+            "role": "tokenizer",
+            "name": "qwen-tokenizer-12hz-Q4_K_M.gguf",
+            "assetPath": "models/qwen-tokenizer-12hz-Q4_K_M.gguf",
+            "sizeBytes": 254974752,
+            "sha256": "cf3788b4d50aaa665fb6e57c170396aae03a3555fea52d2b5d0cda902d658039"
+          }
+        ]
+      }
+    ]
+  },
+  "dictionaryManifest": {
+    "schemaVersion": 1,
+    "dictionaries": [
+      {
+        "id": "builtin.collins-advanced-bilingual",
+        "displayName": "柯林斯高阶英汉双解学习词典",
+        "mdx": {
+          "path": "collins-advanced-bilingual/柯林斯高阶英汉双解学习词典（好看）.mdx",
+          "sha256": "14843f7e443fb1cdacc94145c9ae68879a582f13fa68399d21caa5768a704c10"
+        },
+        "resources": [
+          {
+            "path": "collins-advanced-bilingual/柯林斯高阶英汉双解学习词典（好看）.mdd",
+            "sha256": "15a1668eab08dbad960c942cb99a7842ac8c7b77736a1936a4e77fd00fe6ed6c"
+          }
+        ]
+      },
+      {
+        "id": "builtin.oxford-ald9-en-en",
+        "displayName": "Oxford Advanced Learner's Dictionary 9",
+        "mdx": {
+          "path": "oxford-ald9-en-en/Oxford ALD_9th_En-En.mdx",
+          "sha256": "8e140c288d9f8d195f707f1297add0233e9cb44c31dc0bbcfeb46063c99c24be"
+        },
+        "resources": [
+          {
+            "path": "oxford-ald9-en-en/Oxford ALD_9th_En-En.mdd",
+            "sha256": "4ed26627cd7fc26916ca23cf9a3af44fd03710eecfcddc8607b2717c1aaf1bae"
+          }
+        ]
+      }
+    ]
+  },
+  "verifiedEntries": [
+    {
+      "sha256": "14843f7e443fb1cdacc94145c9ae68879a582f13fa68399d21caa5768a704c10",
+      "sizeBytes": 13887505,
+      "entry": "assets/dictionaries/collins-advanced-bilingual/柯林斯高阶英汉双解学习词典（好看）.mdx"
+    },
+    {
+      "sha256": "bcd8ec749126d45cb06737d0690295d73df4b6e7e194205bcf91190368f27285",
+      "sizeBytes": 1099,
+      "entry": "META-INF/model-probe/LICENSE-ggml.txt"
+    },
+    {
+      "sha256": "cc328834a631bc08bf9f43e62fa23f8a1383d9b429864ce6690cfb172077fc4a",
+      "sizeBytes": 1182631296,
+      "entry": "assets/models/qwen-talker-1.7b-customvoice-Q4_K_M.gguf"
+    },
+    {
+      "sha256": "ce06ba8b44489677cc489f7266c63eb660910cd91342f27fed5a17992e9106c0",
+      "sizeBytes": 800,
+      "entry": "assets/models/manifest.json"
+    },
+    {
+      "sha256": "8e140c288d9f8d195f707f1297add0233e9cb44c31dc0bbcfeb46063c99c24be",
+      "sizeBytes": 41514928,
+      "entry": "assets/dictionaries/oxford-ald9-en-en/Oxford ALD_9th_En-En.mdx"
+    },
+    {
+      "sha256": "7cd64b129f69a424081df820dc4cf6ac58ba02296a71706eae840a4bab335dc1",
+      "sizeBytes": 1213,
+      "entry": "assets/licenses/MODEL-NOTICE.txt"
+    },
+    {
+      "sha256": "30a2753edc3e8b2f4e93bfd62120e9cad3c7b99720732bb9d191f6825bbd0921",
+      "sizeBytes": 1148,
+      "entry": "assets/dictionaries/manifest.json"
+    },
+    {
+      "sha256": "7adcc0d186e462f0819b1df997ff4634c63475603e87f79b02cbc95e1daffd16",
+      "sizeBytes": 132838,
+      "entry": "META-INF/model-probe/NOTICE-llvm.txt"
+    },
+    {
+      "sha256": "15a1668eab08dbad960c942cb99a7842ac8c7b77736a1936a4e77fd00fe6ed6c",
+      "sizeBytes": 15307,
+      "entry": "assets/dictionaries/collins-advanced-bilingual/柯林斯高阶英汉双解学习词典（好看）.mdd"
+    },
+    {
+      "sha256": "15a3613ff7a576b559c6af4c8aabba4726f813368b78fe2ebaf841c1ad0b756b",
+      "sizeBytes": 1449,
+      "entry": "META-INF/model-probe/NOTICE.txt"
+    },
+    {
+      "sha256": "a44a6081c73ad75f0255bb2bb5cab74ef1829565a895a24e53a4f11290ab7655",
+      "sizeBytes": 11343,
+      "entry": "assets/licenses/LICENSE-Qwen-Apache-2.0.txt"
+    },
+    {
+      "sha256": "4ed26627cd7fc26916ca23cf9a3af44fd03710eecfcddc8607b2717c1aaf1bae",
+      "sizeBytes": 4104095,
+      "entry": "assets/dictionaries/oxford-ald9-en-en/Oxford ALD_9th_En-En.mdd"
+    },
+    {
+      "sha256": "cf3788b4d50aaa665fb6e57c170396aae03a3555fea52d2b5d0cda902d658039",
+      "sizeBytes": 254974752,
+      "entry": "assets/models/qwen-tokenizer-12hz-Q4_K_M.gguf"
+    },
+    {
+      "sha256": "ea567a2154304fdcc6250d03460a24eebbe120e02032f47aeee3c9e722455512",
+      "sizeBytes": 1087,
+      "entry": "META-INF/model-probe/LICENSE-qwen3-tts.txt"
+    },
+    {
+      "sha256": "41e9a793c43a0f4fddb19e33f346bace464f30f888ba7b9eaf96294ea115bfb6",
+      "sizeBytes": 10096,
+      "entry": "lib/arm64-v8a/libandroidx.graphics.path.so"
+    },
+    {
+      "sha256": "cd61762848882a16c8244c964a6f396c0caa0b440588a210ce9cc4ab0e6d9f0c",
+      "sizeBytes": 1253544,
+      "entry": "lib/arm64-v8a/libc++_shared.so"
+    },
+    {
+      "sha256": "fc0ec3c9cb950ac82c39d4f0568c44086d3f49c5466eed91fa27f2c839a10bb6",
+      "sizeBytes": 2301760,
+      "entry": "lib/arm64-v8a/libmodel_probe_qwen.so"
+    }
+  ],
+  "zip16KiB": "passed",
+  "elf": [
+    {
+      "headers": [
+        "",
+        "Elf file type is DYN (Shared object file)",
+        "Entry point 0x0",
+        "There are 9 program headers, starting at offset 64",
+        "",
+        "Program Headers:",
+        "  Type           Offset   VirtAddr           PhysAddr           FileSiz  MemSiz   Flg Align",
+        "  PHDR           0x000040 0x0000000000000040 0x0000000000000040 0x0001f8 0x0001f8 R   0x8",
+        "  LOAD           0x000000 0x0000000000000000 0x0000000000000000 0x001c40 0x001c40 R E 0x4000",
+        "  LOAD           0x001c40 0x0000000000005c40 0x0000000000005c40 0x000390 0x000390 RW  0x4000",
+        "  LOAD           0x001fd0 0x0000000000009fd0 0x0000000000009fd0 0x000000 0x000010 RW  0x4000",
+        "  DYNAMIC        0x001dc0 0x0000000000005dc0 0x0000000000005dc0 0x0001c0 0x0001c0 RW  0x8",
+        "  GNU_RELRO      0x001c40 0x0000000000005c40 0x0000000000005c40 0x000390 0x0003c0 R   0x1",
+        "  GNU_EH_FRAME   0x000c64 0x0000000000000c64 0x0000000000000c64 0x000034 0x000034 R   0x4",
+        "  GNU_STACK      0x000000 0x0000000000000000 0x0000000000000000 0x000000 0x000000 RW  0x0",
+        "  NOTE           0x000238 0x0000000000000238 0x0000000000000238 0x0000bc 0x0000bc R   0x4",
+        "",
+        " Section to Segment mapping:",
+        "  Segment Sections...",
+        "   00     ",
+        "   01     .note.android.ident .note.gnu.build-id .dynsym .gnu.version .gnu.version_d .gnu.version_r .gnu.hash .hash .dynstr .rela.dyn .rela.plt .rodata .eh_frame_hdr .eh_frame .text .plt ",
+        "   02     .data.rel.ro .fini_array .dynamic .got.plt ",
+        "   03     .bss ",
+        "   04     .dynamic ",
+        "   05     .data.rel.ro .fini_array .dynamic .got.plt ",
+        "   06     .eh_frame_hdr ",
+        "   07     ",
+        "   08     .note.android.ident .note.gnu.build-id ",
+        "   None   .comment .shstrtab "
+      ],
+      "library": "libandroidx.graphics.path.so"
+    },
+    {
+      "headers": [
+        "",
+        "Elf file type is DYN (Shared object file)",
+        "Entry point 0x0",
+        "There are 12 program headers, starting at offset 64",
+        "",
+        "Program Headers:",
+        "  Type           Offset   VirtAddr           PhysAddr           FileSiz  MemSiz   Flg Align",
+        "  PHDR           0x000040 0x0000000000000040 0x0000000000000040 0x0002a0 0x0002a0 R   0x8",
+        "  LOAD           0x000000 0x0000000000000000 0x0000000000000000 0x0988a0 0x0988a0 R   0x4000",
+        "  LOAD           0x0988a0 0x000000000009c8a0 0x000000000009c8a0 0x08eff8 0x08eff8 R E 0x4000",
+        "  LOAD           0x127898 0x000000000012f898 0x000000000012f898 0x009b98 0x00a768 RW  0x4000",
+        "  LOAD           0x131430 0x000000000013d430 0x000000000013d430 0x000238 0x007d20 RW  0x4000",
+        "  DYNAMIC        0x12fd68 0x0000000000137d68 0x0000000000137d68 0x0001d0 0x0001d0 RW  0x8",
+        "  GNU_RELRO      0x127898 0x000000000012f898 0x000000000012f898 0x009b98 0x00a768 R   0x1",
+        "  GNU_EH_FRAME   0x078fa0 0x0000000000078fa0 0x0000000000078fa0 0x004af4 0x004af4 R   0x4",
+        "  GNU_STACK      0x000000 0x0000000000000000 0x0000000000000000 0x000000 0x000000 RW  0x0",
+        "  GNU_PROPERTY   0x0003a0 0x00000000000003a0 0x00000000000003a0 0x000020 0x000020 R   0x8",
+        "  NOTE           0x0002e0 0x00000000000002e0 0x00000000000002e0 0x0000bc 0x0000bc R   0x4",
+        "  NOTE           0x0003a0 0x00000000000003a0 0x00000000000003a0 0x000020 0x000020 R   0x8",
+        "",
+        " Section to Segment mapping:",
+        "  Segment Sections...",
+        "   00     ",
+        "   01     .note.android.ident .note.gnu.build-id .note.gnu.property .dynsym .gnu.version .gnu.version_r .gnu.hash .hash .dynstr .rela.dyn .rela.plt .rodata .gcc_except_table .eh_frame_hdr .eh_frame ",
+        "   02     .text __lcxx_override .plt ",
+        "   03     .data.rel.ro .fini_array .init_array .dynamic .got .got.plt .relro_padding ",
+        "   04     .data .bss ",
+        "   05     .dynamic ",
+        "   06     .data.rel.ro .fini_array .init_array .dynamic .got .got.plt .relro_padding ",
+        "   07     .eh_frame_hdr ",
+        "   08     ",
+        "   09     .note.gnu.property ",
+        "   10     .note.android.ident .note.gnu.build-id ",
+        "   11     .note.gnu.property ",
+        "   None   .comment .shstrtab "
+      ],
+      "library": "libc++_shared.so"
+    },
+    {
+      "headers": [
+        "",
+        "Elf file type is DYN (Shared object file)",
+        "Entry point 0x0",
+        "There are 10 program headers, starting at offset 64",
+        "",
+        "Program Headers:",
+        "  Type           Offset   VirtAddr           PhysAddr           FileSiz  MemSiz   Flg Align",
+        "  PHDR           0x000040 0x0000000000000040 0x0000000000000040 0x000230 0x000230 R   0x8",
+        "  LOAD           0x000000 0x0000000000000000 0x0000000000000000 0x22aad0 0x22aad0 R E 0x4000",
+        "  LOAD           0x22aad0 0x000000000022ead0 0x000000000022ead0 0x006918 0x009530 RW  0x4000",
+        "  LOAD           0x2313e8 0x00000000002393e8 0x00000000002393e8 0x0001d0 0x081908 RW  0x4000",
+        "  TLS            0x22aad0 0x000000000022aad0 0x000000000022aad0 0x000000 0x0000b9 R   0x8",
+        "  DYNAMIC        0x22e408 0x0000000000232408 0x0000000000232408 0x0001d0 0x0001d0 RW  0x8",
+        "  GNU_RELRO      0x22aad0 0x000000000022ead0 0x000000000022ead0 0x006918 0x009530 R   0x1",
+        "  GNU_EH_FRAME   0x085fe4 0x0000000000085fe4 0x0000000000085fe4 0x004c1c 0x004c1c R   0x4",
+        "  GNU_STACK      0x000000 0x0000000000000000 0x0000000000000000 0x000000 0x000000 RW  0x0",
+        "  NOTE           0x000270 0x0000000000000270 0x0000000000000270 0x0000bc 0x0000bc R   0x4",
+        "",
+        " Section to Segment mapping:",
+        "  Segment Sections...",
+        "   00     ",
+        "   01     .note.android.ident .note.gnu.build-id .dynsym .gnu.version .gnu.version_r .gnu.hash .dynstr .rela.dyn .rela.plt .gcc_except_table .rodata .eh_frame_hdr .eh_frame .text .plt ",
+        "   02     .data.rel.ro .fini_array .init_array .dynamic .got .got.plt .relro_padding ",
+        "   03     .data .bss ",
+        "   04     .tbss ",
+        "   05     .dynamic ",
+        "   06     .data.rel.ro .fini_array .init_array .dynamic .got .got.plt .relro_padding ",
+        "   07     .eh_frame_hdr ",
+        "   08     ",
+        "   09     .note.android.ident .note.gnu.build-id ",
+        "   None   .comment .shstrtab "
+      ],
+      "library": "libmodel_probe_qwen.so"
+    }
+  ],
+  "buildTasks": [
+    ":app:testDebugUnitTest",
+    ":app:assembleRelease"
+  ],
+  "deviceAcceptance": "pending; earlier independent probe success is not acceptance of this APK"
+}
