@@ -15,5 +15,5 @@ internal class ReadingNavigationModel : ViewModel() {
         createReadingRoute(UUID.randomUUID().toString(), title, paragraphs, index, sentence)?.let { request = it }
     }
 
-    fun close() { request = null }
+    fun close(requestId: String) { request = closeReadingRoute(request, requestId) }
 }

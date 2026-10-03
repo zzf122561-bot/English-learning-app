@@ -6,6 +6,13 @@ import org.junit.Test
 class ReadingRouteTest {
     private val paragraphs = listOf("First sentence. Another sentence.", "A second paragraph.")
 
+    @Test fun lateCloseCannotDismissANewerRequestAndRepeatedCloseIsSafe() {
+        val latest = createReadingRoute("latest", "Book", paragraphs, null, null)!!
+        assertSame(latest, closeReadingRoute(latest, "previous"))
+        assertNull(closeReadingRoute(latest, "latest"))
+        assertNull(closeReadingRoute(null, "latest"))
+    }
+
     @Test fun fullReadingKeepsOrderAndText() {
         val route = createReadingRoute("full", "Book", paragraphs, null, null)!!
         assertEquals(ReadingScope.FULL, route.scope)

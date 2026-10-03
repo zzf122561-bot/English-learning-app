@@ -72,7 +72,7 @@ internal fun EnglishAppShell() {
                         paragraphIndex = reading.paragraphIndex,
                         sentenceText = reading.sentenceText,
                     ),
-                    onClose = readingNavigation::close,
+                    onClose = { readingNavigation.close(reading.requestId) },
                 )
             }
         } else if (activeQuickQuery != null) {

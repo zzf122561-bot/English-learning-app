@@ -12,6 +12,10 @@ internal data class ReadingRoute(
     val sentenceText: String?,
 )
 
+/** A delayed close from an old screen cannot dismiss a newer reading request. */
+internal fun closeReadingRoute(current: ReadingRoute?, closingRequestId: String): ReadingRoute? =
+    if (current?.requestId == closingRequestId) null else current
+
 internal fun createReadingRoute(
     requestId: String,
     title: String,
