@@ -15,8 +15,7 @@ import com.xuesui.englishapp.modelprobe.features.reading.ReadingScreen
 /** Formal reader. Shared across same-Activity routes; request arrival only opens a preview. */
 @Composable
 fun SpeechFeature(request: SpeechReadingRequest? = null, onClose: () -> Unit = {}) {
-    val context = LocalContext.current
-    val vm: ProbeViewModel = viewModel(key = "speech-runtime") { ProbeViewModel(context.applicationContext, diagnostic = false) }
+    val vm = sharedSpeechViewModel()
     val state by vm.state.collectAsStateWithLifecycle()
     val reader by vm.reading.collectAsStateWithLifecycle()
     val form by vm.form.collectAsStateWithLifecycle()

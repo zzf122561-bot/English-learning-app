@@ -427,3 +427,82 @@ Release AAR构建、API29原生编译/链接、最终ELF与notice检查通过。
 数据库迁移：无。设置schema2与原目录保持；单片报告schema1新增可选reading字段，父报告以新taskId标识，旧历史兼容，无清库/删历史。新增公开契约是总控已约定的正式接口，没有临时改名或额外宿主参数；没有新增依赖/权限超出第8节模块依赖。
 
 总控接收后：登记本地提交，正式speech-runtime别名与文章回调接线、双宿主构建、注入固定资产、APK包内hash/ZIP16KiB/签名/安装由总控完成。需补的新增设备范围是文章全文/段/句及返回保留学习状态、同Activity独立页往返、队列取消/重开与部分历史、暂停/继续/焦点/倍速、个性化实际效果、长文截断反馈、SAF导出和API29兼容；断网/持续热状态等旧缺口继续保留。总控已有包或设备证据直接沿用，仅对新接线补验证。本任务状态为 `ready_for_integration / awaiting_manager_integration`，不是App发布完成或全部设备验收。
+
+## 11. 2026-10-05 阅读页内嵌0.3.0候选
+
+### 授权、接口与差异
+
+来源为总控已持久化的 `D:/Codex_Project/Codex_EnglishApp/_manager/features/feature-03-speech/BRIEFING.md` 2026-10-05修订节及同日180dp补充。总控通知0.2.0已提交0f18a3b并集成；本任务未执行Git，以本worktree的模块0.3.0增量交接。模型/原生/许可/源提交不变，原充分证据沿用；仅修改experiments/tts-device-probe，没有读取功能1/2实现、全局memory、其他会话缓存或生成APK。
+
+新增公开接口严格对应总控约定，包仍为com.xuesui.englishapp.modelprobe.runtime：
+
+```kotlin
+@Composable
+fun SpeechInlineReadingFeature(documentId: String, request: SpeechReadingRequest, modifier: Modifier = Modifier)
+@Composable
+fun SpeechSettingsFeature(modifier: Modifier = Modifier)
+```
+
+SpeechReadingRequest/SpeechReadingScope字段、SpeechFeature(request,onClose)、ModelProbeFeature()保留兼容。最终AAR的classes.jar经javap核对包含上述两个新入口、两个旧入口及原请求构造/字段；默认Modifier在Compose编译后的默认参数掩码中保留。没有新增依赖/权限、Activity或Application，minSdk继续29，ABI继续arm64-v8a。
+
+新增/受影响主要源路径（生产代码以下述短路径加本模块src/main/java/com/xuesui/englishapp/modelprobe前缀定位；测试路径相对本模块）：
+
+- `runtime/SpeechInlineReadingFeature.kt`、`SpeechSettingsFeature.kt`：正式文章底部入口和仅设置入口；旧SpeechFeature改为调用相同Activity作用域装配函数。
+- `runtime/ProbeViewModel.kt`、`RuntimeLifecycle.kt`：共享运行器/设置、范围切换、旧结果匹配、播放/导出租约、确认删除后的排队与回收。
+- `features/reading/ReadingTarget.kt`、`InlineReadingState.kt`、`ReadingQueue.kt`：稳定文章/范围身份、正文与设置校验、直接复用子片段、来源记录与全部项目管理。
+- `core/storage/RunStore.kt`、`features/speech/SpeechPlayback.kt`、`contracts/speech/SpeechContracts.kt`：发布/回收索引、实际文件删除、父子引用、持有到实际释放的文件租约和可证明归属的中断子片段。
+- `src/test/.../reading/ReadingRetentionTest.kt`新增20项JVM用例；`src/androidTest/.../runtime/InlineRuntimeDeviceTest.kt`新增4项Android测试源码。模块Gradle/原生/CMake/vendor未编辑。
+
+当前实现与存储规则唯一正文见 [ARCHITECTURE.md](ARCHITECTURE.md) 的0.3.0及最新结果事务部分。新增results/catalog.json schema1及报告可选字段，不迁移文章或用户数据库；原设置schema2、报告schema1和旧目录兼容。无documentId的旧项目不按标题/hash猜配，保留且可确认手删。新范围只在新完整音频验证、目录提交及latest原子切换后回收旧版；失败/取消/截断不替换旧成功结果。共享子WAV和活动播放/导出/生成受到引用保护；父完整WAV与子缓存可双存以支持连续播放/单文件导出及分片复用，重复生成后旧的无引用文件实际回收。未操作开发机真实用户音频/文章/导出文件。
+
+### 增量验证结果
+
+最终受影响JVM批次：**46项发现，45项通过，1项跳过，0失败/错误**。XML时间为2026-10-05T15:51:25.856Z至15:51:57.214Z。跳过项是Windows主机无法创建fixture符号链接的专项，使用JUnit Assume退出，不能称该项在Windows实测通过；另提供Android私有目录符号链接用例，仍仅源码编译。
+
+| 范围 | 用例数 | 本轮结果与覆盖 |
+|---|---:|---|
+| ReadingRetentionTest（新增） | 20 | 19通过、1跳过；跨音色/指令/seed/标题/requestId替换，跨文/跨段隔离，正文与参数错配，句子身份，失败/取消/触顶保留，旧历史及超过100项管理，共享片段/缓存/孤儿回收，提交前后/激活前后/删除中断恢复，模拟索引空间不足，回收延迟不误报生成失败，播放/导出/生成租约，路径穿越拒绝 |
+| ReadingQueueTest | 8 | 全通过；新引用/历史分组直接影响原队列链，覆盖旧父记录的来源分组与中断子片段可见性 |
+| SpeechPlaybackTest | 5 | 全通过；文件释放接入后原暂停/继续、prepare、迟到回调、焦点及速度行为保持 |
+| SpeechServiceTest | 9 | 全通过；存储和可选origin字段变化后的cold/warm/cache、真实参数、RTF/音频、取消/触顶回归 |
+| StorageSettingsTest指定4项 | 4 | 全通过；原子提交可见性、文件篡改、清缓存保留历史/模型独立性、活动草稿不被另一控制器清理 |
+
+首轮发现旧历史仅有reading.sessionId、没有items数组时不能正确分组，已修正并由最终ReadingQueueTest覆盖。180dp布局初次编译发现Compose DSL隐式receiver限制，改为捕获有界容器高度后编译通过；这两项已解决，不列为未处理失败。仅因这些差异与存储补充覆盖执行必要回归，没有重跑未变化的词典/文章功能、来源/许可、张量或原参数审计。
+
+最终命令沿用第8/10节已授权工具链及JAVA_HOME/ANDROID_HOME/GRADLE_OPTS，项目根执行：
+
+```powershell
+& 'D:\CodexData\android-toolchain\gradle\gradle-9.5.0\bin\gradle.bat' `
+  -p '_manager/probes/tts-device' --no-daemon --no-configuration-cache --max-workers=2 `
+  :runtime:testDebugUnitTest `
+  --tests 'com.xuesui.englishapp.modelprobe.reading.ReadingRetentionTest' `
+  --tests 'com.xuesui.englishapp.modelprobe.reading.ReadingQueueTest' `
+  --tests 'com.xuesui.englishapp.modelprobe.reading.SpeechPlaybackTest' `
+  --tests 'com.xuesui.englishapp.modelprobe.stage2.SpeechServiceTest' `
+  --tests 'com.xuesui.englishapp.modelprobe.stage2.StorageSettingsTest.onlyAtomicallyCommittedAudioReportPairsBecomeHistory' `
+  --tests 'com.xuesui.englishapp.modelprobe.stage2.StorageSettingsTest.tamperedArtifactsCannotBePlayedExportedOrReusedAsCache' `
+  --tests 'com.xuesui.englishapp.modelprobe.stage2.StorageSettingsTest.clearingCachePreservesHistoryAndModelStorageIsIndependent' `
+  --tests 'com.xuesui.englishapp.modelprobe.stage2.StorageSettingsTest.reopeningStoreDoesNotCleanAnOlderControllersActiveDraft' `
+  :runtime:compileDebugAndroidTestKotlin :runtime:assembleRelease :runtime:lintDebug
+python 'experiments/tts-device-probe/tools/inspect-native-artifact.py'
+```
+
+最终 **BUILD SUCCESSFUL in 2m41s，74 tasks（27 executed / 47 up-to-date）**。JUnit完整结果在build/test-results/testDebugUnitTest及build/reports/tests/testDebugUnitTest/index.html；这是本次最终46项结果，不是上轮0.2.0的9项报告。Lint为0错误、6项既有警告：GradleDependency、NewerVersionAvailable、ChromeOsAbiSupport、UsableSpace×2、UseTomlInstead。报告在build/reports/lint-results-debug.html及.sarif；没有因本轮新增API或权限问题。
+
+Android新增4项源码编译通过：同VM设置往返/显式点击才推理、忙时换范围等待真实工作线程退出且不自动开始新任务、无效范围清空错配选择、私有目录符号链接清理拒绝。均使用cache子目录、微小模型fixture及模拟引擎，**没有设备执行、真实模型或UI截图证据**。原Android测试源码也保持可编译，不把编译当测试通过。
+
+### 最终产物及交接边界
+
+| 产物 | 字节数 | SHA-256 |
+|---|---:|---|
+| build/outputs/aar/runtime-release.aar | 1,927,636 | `3990cd23018e91dd7a3324d9a94dd7feefa5e3ad390dff45c84b814d086771dc` |
+| AAR libmodel_probe_qwen.so | 2,302,032 | `1e90f7d682ef31332a89c70e831f857efeb2dcd7cb23aa96f374dc3b389c1c29` |
+| AAR libc++_shared.so | 1,253,544 | `cd61762848882a16c8244c964a6f396c0caa0b440588a210ce9cc4ab0e6d9f0c` |
+
+inspect-native-artifact.py返回passed=true/runtime_or_apk_validation=false，两份SO字节hash与0.2.0相同，AAR内16KiB LOAD/RELRO与四份notice检查通过；没有重审上游。产物检查正文在.local/artifact-check/inspection.json。AAR manifest仅含minSdk29，没有Activity/Application/uses-permission。
+
+总控集成要点：将文章页底部槽接SpeechInlineReadingFeature，以稳定word-memory:<notebookId>传documentId，requestId按文章/选区稳定；槽在文章存续期保持Compose挂载，放在固定底部而非滚动回收item。语音Tab改接SpeechSettingsFeature。180dp内主要操作用两行布局，详细错误/管理/删除确认使用弹窗；未引入BackHandler或正文滚动接管，实际大字/横屏/返回/边看边听触摸效果仍待设备。相同段内重复句子仅凭sentenceText无法唯一定位时会提示改选段，未私自扩充公共请求参数或读取文章实现。
+
+待设备覆盖：新底部槽180dp及大字体的可达性、文章滚动/Back、设置往返与旋转、切换范围时取消与旧音频隔离、重生成成功/失败后的保留、播放/导出中删除和实际SAF、进程终止/低空间后的恢复、Android符号链接用例。旧断网/持续热状态/API29真机等缺口继续沿用。单次34.08秒“完整且清晰”的听感记录仍只证明第9节那次运行。
+
+本轮为 `ready_for_integration / awaiting_manager_integration`。总控独占接线、Git、App版本/图标/签名/APK；本任务交付模块源与AAR后一次主动汇报并等待，不轮询或自行扩展。

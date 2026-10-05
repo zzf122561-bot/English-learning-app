@@ -1,6 +1,7 @@
 package com.xuesui.englishapp.modelprobe.features.speech
 
 import java.io.File
+import java.io.Closeable
 
 internal enum class PlaybackPhase { IDLE, PREPARING, PLAYING, PAUSED, COMPLETED, FAILED }
 internal data class PlaybackState(val phase: PlaybackPhase = PlaybackPhase.IDLE, val runId: String? = null, val speed: Float = 1f, val error: String? = null) {
@@ -32,12 +33,14 @@ internal class SpeechPlayback(private val factory: AudioFactory, private val cha
     var state = PlaybackState(); private set
     var epoch = 0L; private set
     private var session: AudioSession? = null
+    private var source: Closeable? = null
     private var prepared = false
     private var desiredPlaying = true
     private var speed = 1f
     private fun publish(value: PlaybackState) { state = value; changed(value) }
-    fun play(file: File, runId: String) {
+    fun play(file: File, runId: String, sourceLease: Closeable? = null) {
         stop(); val ticket = epoch
+        source = sourceLease
         prepared = false; desiredPlaying = true
         publish(PlaybackState(PlaybackPhase.PREPARING, runId, speed))
         try {
@@ -79,7 +82,7 @@ internal class SpeechPlayback(private val factory: AudioFactory, private val cha
     private fun release() {
         epoch++; prepared = false
         val old = session; session = null
-        runCatching { old?.release() }
+        try { runCatching { old?.release() } } finally { source?.close(); source = null }
     }
     fun stop() { release(); publish(PlaybackState(speed = speed)) }
     private fun failure(message: String) { release(); publish(state.copy(phase = PlaybackPhase.FAILED, error = message)) }

@@ -10,22 +10,25 @@ import org.json.JSONObject
 internal data class ReadingProgress(val item: ReadingItem, val state: String, val run: SavedRun? = null)
 
 internal object ReadingHistory {
-    fun read(runs: RunStore): List<SavedRun> {
-        val parents = mutableMapOf<String, Boolean>()
-        return runs.history { run ->
+    fun read(runs: RunStore, limit: Int = 100): List<SavedRun> {
+        val records = runs.history(Int.MAX_VALUE, compact = true)
+        val parents = records.filter { it.report.optString("taskId") == "speech.reading.v1" }.map { it.id }.toSet()
+        val referenced = records.flatMap { run ->
+            val items = run.report.optJSONArray("items")
+            if (items == null) emptyList() else (0 until items.length()).map { items.getJSONObject(it).optString("runId") }
+        }.toSet()
+        return records.filter { run ->
             when (run.report.optString("taskId")) {
                 "speech.reading.v1" -> true
                 "speech.synthesis.v1" -> {
+                    // Standalone legacy projects remain manageable even when a new parent reuses
+                    // their audio; originated fragments are represented by their live parent.
                     val origin = run.report.optJSONObject("reading")
-                    if (origin == null) true else {
-                        val id = origin.optString("sessionId")
-                        // Process death before the parent commit must not hide completed child audio.
-                        !parents.getOrPut(id) { runCatching { runs.read(id, false).report.optString("taskId") == "speech.reading.v1" }.getOrDefault(false) }
-                    }
+                    origin == null || (run.id !in referenced && origin.optString("sessionId") !in parents)
                 }
                 else -> false
             }
-        }
+        }.take(limit)
     }
 }
 
@@ -33,12 +36,15 @@ internal object ReadingHistory {
 internal class ReadingQueue(private val service: SpeechService, private val runs: RunStore,
     private val nowNanos: () -> Long = System::nanoTime) {
     fun generate(plan: ReadingPlan, parameters: SpeechParameters, token: WorkToken, reuse: Boolean,
+        target: ReadingTarget? = null,
         progress: (ReadingProgress) -> Unit): SavedRun {
         parameters.validate(); token.check()
         val resolved = parameters.resolved()
         val started = nowNanos()
-        runs.begin().use { draft ->
+        val leases = mutableListOf<RunStore.Lease>()
+        try { runs.begin().use { draft ->
             val children = mutableListOf<Pair<ReadingItem, SavedRun>>()
+            val reusedItems = mutableSetOf<Int>()
             var status = "success"
             var error: String? = null
             try {
@@ -46,12 +52,18 @@ internal class ReadingQueue(private val service: SpeechService, private val runs
                     token.check()
                     progress(ReadingProgress(item, "running"))
                     val origin = SpeechOrigin(draft.id, plan.input.id, plan.input.title, plan.input.selection.scope.name,
-                        item.index, plan.items.size, item.paragraph, item.firstSentence, item.lastSentence, item.start, item.end, ReadingPlanner.VERSION)
+                        item.index, plan.items.size, item.paragraph, item.firstSentence, item.lastSentence, item.start, item.end, ReadingPlanner.VERSION, target?.key)
                     val request = SpeechRequest(item.text, resolved.forSegment(item.index), SpeechMode.PARAGRAPH,
                         if (service.engine.loaded) RunKind.WARM else RunKind.COLD, origin)
-                    val run = service.run(request, token, preferCache = reuse && !parameters.randomSeed)
+                    val cached = if (target != null && reuse && !parameters.randomSeed)
+                        runs.cachedLease(SpeechText.key(service.engine, request, request.parameters)) else null
+                    val run = if (cached != null) { leases += cached; reusedItems += item.index; cached.run } else {
+                        service.run(request, token, preferCache = target == null && reuse && !parameters.randomSeed).also {
+                            leases += runs.acquire(it.id)
+                        }
+                    }
                     children += item to run
-                    progress(ReadingProgress(item, run.status, run))
+                    progress(ReadingProgress(item, if (item.index in reusedItems) "cache" else run.status, run))
                     if (run.status !in setOf("success", "cache")) { status = run.status; error = run.report.optString("error").ifBlank { null }; break }
                 }
                 if (token.cancelled.get()) status = "cancelled"
@@ -76,9 +88,13 @@ internal class ReadingQueue(private val service: SpeechService, private val runs
                 rows.put(JSONObject().put("index", item.index).put("label", item.label).put("paragraphIndex", item.paragraph)
                     .put("firstSentence", item.firstSentence).put("lastSentence", item.lastSentence)
                     .put("startOffset", item.start).put("endOffset", item.end).put("textSha256", item.textHash)
-                    .put("status", run?.status ?: "not_started").put("runId", run?.id ?: JSONObject.NULL))
+                    .put("status", if (item.index in reusedItems) "cache" else run?.status ?: "not_started")
+                    .put("reused", item.index in reusedItems).put("runId", run?.id ?: JSONObject.NULL))
             }
             report.put("items", rows)
+            report.put("childRunIds", JSONArray(children.map { it.second.id }.distinct()))
+            target?.let { report.put("retentionKey", it.key).put("retention", it.snapshot())
+                .put("settingsKey", ReadingTarget.settingsKey(parameters)) }
             val audio = children.map { it.second }.filter { it.report.has("audio") }
             var artifacts = emptyMap<String, String>()
             if (audio.isNotEmpty()) {
@@ -96,8 +112,9 @@ internal class ReadingQueue(private val service: SpeechService, private val runs
                 }
             }
             report.put("elapsedMillis", (nowNanos() - started) / 1_000_000)
+            if (token.cancelled.get()) report.put("status", "cancelled")
             // Even after cancellation, finish the bounded file commit of completed children.
-            return draft.commit(report, artifacts)
-        }
+            return draft.commit(report, artifacts, publicationKey = target?.key?.takeIf { report.getString("status") == "success" })
+        } } finally { leases.forEach { it.close() } }
     }
 }
