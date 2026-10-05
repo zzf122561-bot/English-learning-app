@@ -19,18 +19,17 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.xuesui.englishapp.dictionary.DictionaryFeature
 import com.xuesui.englishapp.dictionary.DictionaryPresentation
 import com.xuesui.englishapp.feature.WordMemoryFeature
-import com.xuesui.englishapp.modelprobe.runtime.SpeechFeature
-import com.xuesui.englishapp.modelprobe.runtime.SpeechReadingRequest
-import com.xuesui.englishapp.modelprobe.runtime.SpeechReadingScope
+import com.xuesui.englishapp.modelprobe.runtime.SpeechInlineReadingFeature
+import com.xuesui.englishapp.modelprobe.runtime.SpeechSettingsFeature
 
 private enum class MainSection {
     WORD_MEMORY,
@@ -52,30 +51,10 @@ internal fun EnglishAppShell() {
     var quickLookupQuery by rememberSaveable { mutableStateOf<String?>(null) }
     val stateHolder = rememberSaveableStateHolder()
     val selectedSection = MainSection.valueOf(selectedSectionName)
-    val readingNavigation: ReadingNavigationModel = viewModel()
 
     MaterialTheme(colorScheme = AppShellColors) {
         val activeQuickQuery = quickLookupQuery
-        val reading = readingNavigation.request
-        if (reading != null) {
-            stateHolder.SaveableStateProvider("article-reading") {
-                SpeechFeature(
-                    request = SpeechReadingRequest(
-                        requestId = reading.requestId,
-                        title = reading.title,
-                        englishParagraphs = reading.englishParagraphs,
-                        scope = when (reading.scope) {
-                            ReadingScope.FULL -> SpeechReadingScope.FULL
-                            ReadingScope.PARAGRAPH -> SpeechReadingScope.PARAGRAPH
-                            ReadingScope.SENTENCE -> SpeechReadingScope.SENTENCE
-                        },
-                        paragraphIndex = reading.paragraphIndex,
-                        sentenceText = reading.sentenceText,
-                    ),
-                    onClose = { readingNavigation.close(reading.requestId) },
-                )
-            }
-        } else if (activeQuickQuery != null) {
+        if (activeQuickQuery != null) {
             stateHolder.SaveableStateProvider("quick-lookup") {
                 DictionaryFeature(
                     initialQuery = activeQuickQuery,
@@ -121,15 +100,22 @@ internal fun EnglishAppShell() {
                                 onLookupRequested = { word ->
                                     if (word.isNotEmpty()) quickLookupQuery = word
                                 },
-                                onReadingRequested = readingNavigation::open,
+                                readingContent = { documentId, title, paragraphs, index, sentence ->
+                                    val request = remember(documentId, title, paragraphs, index, sentence) {
+                                        createInlineReadingRequest(documentId, title, paragraphs, index, sentence)
+                                    }
+                                    if (request != null) {
+                                        SpeechInlineReadingFeature(documentId = documentId, request = request)
+                                    } else {
+                                        Text("当前朗读范围无效，请重新选择原文。")
+                                    }
+                                },
                             )
 
                             MainSection.DICTIONARY -> DictionaryFeature(
                                 presentation = DictionaryPresentation.FULL,
                             )
-                            MainSection.SPEECH -> SpeechFeature(
-                                onClose = { selectedSectionName = MainSection.WORD_MEMORY.name },
-                            )
+                            MainSection.SPEECH -> SpeechSettingsFeature()
                         }
                     }
                 }

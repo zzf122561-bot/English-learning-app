@@ -8,7 +8,7 @@ $receipt = Get-Content -Raw -LiteralPath (Join-Path $repo '_manager/local/build-
 if (!$receipt.clean -or (git status --porcelain) -or (git rev-parse HEAD).Trim() -ne $receipt.sourceCommit) { throw 'Require matching clean build receipt and source checkout' }
 $apk = Join-Path $repo 'app/build/outputs/apk/release/app-release.apk'
 if ($receipt.apkPath -ne $apk -or (Get-FileHash -LiteralPath $apk -Algorithm SHA256).Hash -ne $receipt.apkSha256) { throw 'APK does not match build receipt' }
-$version = '1.1.0'
+$version = '1.2.0'
 $stem = 'EnglishApp-v{0}-test.{1:D3}-{2}' -f $version,$TestNumber,$receipt.sourceCommit.Substring(0,7)
 $archive = Join-Path $repo ("_manager/artifacts/app/v$version/test.{0:D3}" -f $TestNumber)
 $release = Join-Path $repo ("_manager/releases/app/v$version/test.{0:D3}" -f $TestNumber)
@@ -23,7 +23,8 @@ if (!($signature -match "certificate SHA-256 digest: $expectedCert") -or !($sign
 & (Join-Path $toolsDir 'zipalign.exe') -c -P 16 4 $apk
 if ($LASTEXITCODE -ne 0) { throw 'APK ZIP 16KiB alignment failure' }
 $badging = & (Join-Path $toolsDir 'aapt2.exe') dump badging $apk
-if ($LASTEXITCODE -ne 0 -or !($badging -match "package: name='com.xuesui.englishapp' versionCode='6' versionName='1.1.0'") -or !($badging -match "minSdkVersion:'29'|sdkVersion:'29'")) { throw 'Package/version/minSdk mismatch' }
+if ($LASTEXITCODE -ne 0 -or !($badging -match "package: name='com.xuesui.englishapp' versionCode='7' versionName='1.2.0'") -or !($badging -match "minSdkVersion:'29'|sdkVersion:'29'")) { throw 'Package/version/minSdk mismatch' }
+if (!($badging -match "^application-label:'saber'$")) { throw 'App label must be lowercase saber' }
 $expectedPermissions = @("uses-permission: name='android.permission.INTERNET'", "uses-permission: name='com.xuesui.englishapp.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'")
 if ($badging | Where-Object { $_ -match '^uses-permission:' -and $_ -notin $expectedPermissions }) { throw 'Unexpected App permission' }
 $assets = Join-Path $repo 'app/src/main/assets'
@@ -80,7 +81,7 @@ foreach ($file in Get-ChildItem -LiteralPath $stage -Filter '*.so') {
     if (!$loads.Count -or ($loads | Where-Object { $_ -notmatch '0x4000\s*$|0x10000\s*$' })) { throw 'ELF LOAD alignment below 16KiB' }
     $elf += @{library=$file.Name;headers=$headers}
 }
-$result = [ordered]@{sourceCommit=$receipt.sourceCommit;buildCompletedUtc=$receipt.completedUtc;archivedUtc=[DateTime]::UtcNow.ToString('o');filename="$stem.apk";sizeBytes=(Get-Item -LiteralPath $apk).Length;sha256=$receipt.apkSha256;package='com.xuesui.englishapp';versionName=$version;versionCode=6;minSdk=29;features=@{wordMemory='0.4.0';dictionary='0.2.1';speech='0.2.0'};signature=$signature;badging=$badging;modelManifest=$modelManifest;dictionaryManifest=$dictionaryManifest;verifiedEntries=$checks;zip16KiB='passed';elf=$elf;buildTasks=$receipt.tasks;deviceAcceptance='pending; earlier independent probe success is not acceptance of this APK'}
+$result = [ordered]@{sourceCommit=$receipt.sourceCommit;buildCompletedUtc=$receipt.completedUtc;archivedUtc=[DateTime]::UtcNow.ToString('o');filename="$stem.apk";sizeBytes=(Get-Item -LiteralPath $apk).Length;sha256=$receipt.apkSha256;package='com.xuesui.englishapp';applicationLabel='saber';versionName=$version;versionCode=7;minSdk=29;features=@{wordMemory='0.5.0';dictionary='0.2.1';speech='0.3.0'};signature=$signature;badging=$badging;modelManifest=$modelManifest;dictionaryManifest=$dictionaryManifest;verifiedEntries=$checks;zip16KiB='passed';elf=$elf;buildTasks=$receipt.tasks;deviceAcceptance='pending; earlier independent probe success is not acceptance of this APK'}
 New-Item -ItemType Directory -Force $archive,$release | Out-Null
 [IO.File]::Copy($apk,(Join-Path $archive "$stem.apk"),$false)
 $result | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $release 'ARTIFACT.json') -Encoding utf8NoBOM

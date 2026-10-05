@@ -9,7 +9,7 @@
 | 功能2：词典 | `01a02fd4-7dcb-7882-aad0-0ed84ad3254c` | `app-feature`（用户于 2026-08-24 明确指定） | v0.2.1已集成；App 1.0.0 test.002已签名归档，等待用户实机 | `feature-02-dictionary` | `C:\Users\zzf86\.codex\worktrees\b83b\Codex_EnglishApp` / `codex/feature-02-dictionary` | 2026-08-26：test.002来源`5719bb3`，APK SHA-256 `6EF00A...160C` |
 | GitHub同步：EnglishApp | `01a0a8b9-837e-7252-935f-8c92ce0cdb1b` | `github-sync`（用户于 2026-09-16 明确指定） | `main`及五个标签已同步；两个功能分支待直接授权 | 不维护项目文件 | `C:\Users\zzf86\.codex\worktrees\299f\Codex_EnglishApp` / detached只读工作区 | 2026-09-16：远端`main=828313d`和五个标签已核对；功能分支只读预检通过、未push |
 | 英语语境短文生成器 | `01a024f4-f059-7dd1-a10f-04bbc4211e7b` | `skill` | 用户自行管理；总控不读取 | `short-story-generator` | 不纳入本仓库 | 不适用 |
-| 本地模型验证：Qwen语音 | `01a0fd10-c97b-7110-abab-9a56c6f3794b` | `app-feature`（2026-10-03用户追加批准正式语音内嵌，保留独立测试App） | 2026-10-05已派工0.3.0内嵌播放器/设置分离及安全替换清理 | `experiments/tts-device-probe`（同一Library供双宿主使用） | `C:\Users\zzf86\.codex\worktrees\5551\Codex_EnglishApp` / `codex/model-probe`；GPT-6-astra / xhigh | 既有0.2.0提交0f18a3b；新范围见BRIEFING顶部修订，等待主动交接 |
+| 本地模型验证：Qwen语音 | `01a0fd10-c97b-7110-abab-9a56c6f3794b` | `app-feature`（2026-10-03用户追加批准正式语音内嵌，保留独立测试App） | 0.3.0及重复句收尾已合入，等待总控打包/用户自测 | `experiments/tts-device-probe`（同一Library供双宿主使用） | `C:\Users\zzf86\.codex\worktrees\5551\Codex_EnglishApp` / `codex/model-probe`；GPT-6-astra / xhigh | 2026-10-06：提交05981da、49baa81；证据沿用SOURCE_MANIFEST第11/12节 |
 
 ## 交接审计
 
