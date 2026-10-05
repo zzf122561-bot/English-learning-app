@@ -1,6 +1,6 @@
 # 共享本地语音 Library 架构
 
-0.3.0阅读页候选，2026-10-05。正式生成/播放嵌入文章，语音Tab仅设置；保留原独立测试入口和0.2.0兼容入口。只注册Qwen英语语音任务，不读取其他功能内部实现。新增构建与验收证据以 [SOURCE_MANIFEST.md](SOURCE_MANIFEST.md) 第11节为当前正文；第9节的单次手机试听不能代替新增流程的设备验收，0.2.0证据保留在第10节。
+0.3.0阅读页候选，2026-10-06重复单句收尾。正式生成/播放嵌入文章，语音Tab仅设置；保留原独立测试入口和0.2.0兼容入口。只注册Qwen英语语音任务，不读取其他功能内部实现。当前差异/产物见 [SOURCE_MANIFEST.md](SOURCE_MANIFEST.md) 第12节，首批0.3.0证据保留在第11节；第9节的单次手机试听不能代替新增流程的设备验收，0.2.0证据保留在第10节。
 
 ## 边界与依赖
 
@@ -102,7 +102,7 @@ Android 端使用 elapsedRealtimeNanos 单调计时；PSS 以200ms固定延迟�
 
 新增精确 ModelDescriptor、受信任 engines/<id>、任务专属 contracts/<task> 和 features/<task>，由 runtime 显式装配并增加入口。复用 core 的安装、租约、任务排他、取消、通用采样、事务存储；新任务返回自身结果/指标，不实现虚假的语音接口或 WAV/RTF。新引擎自行拥有参数 schema 与显式迁移，不引用 Qwen 内部实现。是否拆分 Gradle 模块留给实际第二引擎加入时由总控决定。
 
-下一步由总控按第11节完成新入口接线、正式App集成/打包与新增设备项；原生/API29及第9节试听证据在未变化范围沿用。
+下一步由总控合入第12节最小差异、完成正式App打包，并补第11/12节新增设备项；原生/API29及第9节试听证据在未变化范围沿用。
 
 ## 0.2.0兼容入口与共用队列
 
@@ -136,7 +136,9 @@ Inline条适配宿主底部最大180dp的槽：范围及“更多”占一行，
 
 documentId作为不透明身份（本次word-memory:<notebookId>）校验并参与hash，绝不拼入文件路径。请求只准备范围，推理仅由点击触发。当前文章/选区变化立即停止旧播放、清除错配选择；忙时提示正在取消上一范围，等待真实退出，随后只读取新范围的已保存结果，不自动生成。正文或生成参数变化会将旧结果标为不匹配，旧文件仍可导出；不会用它冒充当前范围/设置。标题或requestId变化不产生新的保留身份。
 
-保留身份是documentId、scope、非全文的段索引及句子逻辑位置（first/last sentence）经hashParts得到的key；正文切片另有bodyKey，全生成参数另有settingsKey，匹配同时核对模型fingerprint与engineVersion。重复相同句子仅凭当前sentenceText契约无法定位到具体出现位置，新内嵌入口会明确要求选段朗读，避免误放第一处；旧请求字段和旧入口语义不变。
+保留身份是documentId、scope、非全文的段索引及句子身份经hashParts得到的key；正文切片另有bodyKey，全生成参数另有settingsKey，匹配同时核对模型fingerprint与engineVersion。唯一句继续用原first/last sentence逻辑位置，key和定位字段保持兼容。按2026-10-06收尾决定，同段完全相同的选中文字重复出现时，句子身份改用带repeated前缀的精确内容hash，同文同段共享一个音频范围，与出现次数、标题/requestId及音色/seed无关；只朗读一次选中文字，长句仍按原上限分片。跨文/段或不同精确文本仍隔离。
+
+重复句从首个匹配处提取只为取得那份相同文字，不代表知道用户选择了第几次出现。标签统一为“第N段 · 单句（重复文本）”；retention及父items/新子reading报告标occurrence=unspecified和matchingOccurrences，具体sentenceRange/firstSentence/lastSentence/startOffset/endOffset在相应报告位置为null。唯一句为occurrence=unique且保留原具体位置。复用子报告保留原来源元数据，父报告记录本次选区，不改写旧来源；不按内容把旧唯一句历史自动迁入新重复句身份。空/不存在/越界等原文校验不放宽，公开请求字段不变。
 
 ## 最新结果事务、引用与删除
 

@@ -52,7 +52,7 @@ internal class ReadingQueue(private val service: SpeechService, private val runs
                     token.check()
                     progress(ReadingProgress(item, "running"))
                     val origin = SpeechOrigin(draft.id, plan.input.id, plan.input.title, plan.input.selection.scope.name,
-                        item.index, plan.items.size, item.paragraph, item.firstSentence, item.lastSentence, item.start, item.end, ReadingPlanner.VERSION, target?.key)
+                        item.index, plan.items.size, item.paragraph, item.firstSentence, item.lastSentence, item.start, item.end, ReadingPlanner.VERSION, target?.key, item.occurrenceCount)
                     val request = SpeechRequest(item.text, resolved.forSegment(item.index), SpeechMode.PARAGRAPH,
                         if (service.engine.loaded) RunKind.WARM else RunKind.COLD, origin)
                     val cached = if (target != null && reuse && !parameters.randomSeed)
@@ -86,8 +86,12 @@ internal class ReadingQueue(private val service: SpeechService, private val runs
             plan.items.forEach { item ->
                 val run = children.firstOrNull { it.first.index == item.index }?.second
                 rows.put(JSONObject().put("index", item.index).put("label", item.label).put("paragraphIndex", item.paragraph)
-                    .put("firstSentence", item.firstSentence).put("lastSentence", item.lastSentence)
-                    .put("startOffset", item.start).put("endOffset", item.end).put("textSha256", item.textHash)
+                    .put("firstSentence", if (item.occurrenceCount > 1) JSONObject.NULL else item.firstSentence)
+                    .put("lastSentence", if (item.occurrenceCount > 1) JSONObject.NULL else item.lastSentence)
+                    .put("startOffset", if (item.occurrenceCount > 1) JSONObject.NULL else item.start)
+                    .put("endOffset", if (item.occurrenceCount > 1) JSONObject.NULL else item.end).put("textSha256", item.textHash)
+                    .also { if (plan.input.selection.scope == ReadingScope.SENTENCE)
+                        it.put("occurrence", if (item.occurrenceCount > 1) "unspecified" else "unique").put("matchingOccurrences", item.occurrenceCount) }
                     .put("status", if (item.index in reusedItems) "cache" else run?.status ?: "not_started")
                     .put("reused", item.index in reusedItems).put("runId", run?.id ?: JSONObject.NULL))
             }

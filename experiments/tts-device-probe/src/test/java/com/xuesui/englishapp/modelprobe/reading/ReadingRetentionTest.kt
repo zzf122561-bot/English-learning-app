@@ -79,7 +79,9 @@ class ReadingRetentionTest {
         val second = target(scope = ReadingScope.SENTENCE, text = text, sentence = "Second sentence.")
         assertNotEquals(first.key, second.key)
         assertEquals(first.key, target(scope = ReadingScope.SENTENCE, text = listOf("Edited sentence. Second sentence."), sentence = "Edited sentence.").key)
-        rejected { target(scope = ReadingScope.SENTENCE, text = listOf("Again. Again."), sentence = "Again.") }
+        val repeated = target(scope = ReadingScope.SENTENCE, text = listOf("Again. Again."), sentence = "Again.")
+        assertEquals("第1段 · 单句（重复文本）", repeated.label)
+        assertEquals("unspecified", repeated.snapshot().getString("occurrence"))
     }
     @Test fun failuresCancellationAndTokenLimitKeepPreviousSuccessUntilNextCompleteCommit() {
         val target = target(scope = ReadingScope.FULL)

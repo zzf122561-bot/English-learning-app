@@ -9,27 +9,27 @@ import org.json.JSONObject
 internal data class ReadingTarget(val documentId: String, val plan: ReadingPlan) {
     init {
         require(documentId.isNotBlank() && documentId.length <= 1024 && '\u0000' !in documentId) { "文章身份无效" }
-        if (plan.input.selection.scope == ReadingScope.SENTENCE) {
-            val paragraph = plan.input.paragraphs[plan.input.selection.paragraph!!]
-            val sentence = plan.input.selection.sentence!!.trim()
-            val first = paragraph.indexOf(sentence)
-            require(paragraph.indexOf(sentence, first + 1) < 0) { "段内有重复的相同句子，无法确定选区；请选择该段朗读" }
-        }
     }
     private val selection get() = plan.input.selection
     private val paragraph get() = if (selection.scope == ReadingScope.FULL) -1 else selection.paragraph!!
     private val sentenceRange get() = if (selection.scope == ReadingScope.SENTENCE)
         "${plan.items.first().firstSentence}:${plan.items.last().lastSentence}" else ""
-    val key: String get() = hashParts(listOf("reading-retention-v1", documentId, selection.scope.name, paragraph.toString(), sentenceRange))
+    private val repeatedSentence get() = selection.scope == ReadingScope.SENTENCE && plan.items.first().occurrenceCount > 1
+    // Unique sentence positions keep their original v0.3 identity. Repeated text instead shares
+    // one content identity within this document and paragraph, independent of occurrence count.
+    private val sentenceIdentity get() = if (repeatedSentence) "repeated:${hashParts(listOf(selection.sentence!!.trim()))}" else sentenceRange
+    val key: String get() = hashParts(listOf("reading-retention-v1", documentId, selection.scope.name, paragraph.toString(), sentenceIdentity))
     val bodyKey: String get() = hashParts(listOf(ReadingPlanner.VERSION) + plan.items.map { it.text })
     val label: String get() = when (selection.scope) {
         ReadingScope.FULL -> "全文 · ${plan.input.paragraphs.size}段"
         ReadingScope.PARAGRAPH -> "第${paragraph + 1}段"
-        ReadingScope.SENTENCE -> "第${paragraph + 1}段 · 第${plan.items.first().firstSentence + 1}句"
+        ReadingScope.SENTENCE -> if (repeatedSentence) "第${paragraph + 1}段 · 单句（重复文本）" else "第${paragraph + 1}段 · 第${plan.items.first().firstSentence + 1}句"
     }
     fun snapshot() = JSONObject().put("schemaVersion", 1).put("documentId", documentId)
-        .put("scope", selection.scope.name).put("paragraphIndex", paragraph).put("sentenceRange", sentenceRange)
+        .put("scope", selection.scope.name).put("paragraphIndex", paragraph).put("sentenceRange", if (repeatedSentence) JSONObject.NULL else sentenceRange)
         .put("bodyKey", bodyKey).put("label", label)
+        .also { if (selection.scope == ReadingScope.SENTENCE) it.put("sentenceIdentity", sentenceIdentity)
+            .put("occurrence", if (repeatedSentence) "unspecified" else "unique").put("matchingOccurrences", plan.items.first().occurrenceCount) }
     fun matches(run: SavedRun?, parameters: SpeechParameters, modelFingerprint: String, engineVersion: String): Boolean =
         run != null && run.status == "success" && run.report.optString("retentionKey") == key &&
             run.report.optJSONObject("retention")?.optString("bodyKey") == bodyKey &&

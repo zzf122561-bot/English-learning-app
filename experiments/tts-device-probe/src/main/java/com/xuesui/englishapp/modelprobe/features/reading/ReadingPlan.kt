@@ -8,8 +8,9 @@ internal enum class ReadingScope { FULL, PARAGRAPH, SENTENCE }
 internal data class ReadingSelection(val scope: ReadingScope = ReadingScope.FULL, val paragraph: Int? = null, val sentence: String? = null)
 internal data class ReadingInput(val id: String, val title: String, val paragraphs: List<String>, val selection: ReadingSelection)
 internal data class ReadingItem(val index: Int, val paragraph: Int, val firstSentence: Int, val lastSentence: Int,
-    val start: Int, val end: Int, val text: String) {
-    val label get() = "第${paragraph + 1}段 · 第${firstSentence + 1}${if (lastSentence > firstSentence) "–${lastSentence + 1}" else ""}句 · 片段${index + 1}"
+    val start: Int, val end: Int, val text: String, val occurrenceCount: Int = 1) {
+    val label get() = if (occurrenceCount > 1) "第${paragraph + 1}段 · 单句（重复文本） · 片段${index + 1}"
+        else "第${paragraph + 1}段 · 第${firstSentence + 1}${if (lastSentence > firstSentence) "–${lastSentence + 1}" else ""}句 · 片段${index + 1}"
     val textHash get() = text.toByteArray(Charsets.UTF_8).sha256()
 }
 internal data class ReadingPlan(val input: ReadingInput, val items: List<ReadingItem>)
@@ -52,12 +53,15 @@ internal object ReadingPlanner {
             val text = input.paragraphs[p]
             val sentenceRanges = ranges(text)
             var from = 0; var until = text.length
+            var occurrenceCount = 1
             if (selection.scope == ReadingScope.SENTENCE) {
                 val requested = selection.sentence?.trim()
                 require(!requested.isNullOrBlank()) { "请选择具体英文句子" }
                 from = text.indexOf(requested)
                 require(from >= 0) { "所选句子不属于指定段落，未回退到其他范围" }
                 until = from + requested.length
+                var match = text.indexOf(requested, from + 1)
+                while (match >= 0) { occurrenceCount++; match = text.indexOf(requested, match + 1) }
             }
             while (from < until) {
                 val remaining = text.codePointCount(from, until)
@@ -73,7 +77,9 @@ internal object ReadingPlanner {
                 val part = text.substring(from, end)
                 if (part.isNotBlank()) {
                     val touched = sentenceRanges.indices.filter { sentenceRanges[it].first < end && sentenceRanges[it].last >= from }
-                    items += ReadingItem(items.size, p, touched.firstOrNull() ?: 0, touched.lastOrNull() ?: 0, from, end, part)
+                    // The first match is only an extraction representative when text repeats;
+                    // labels/reports must not claim it is the occurrence the host selected.
+                    items += ReadingItem(items.size, p, touched.firstOrNull() ?: 0, touched.lastOrNull() ?: 0, from, end, part, occurrenceCount)
                     require(items.size <= MAX_ITEMS) { "全文超过256个生成片段，请缩小朗读范围" }
                 }
                 from = end
