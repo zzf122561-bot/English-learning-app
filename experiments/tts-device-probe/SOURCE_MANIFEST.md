@@ -506,3 +506,31 @@ inspect-native-artifact.py返回passed=true/runtime_or_apk_validation=false，�
 待设备覆盖：新底部槽180dp及大字体的可达性、文章滚动/Back、设置往返与旋转、切换范围时取消与旧音频隔离、重生成成功/失败后的保留、播放/导出中删除和实际SAF、进程终止/低空间后的恢复、Android符号链接用例。旧断网/持续热状态/API29真机等缺口继续沿用。单次34.08秒“完整且清晰”的听感记录仍只证明第9节那次运行。
 
 本轮为 `ready_for_integration / awaiting_manager_integration`。总控独占接线、Git、App版本/图标/签名/APK；本任务交付模块源与AAR后一次主动汇报并等待，不轮询或自行扩展。
+
+## 12. 2026-10-06 重复单句收尾差异
+
+总控已接收第11节交付并通知源提交05981da及合并完成，随后在同一获授权BRIEFING新增“2026-10-06 收尾差异”。本节仅接续该差异，取代第11节的“重复句要求改选段”限制与当时AAR；原45通过/1跳过、存储/原生/设备边界继续按适用范围沿用，不执行Git或读取功能1。
+
+ReadingTarget对同文章同段重复出现的相同选中文字采用带repeated前缀的精确内容hash作为句子身份，出现次数、标题/requestId或生成参数变化不产生另一保留范围；跨文章/段或不同精确文字仍隔离。唯一句继续使用既有first/last sentence位置身份，原key与定位不变；没有公共签名、设置/索引schema或数据库变更，也不将旧唯一句记录猜配迁入重复句范围。
+
+ReadingPlan仍从原文提取所选文字一次，超过既有上限时只分片这一次选中文字；首个匹配位置仅作为内部提取代表。ReadingItem/ReadingTarget标签为“第N段 · 单句（重复文本）”，进度、父items和新子reading报告均不声称具体第几次出现：occurrence=unspecified，matchingOccurrences记录匹配数，相关sentenceRange/firstSentence/lastSentence/startOffset/endOffset为null。唯一句具体位置保持，原文空值/缺失/越界校验不放宽。缓存源子报告保留原始来源；本次选区的歧义/匹配次数在父报告明确记录。
+
+生产变更仅限 `src/main/java/com/xuesui/englishapp/modelprobe/features/reading/{ReadingTarget,ReadingPlan,ReadingQueue}.kt` 与 `contracts/speech/SpeechContracts.kt` 的受影响定位/报告链；新增 `src/test/java/com/xuesui/englishapp/modelprobe/reading/DuplicateSentenceTest.kt` 6项，调整原ReadingRetentionTest的句子身份用例，并更新现有文档。未修改RunStore、播放器/生命周期、UI布局、原生、模型或构建配置。
+
+验证：**8项通过，0失败/错误/跳过**。其中DuplicateSentenceTest 6项覆盖唯一句旧key/label/offset、重复句身份稳定及精确内容/跨文跨段隔离、服务调用链只向模拟引擎传入一次所选文字、父子元数据不虚报位置、长重复句分片一次、换音色/seed替换且旧唯一句历史保留、缓存来源与当前选区元数据分别准确、非法请求拒绝；另执行原ReadingRetentionTest的句子身份用例1项，以及ReadingQueueTest的完整队列来源/顺序用例1项。最终XML时间2026-10-05T16:12:08.581Z至16:12:12.638Z（北京时间2026-10-06 00:12）。
+
+```powershell
+& 'D:\CodexData\android-toolchain\gradle\gradle-9.5.0\bin\gradle.bat' `
+  -p '_manager/probes/tts-device' --no-daemon --no-configuration-cache --max-workers=2 `
+  :runtime:testDebugUnitTest `
+  --tests 'com.xuesui.englishapp.modelprobe.reading.DuplicateSentenceTest' `
+  --tests 'com.xuesui.englishapp.modelprobe.reading.ReadingRetentionTest.sentenceSelectionUsesDocumentParagraphAndLogicalSentencePosition' `
+  --tests 'com.xuesui.englishapp.modelprobe.reading.ReadingQueueTest.completeQueueSavesEachPartAndCombinedWaveWithCorrectOriginAndOrder' `
+  :runtime:compileDebugAndroidTestKotlin :runtime:assembleRelease
+```
+
+沿用之前JAVA_HOME/ANDROID_HOME/GRADLE_OPTS。BUILD SUCCESSFUL in 51s，51 tasks（12 executed / 39 up-to-date）；Android测试源码及Release AAR编译通过。`build/test-results/testDebugUnitTest/`及`build/reports/tests/testDebugUnitTest/index.html`现对应上述8项，过滤执行覆盖报告，旧46项结果以第11节已接收证据为准。未复跑其他存储链、原生/许可审计或Lint；第11节Lint的0错误/6既有警告及Windows符号链接专项跳过边界保留，不称本次又执行通过。
+
+更新产物 `build/outputs/aar/runtime-release.aar`：**1,929,016字节**，SHA-256 **`e1c75f1b025d944cd0ae5f37989bcc18391dd2f1a35050673d1c6e8f0867fd3f`**。本轮直接读取新AAR与两个SO成员hash：libmodel_probe_qwen.so为`1e90f7d682ef31332a89c70e831f857efeb2dcd7cb23aa96f374dc3b389c1c29`，libc++_shared.so为`cd61762848882a16c8244c964a6f396c0caa0b440588a210ce9cc4ab0e6d9f0c`，与第11节相同，沿用其ELF证据；没有新模型或原生行为变更。
+
+本次只有合成fixture/JVM与源码/产物编译证据，没有新设备或视觉验收。待总控将本最小差异提交集成、用更新产物打包；首次设备测试补看重复单句标签与一次播放效果，其余缺口沿用第11节。不扩公开契约、不迁移/清理实际用户历史，本任务一次报告后等待。
