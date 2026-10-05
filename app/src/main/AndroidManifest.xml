@@ -5,7 +5,9 @@
 
     <application
         android:allowBackup="true"
-        android:label="语境记忆"
+        android:icon="@mipmap/ic_launcher_saber"
+        android:roundIcon="@mipmap/ic_launcher_saber"
+        android:label="saber"
         android:supportsRtl="true"
         android:theme="@style/Theme.WordMemory">
         <activity

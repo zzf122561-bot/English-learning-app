@@ -21,6 +21,8 @@
 
 ## 状态与证据边界
 
+- 2026-10-05用户调整交互与音频保留规则：原阅读页内生成/播放，语音Tab仅模型/声音设置，已生成项目可删、同范围只保留最新成功版。执行范围见已有功能1/语音简报顶部修订，拟App1.2.0/code7；同时改名`saber`并加入Saber图标。当前处于派工/资源验证阶段，不把1.1.0 test.001标为本次改版通过，也不覆盖旧APK。
+
 - 2026-10-03完成正式内嵌候选：三范围、音色/个性化要求、播放倍速及历史/缓存的模块证据按交接沿用；新增主App集成构建、8项宿主测试、1 Application/3 Library边界、签名及全部包内资产检查通过。交付[1.1.0 test.001](releases/app/v1.1.0/test.001/RELEASE.md)，本次目标处于`awaiting_user_device_validation`，不冒称实机通过或正式发布。
 - 独立宿主与新共享模块兼容编译：2026-10-03在根工程使用既有JDK/SDK/hosts环境执行Gradle `-p _manager/probes/tts-device --no-daemon --no-configuration-cache --max-workers=2 :app:compileDebugKotlin`，BUILD SUCCESSFUL in 53s，14 tasks（9 executed / 5 up-to-date）。只编译新连接，不生成/覆盖旧独立APK；原测试App继续保留。
 
