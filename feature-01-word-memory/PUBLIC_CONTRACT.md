@@ -6,7 +6,14 @@
 @Composable
 fun WordMemoryFeature(
     onLookupRequested: (String) -> Unit = {},
-    onReadingRequested: (title: String, englishParagraphs: List<String>, paragraphIndex: Int?, sentenceText: String?) -> Unit = { _, _, _, _ -> }
+    onReadingRequested: (title: String, englishParagraphs: List<String>, paragraphIndex: Int?, sentenceText: String?) -> Unit = { _, _, _, _ -> },
+    readingContent: (@Composable (
+        documentId: String,
+        title: String,
+        englishParagraphs: List<String>,
+        paragraphIndex: Int?,
+        sentenceText: String?,
+    ) -> Unit)? = null
 )
 ```
 
@@ -22,8 +29,17 @@ fun WordMemoryFeature(
 
 该回调默认为空实现，因此旧的无参或仅查词调用仍可继续编译。功能1不暴露语音枚举或引擎类型，不调用系统 TTS，也不负责朗读页面导航。
 
+`readingContent` 用于将宿主的生成与播放控件注入原学习页底部：
+
+- `documentId` 稳定为 `word-memory:<notebook.id>`，重命名不改变身份，不同笔记本不共用身份；
+- 有注入槽时，全文/整段/单句入口只更新当前页的朗读范围，不调用 `onReadingRequested`；
+- 槽位为 `null` 时，完整保留 v0.4.0 的 `onReadingRequested` 行为；
+- 槽只在有效的 `StudyScreen` 中绘制，初始选区为全文；空加载态不传递旧文章上下文。
+
+选区只保存段落索引和句子原文，不将全文数组写入 Bundle。切换笔记本时重置为全文，旋转可恢复当前轻量选区；正文变动使原选区失效时，会回退到全文并在原页提示。
+
 ## 稳定性
 
-- 入口不接受其他功能的内部对象；查词和朗读回调都只使用 Kotlin 基础类型。
+- 入口不接受其他功能的内部对象；查词、旧朗读回调和新槽都只使用 Compose 及 Kotlin 基础类型。
 - 数据仍写入现有 Room 数据库，名称、版本 2 和迁移语义保持不变。
 - 修改本契约必须先向总控汇报，由总控评估集成和 App 版本影响。

@@ -7,6 +7,8 @@ internal data class ReadingRequest(
     val sentenceText: String?,
 )
 
+internal fun wordMemoryDocumentId(notebookId: Long): String = "word-memory:$notebookId"
+
 internal fun buildReadingRequest(
     title: String,
     englishParagraphs: List<String>,
@@ -35,14 +37,34 @@ internal fun dispatchReadingRequest(
     sentenceText: String? = null,
     onReadingRequested: (String, List<String>, Int?, String?) -> Unit,
 ): Boolean {
-    val request = buildReadingRequest(title, englishParagraphs, paragraphIndex, sentenceText) ?: return false
-    onReadingRequested(
-        request.title,
-        request.englishParagraphs,
-        request.paragraphIndex,
-        request.sentenceText,
-    )
-    return true
+    return deliverReadingRequest(
+        title = title,
+        englishParagraphs = englishParagraphs,
+        paragraphIndex = paragraphIndex,
+        sentenceText = sentenceText,
+        inlineContentAvailable = false,
+        onReadingRequested = onReadingRequested,
+    ) != null
+}
+
+internal fun deliverReadingRequest(
+    title: String,
+    englishParagraphs: List<String>,
+    paragraphIndex: Int? = null,
+    sentenceText: String? = null,
+    inlineContentAvailable: Boolean,
+    onReadingRequested: (String, List<String>, Int?, String?) -> Unit,
+): ReadingRequest? {
+    val request = buildReadingRequest(title, englishParagraphs, paragraphIndex, sentenceText) ?: return null
+    if (!inlineContentAvailable) {
+        onReadingRequested(
+            request.title,
+            request.englishParagraphs,
+            request.paragraphIndex,
+            request.sentenceText,
+        )
+    }
+    return request
 }
 
 internal fun splitEnglishSentences(text: String): List<String> {

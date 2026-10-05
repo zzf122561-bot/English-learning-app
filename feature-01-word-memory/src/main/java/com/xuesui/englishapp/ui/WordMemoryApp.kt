@@ -50,6 +50,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -70,9 +71,11 @@ import com.xuesui.englishapp.data.NotebookEntity
 import com.xuesui.englishapp.data.StudySegmentWithTargets
 import com.xuesui.englishapp.data.TargetEntity
 import com.xuesui.englishapp.study.StudyFontScale
-import com.xuesui.englishapp.study.dispatchReadingRequest
+import com.xuesui.englishapp.study.buildReadingRequest
+import com.xuesui.englishapp.study.deliverReadingRequest
 import com.xuesui.englishapp.study.findLatinWordAtOffset
 import com.xuesui.englishapp.study.splitEnglishSentences
+import com.xuesui.englishapp.study.wordMemoryDocumentId
 import com.xuesui.englishapp.ui.theme.Cobalt
 import com.xuesui.englishapp.ui.theme.Hairline
 import com.xuesui.englishapp.ui.theme.Ink
@@ -85,6 +88,13 @@ fun WordMemoryApp(
     model: WordMemoryViewModel,
     onLookupRequested: (String) -> Unit,
     onReadingRequested: (String, List<String>, Int?, String?) -> Unit,
+    readingContent: (@Composable (
+        documentId: String,
+        title: String,
+        englishParagraphs: List<String>,
+        paragraphIndex: Int?,
+        sentenceText: String?,
+    ) -> Unit)?,
 ) {
     val notebooks by model.notebooks.collectAsStateWithLifecycle(initialValue = emptyList())
     val activeNotebook by model.activeNotebook.collectAsStateWithLifecycle(initialValue = null)
@@ -114,6 +124,7 @@ fun WordMemoryApp(
             onFontLevelChange = model::setFontLevel,
             onLookupRequested = onLookupRequested,
             onReadingRequested = onReadingRequested,
+            readingContent = readingContent,
         )
     }
 
@@ -245,6 +256,13 @@ private fun StudyScreen(
     onFontLevelChange: (Int) -> Unit,
     onLookupRequested: (String) -> Unit,
     onReadingRequested: (String, List<String>, Int?, String?) -> Unit,
+    readingContent: (@Composable (
+        documentId: String,
+        title: String,
+        englishParagraphs: List<String>,
+        paragraphIndex: Int?,
+        sentenceText: String?,
+    ) -> Unit)?,
 ) {
     BackHandler(onBack = onBack)
     var displayedFontLevel by remember(notebook.id) {
@@ -259,14 +277,47 @@ private fun StudyScreen(
     val orderedSegments = remember(segments) { segments.sortedBy { it.segment.position } }
     val englishParagraphs = remember(orderedSegments) { orderedSegments.map { it.segment.englishText } }
     val currentReadingRequested by rememberUpdatedState(onReadingRequested)
+    var selectedParagraphIndex by rememberSaveable(notebook.id) { mutableIntStateOf(FULL_ARTICLE_SELECTION) }
+    var selectedSentenceText by rememberSaveable(notebook.id) { mutableStateOf<String?>(null) }
+    var selectionNotice by remember(notebook.id) { mutableStateOf<String?>(null) }
     val submitReadingRequest = { paragraphIndex: Int?, sentenceText: String? ->
-        dispatchReadingRequest(
+        val request = deliverReadingRequest(
             title = notebook.title,
             englishParagraphs = englishParagraphs,
             paragraphIndex = paragraphIndex,
             sentenceText = sentenceText,
+            inlineContentAvailable = readingContent != null,
             onReadingRequested = currentReadingRequested,
         )
+        if (readingContent != null && request != null) {
+            selectedParagraphIndex = request.paragraphIndex ?: FULL_ARTICLE_SELECTION
+            selectedSentenceText = request.sentenceText
+            selectionNotice = null
+        }
+    }
+    val selectedReadingRequest = remember(
+        notebook.title,
+        englishParagraphs,
+        selectedParagraphIndex,
+        selectedSentenceText,
+    ) {
+        if (englishParagraphs.isEmpty()) {
+            null
+        } else {
+            buildReadingRequest(
+                title = notebook.title,
+                englishParagraphs = englishParagraphs,
+                paragraphIndex = selectedParagraphIndex.takeIf { it >= 0 },
+                sentenceText = selectedSentenceText,
+            )
+        }
+    }
+    LaunchedEffect(notebook.id, englishParagraphs, selectedParagraphIndex, selectedSentenceText) {
+        if (englishParagraphs.isNotEmpty() && selectedReadingRequest == null) {
+            selectedParagraphIndex = FULL_ARTICLE_SELECTION
+            selectedSentenceText = null
+            selectionNotice = "文章内容已更新，朗读范围已重置为全文。"
+        }
     }
     LaunchedEffect(listState, notebook.id) {
         snapshotFlow { listState.firstVisibleItemIndex }
@@ -296,9 +347,9 @@ private fun StudyScreen(
             }
             HorizontalDivider(color = Hairline)
             if (segments.isEmpty()) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             } else {
-                LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+                LazyColumn(state = listState, modifier = Modifier.fillMaxWidth().weight(1f)) {
                     itemsIndexed(orderedSegments, key = { _, item -> item.segment.id }) { paragraphIndex, item ->
                         StudySegment(
                             data = item,
@@ -312,6 +363,28 @@ private fun StudyScreen(
                         )
                     }
                     item { Spacer(Modifier.height(42.dp)) }
+                }
+                if (readingContent != null && selectedReadingRequest != null) {
+                    HorizontalDivider(color = Hairline)
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 180.dp)
+                            .background(Paper)
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                    ) {
+                        selectionNotice?.let { notice ->
+                            Text(notice, style = MaterialTheme.typography.labelMedium, color = Slate)
+                            Spacer(Modifier.height(6.dp))
+                        }
+                        readingContent(
+                            wordMemoryDocumentId(notebook.id),
+                            selectedReadingRequest.title,
+                            selectedReadingRequest.englishParagraphs,
+                            selectedReadingRequest.paragraphIndex,
+                            selectedReadingRequest.sentenceText,
+                        )
+                    }
                 }
             }
         }
@@ -327,6 +400,8 @@ private fun StudyScreen(
         )
     }
 }
+
+private const val FULL_ARTICLE_SELECTION = -1
 
 @Composable
 private fun StudySegment(
