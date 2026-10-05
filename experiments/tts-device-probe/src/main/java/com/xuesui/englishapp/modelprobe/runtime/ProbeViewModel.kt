@@ -17,6 +17,7 @@ import com.xuesui.englishapp.modelprobe.engines.qwen3tts.*
 import com.xuesui.englishapp.modelprobe.features.speech.*
 import com.xuesui.englishapp.modelprobe.features.reading.*
 import java.io.File
+import java.io.Closeable
 import java.util.UUID
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -26,9 +27,10 @@ import kotlinx.coroutines.flow.update
 import org.json.JSONObject
 
 /** Composition root: only this layer selects the concrete trusted engine and its editor/codec. */
-internal class ProbeViewModel(context: Context, private val diagnostic: Boolean = true, private val privateDirectory: File? = null) : ViewModel(), SpeechActions, ReadingActions {
+internal class ProbeViewModel(context: Context, private val diagnostic: Boolean = true, private val privateDirectory: File? = null,
+    private val engine: SpeechEngine = QwenSpeechEngine()) : ViewModel(), SpeechActions, ReadingActions {
     private val app = context.applicationContext as android.app.Application
-    val descriptor = QwenModel.descriptor
+    val descriptor = engine.descriptor
     val supportedAbi = Build.SUPPORTED_ABIS.contains(descriptor.abi)
     private val mutable = MutableStateFlow(SpeechUiState())
     val state = mutable.asStateFlow()
@@ -36,6 +38,12 @@ internal class ProbeViewModel(context: Context, private val diagnostic: Boolean 
     val form = mutableForm.asStateFlow()
     private val mutableReading = MutableStateFlow(ReadingUiState())
     val reading = mutableReading.asStateFlow()
+    private val mutableInline = MutableStateFlow(InlineReadingState())
+    val inline = mutableInline.asStateFlow()
+    @Volatile private var inlineActive = false
+    private var inlineLookupPending = false
+    private var maintenancePending = false
+    private val pendingDeletes = linkedSetOf<String>()
     private val inbox = ReadingInbox()
     private val entryMemory = ReadingEntryMemory()
     private var standaloneAfterExit = false
@@ -46,7 +54,6 @@ internal class ProbeViewModel(context: Context, private val diagnostic: Boolean 
     private val models by lazy { ModelStore(File(root, "models")) }
     private val runs by lazy { RunStore(File(root, "results"), File(root, "cache-index")) }
     private val settings by lazy { SettingsStore(File(root, "settings")) }
-    private val engine: SpeechEngine = QwenSpeechEngine()
     private val metrics = AndroidMetrics(app)
     private val service by lazy { SpeechService(engine, models, runs, metrics) { message -> mutable.update { it.copy(message = message) } } }
     private val main = Handler(Looper.getMainLooper())
@@ -57,7 +64,8 @@ internal class ProbeViewModel(context: Context, private val diagnostic: Boolean 
     private var sample: String? = null
     private var talker: Uri? = null
     private var tokenizer: Uri? = null
-    private val exports = mutableMapOf<String, String>()
+    private val exports = mutableMapOf<String, RunStore.Lease>()
+    private var pendingExport: Triple<String, Uri, RunStore.Lease>? = null
     private var documentSelection = false
     @Volatile private var disposed = false
     @Volatile private var started = 0L
@@ -93,9 +101,11 @@ internal class ProbeViewModel(context: Context, private val diagnostic: Boolean 
     private fun refresh() {
         val presence = runCatching { models.present(descriptor) }
         val installed = presence.getOrDefault(false)
-        val history = if (diagnostic) runs.history() else ReadingHistory.read(runs)
+        runs.recover()
+        val history = if (diagnostic) runs.history() else ReadingHistory.read(runs, Int.MAX_VALUE)
         mutable.update { it.copy(installed = installed, loaded = engine.loaded, modelIssue = presence.exceptionOrNull()?.message.orEmpty(),
             instructionSupported = !engine.loaded || engine.instructionSupported, history = history,
+            message = if (runs.maintenanceIssue != null && !it.message.contains("旧音频待回收")) "${it.message}；旧音频待回收：${runs.maintenanceIssue}" else it.message,
             hasSynthesis = it.hasSynthesis || history.any { run -> run.status == "success" || run.status == "token_limit" }) }
     }
     private fun work(title: String, action: (WorkToken) -> Unit) {
@@ -116,6 +126,7 @@ internal class ProbeViewModel(context: Context, private val diagnostic: Boolean 
         val valid = runCatching { form.parse() }
         mutable.update { it.copy(parametersValid = valid.isSuccess, cacheAllowed = valid.getOrNull()?.randomSeed == false,
             parameterError = if (valid.isSuccess) "" else "参数无效：请检查范围、整数、有限数及指令长度；当前不能生成或保存") }
+        matchInlineSettings()
     }
     override fun setMode(mode: SpeechMode) { if (!state.value.busy) mutable.update { it.copy(mode = mode) } }
     override fun setBatch(count: Int) { if (!state.value.busy && count in 1..5) mutable.update { it.copy(batchCount = count) } }
@@ -127,6 +138,7 @@ internal class ProbeViewModel(context: Context, private val diagnostic: Boolean 
             val params = form.parse(); preferences.validate()
             settings.save(descriptor.modelId, descriptor.engineVersion, 2, JSONObject().put("generation", params.snapshot()).put("speech", preferences.snapshot()))
             mutableForm.value = form
+            matchInlineSettings()
             mutable.update { it.copy(parametersValid = true, parameterError = "", cacheAllowed = !params.randomSeed,
                 mode = preferences.mode, batchCount = preferences.batchCount, playbackSpeed = preferences.playbackSpeed,
                 message = if (reset) "已恢复并保存全部默认设置" else "已保存生成参数、模式、批次和播放速度；历史结果保留原参数") }
@@ -202,30 +214,45 @@ internal class ProbeViewModel(context: Context, private val diagnostic: Boolean 
         stopPlayback()
         val generation = playback.epoch
         work("核对所选音频") { token ->
-            val run = runs.read(id)
-            val file = run.artifact("audio")
-            mutable.update { it.copy(selected = run) }
-            token.check()
-            main.post { if (!disposed && generation == playback.epoch && !token.cancelled.get()) playback.play(file, id) }
+            val lease = runs.acquire(id)
+            try {
+                val file = lease.run.artifact("audio")
+                mutable.update { it.copy(selected = lease.run) }
+                token.check()
+                main.post {
+                    if (!disposed && generation == playback.epoch && !token.cancelled.get())
+                        playback.play(file, id, Closeable { lease.close(); requestMaintenance() })
+                    else { lease.close(); requestMaintenance() }
+                }
+            } catch (failure: Throwable) { lease.close(); throw failure }
         }
     }
     override fun stopPlayback() = playback.stop()
     override fun pausePlayback() = playback.pause()
     override fun resumePlayback() = playback.resume()
-    fun prepareExport(role: String): Boolean {
+    fun prepareExport(role: String, runId: String? = state.value.selected?.id): Boolean {
         if (state.value.busy) return false
-        val id = state.value.selected?.id ?: return false
-        exports[role] = id; return true
+        val id = runId ?: return false
+        return runCatching {
+            require(role == "audio" || role == "report")
+            val lease = runs.acquire(id, verify = false)
+            exports.put(role, lease)?.close(); true
+        }.getOrElse { failure -> mutable.update { it.copy(message = "无法导出：${failure.message}") }; false }
     }
     fun selectingDocument(selecting: Boolean) { documentSelection = selecting; if (selecting) stopPlayback() }
     fun hostStopped() { if (documentSelection) stopPlayback() else pageStopped() }
     fun export(role: String, uri: Uri?) {
-        val id = exports.remove(role) ?: return
-        if (uri == null) return
+        val lease = exports.remove(role) ?: return
+        if (uri == null) { lease.close(); requestMaintenance(); return }
+        pendingExport = Triple(role, uri, lease)
+        onWorkerIdle()
+    }
+    private fun performExport(role: String, uri: Uri, lease: RunStore.Lease) {
+        val id = lease.run.id
         work("导出所选结果") { token ->
             try {
                 val run = runs.read(id)
-                val file = if (role == "report") child(run.directory, "report.json") else run.artifact("audio")
+                val file = if (role == "report") RunStore.privateChild(run.directory, "report.json") else run.artifact("audio")
                 app.contentResolver.openOutputStream(uri, "wt").use { output ->
                     requireNotNull(output) { "无法打开导出目标" }
                     file.inputStream().use { input ->
@@ -238,7 +265,7 @@ internal class ProbeViewModel(context: Context, private val diagnostic: Boolean 
             } catch (failure: Throwable) {
                 val removed = runCatching { DocumentsContract.deleteDocument(app.contentResolver, uri) }.getOrDefault(false)
                 throw IllegalStateException("导出未完成：${failure.message}；${if (removed) "已清理新建目标" else "目标可能包含部分内容，请在文件管理器检查"}", failure)
-            }
+            } finally { lease.close() }
         }
     }
     fun enterReading(request: SpeechReadingRequest?) {
@@ -299,8 +326,111 @@ internal class ProbeViewModel(context: Context, private val diagnostic: Boolean 
             releaseAfterExit = false
             if (engine.loaded) { work("释放语音模型内存") { engine.unload() }; return }
         }
+        pendingExport?.let { pending ->
+            pendingExport = null; performExport(pending.first, pending.second, pending.third); return
+        }
+        if (pendingDeletes.isNotEmpty()) {
+            val ids = pendingDeletes.toList(); pendingDeletes.clear()
+            work("删除已确认的生成音频") {
+                val removed = ids.map { runs.delete(it) }.all { it }
+                refreshInlineLatest()
+                mutable.update { it.copy(selected = it.selected?.takeUnless { selected -> selected.id in ids },
+                    message = if (removed) "生成音频和对应记录已删除" else "已登记删除；正在导出或被其他项目引用的文件会在释放后回收") }
+            }
+            return
+        }
+        if (inlineActive && inlineLookupPending) {
+            inlineLookupPending = false
+            work("读取此范围已保存的音频") { refreshInlineLatest() }
+            return
+        }
+        if (maintenancePending) {
+            maintenancePending = false
+            work("回收已释放的旧音频") { runs.recover() }
+            return
+        }
         if (standaloneAfterExit) openStandalone()
         else if (switchAfterExit) inbox.takePending(false)?.let(::openArticle)
+    }
+    private fun requestMaintenance() {
+        if (disposed) return
+        maintenancePending = true
+        main.post { onWorkerIdle() }
+    }
+    private fun matchInlineSettings() {
+        val config = runCatching { form.value.parse() }.getOrNull()
+        mutableInline.update { it.copy(matchesSettings = config != null && it.target?.matches(it.latest, config, descriptor.fingerprint, descriptor.engineVersion) == true) }
+    }
+    private fun refreshInlineLatest() {
+        val target = inline.value.target ?: return
+        val latest = runs.latest(target.key)
+        mutableInline.update { current ->
+            if (current.target?.key != target.key || current.target.bodyKey != target.bodyKey) current
+            else current.copy(latest = latest, switching = false)
+        }
+        matchInlineSettings()
+    }
+    fun enterInline(documentId: String, request: SpeechReadingRequest) {
+        inlineActive = true
+        val result = runCatching { ReadingTarget(documentId, ReadingPlanner.create(ReadingInput(request.requestId, request.title,
+            request.englishParagraphs.toList(), ReadingSelection(ReadingScope.valueOf(request.scope.name), request.paragraphIndex, request.sentenceText)))) }
+        val target = result.getOrNull()
+        if (target == null) {
+            stopPlayback()
+            mutableInline.value = InlineReadingState(error = result.exceptionOrNull()?.message ?: "朗读范围无效")
+            inlineLookupPending = false
+            if (state.value.busy && initialized) cancel()
+            return
+        }
+        val old = inline.value.target
+        if (old?.key == target.key && old.bodyKey == target.bodyKey) {
+            mutableInline.update { it.copy(target = target) }; matchInlineSettings()
+            if (!state.value.busy) { inlineLookupPending = true; onWorkerIdle() }
+            return
+        }
+        stopPlayback()
+        val stopping = state.value.busy && initialized
+        mutableInline.value = InlineReadingState(target = target, switching = stopping)
+        inlineLookupPending = true
+        if (stopping) {
+            cancel()
+            mutable.update { it.copy(message = "范围已切换，正在停止上一任务；完成的音频会保留，退出后可生成新范围") }
+        } else onWorkerIdle()
+    }
+    fun leaveInline() {
+        inlineActive = false; inlineLookupPending = false
+        pageStopped()
+    }
+    fun enterSettings() { if (inlineActive) leaveInline() }
+    fun playInline() {
+        matchInlineSettings()
+        if (inlineActive && inline.value.matchesSettings && !state.value.busy && !inline.value.switching)
+            inline.value.latest?.let { play(it.id) }
+    }
+    fun generateInline() {
+        if (!inlineActive || state.value.busy || inline.value.switching) return
+        val target = inline.value.target ?: return
+        val params = runCatching { form.value.parse() }.getOrElse { return }
+        stopPlayback()
+        mutableInline.update { it.copy(completed = 0, activeItem = "", error = "") }
+        work("生成${target.label}；旧音频保留至新结果完整保存") { token ->
+            check(supportedAbi && state.value.installed) { "请先到“语音”页准备本地模型" }
+            val saved = ReadingQueue(service, runs, metrics::nowNanos).generate(target.plan, params, token,
+                reuse = runs.latest(target.key) == null, target = target) { update ->
+                mutableInline.update { current -> if (current.target?.key != target.key || current.target.bodyKey != target.bodyKey) current
+                    else current.copy(activeItem = update.item.label,
+                        completed = if (update.state in setOf("success", "cache")) update.item.index + 1 else current.completed) }
+            }
+            refreshInlineLatest()
+            mutable.update { it.copy(message = if (saved.status == "success") "新音频已保存，可边看文章边播放"
+                else "${runStatusTitle(saved.status)}；原有完整音频仍保留，已完成部分可在音频管理中导出") }
+        }
+    }
+    fun deleteGenerated(id: String) {
+        stopPlayback()
+        pendingDeletes += id
+        if (state.value.busy) mutable.update { it.copy(message = "删除已确认，等待当前生成或导出退出后处理") }
+        else onWorkerIdle()
     }
     override fun editReadingText(text: String) {
         if (state.value.busy || text.length > ReadingPlanner.MAX_TEXT) return
@@ -379,6 +509,8 @@ internal class ProbeViewModel(context: Context, private val diagnostic: Boolean 
     }
     override fun onCleared() {
         disposed = true; ticker.shutdownNow(); stopPlayback()
-        runner.closeAfterExit { runCatching { engine.unload() } }
+        exports.values.forEach { it.close() }; exports.clear()
+        pendingExport?.third?.close(); pendingExport = null
+        runner.closeAfterExit { runCatching { engine.unload() }; runCatching { runs.recover() } }
     }
 }

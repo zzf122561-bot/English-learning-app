@@ -37,11 +37,11 @@ internal enum class SpeechMode { PARAGRAPH, SENTENCES }
 internal enum class RunKind { COLD, WARM, CACHE }
 internal data class SpeechOrigin(val sessionId: String, val requestId: String, val title: String, val scope: String,
     val itemIndex: Int, val itemCount: Int, val paragraphIndex: Int, val firstSentence: Int, val lastSentence: Int,
-    val startOffset: Int, val endOffset: Int, val plannerVersion: String) {
+    val startOffset: Int, val endOffset: Int, val plannerVersion: String, val retentionKey: String? = null) {
     fun snapshot() = JSONObject().put("sessionId", sessionId).put("requestId", requestId).put("title", title).put("scope", scope)
         .put("itemIndex", itemIndex).put("itemCount", itemCount).put("paragraphIndex", paragraphIndex)
         .put("firstSentence", firstSentence).put("lastSentence", lastSentence).put("startOffset", startOffset)
-        .put("endOffset", endOffset).put("plannerVersion", plannerVersion)
+        .put("endOffset", endOffset).put("plannerVersion", plannerVersion).put("retentionKey", retentionKey ?: JSONObject.NULL)
 }
 internal data class SpeechRequest(val text: String, val parameters: SpeechParameters, val mode: SpeechMode, val kind: RunKind,
     val origin: SpeechOrigin? = null) {

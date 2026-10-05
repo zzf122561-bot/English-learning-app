@@ -1,10 +1,10 @@
 # 共享本地语音 Library 架构
 
-0.2.0正式内嵌候选，2026-10-03。保留独立测试入口，新增供正式App装配的朗读入口；只注册Qwen英语语音任务，不读取其他功能内部实现。构建与验收证据以 [SOURCE_MANIFEST.md](SOURCE_MANIFEST.md) 第10节为当前正文；第8节记录阶段2，第9节记录用户一次设备成功和正面试听，不能代替0.2.0新增流程的设备验收。
+0.3.0阅读页候选，2026-10-05。正式生成/播放嵌入文章，语音Tab仅设置；保留原独立测试入口和0.2.0兼容入口。只注册Qwen英语语音任务，不读取其他功能内部实现。新增构建与验收证据以 [SOURCE_MANIFEST.md](SOURCE_MANIFEST.md) 第11节为当前正文；第9节的单次手机试听不能代替新增流程的设备验收，0.2.0证据保留在第10节。
 
 ## 边界与依赖
 
-仍为单个Android Library，保留 `com.xuesui.englishapp.modelprobe.runtime.ModelProbeFeature()`，新增同包 `SpeechFeature(request, onClose)` 及精确的 `SpeechReadingScope`、`SpeechReadingRequest` 公共类型，定义见 `runtime/SpeechReadingRequest.kt`。Activity、Application、包名、assets、签名与APK由总控维护；其余新增业务类型为internal，JNI只用于本模块。正式App与测试App各用自己的私有目录，不互读或自动迁移。
+仍为单个Android Library。正式宿主接 `com.xuesui.englishapp.modelprobe.runtime.SpeechInlineReadingFeature(documentId, request, modifier)` 与 `SpeechSettingsFeature(modifier)`；同包ModelProbeFeature、SpeechFeature(request,onClose)及SpeechReadingScope/SpeechReadingRequest字段完整兼容。Activity、Application、包名、assets、签名与APK由总控维护；其余新增业务类型为internal，JNI只用于本模块。正式App与测试App各用自己的私有目录，不互读或自动迁移。
 
 | 目录 | 已实现责任 | 依赖边界 |
 |---|---|---|
@@ -16,11 +16,11 @@
 | `engines/qwen3tts` | 受信任模型描述、类型化参数、参数编辑器/摘要、JNI 适配 | 实现 speech 契约并使用 core；不依赖语音页面 |
 | `features/speech` | SpeechService、PCM16 WAV及合并、诊断页面、纯播放状态机、页面偏好 | 使用任务契约和core；不引用具体引擎、runtime ViewModel或native句柄 |
 | `features/reading` | 正式页面、范围规划、串行队列、请求去重/切换、入口草稿、历史分组 | 使用speech任务契约与服务；不访问文章模块、导航或数据库 |
-| `runtime` | 两个公开入口及请求映射、ProbeViewModel、SAF、AndroidAudioFactory、生命周期 | 唯一具体装配处，选择Qwen编辑器/适配器；onClose交还宿主 |
+| `runtime` | 正式内嵌/设置、兼容/诊断入口及请求映射、ProbeViewModel、SAF、AndroidAudioFactory、生命周期 | 唯一具体装配处，选择Qwen编辑器/适配器；不读取文章数据库或导航 |
 
 ```mermaid
 flowchart LR
-  H[总控宿主] --> R[SpeechFeature / ModelProbeFeature / ProbeViewModel]
+  H[总控宿主] --> R[Inline / Settings / 兼容入口 / ProbeViewModel]
   R --> A[features/reading]
   A --> S[features/speech]
   R --> S[features/speech]
@@ -42,7 +42,7 @@ ModelStore 在受控 staging 内顺序复制两个文件，同时验证完整长
 
 加载取得 ModelLease 后才进入适配器；同一私有根的租约在进程内共享，旧页面仍在退出时，新控制器不能删除或替换它持有的模型。每个新 ModelStore 实例首次加载校验完整副本；同实例未变化的长度/mtime 可沿用校验记录，显式“校验”始终计算完整 SHA-256。受控清理拒绝越界/符号链接路径，只清理本模块自己的未引用 generation/staging。
 
-RunStore 每次运行创建独立临时目录，完成 artifact 哈希与报告后原子提交。失败/取消丢弃未完成 WAV，保存失败报告；未提交目录不进入历史。同根活动草稿在进程内登记，防止新控制器误清理旧控制器还在写的结果。播放、缓存读取与导出前核对保存的文件长度和 SHA-256。历史页面列最近100条，未自动删除更旧的已完成记录。
+RunStore每次运行创建独立临时目录，完成artifact哈希与报告后原子提交。失败/取消丢弃未完成WAV，保存失败报告；未提交目录不进入历史。同根活动草稿在进程内登记，防止新控制器误清理活动写入。播放、缓存读取与导出前核对长度和SHA-256。原诊断列表仍为最近100条；正式音频管理按父子关系列出所有项目，读取轻量管理元数据，不为每个历史片段常驻完整采样数组。
 
 模型删除保留结果；“清理缓存”仅移除缓存索引，既有 WAV/报告继续可播放和导出。没有数据库迁移或删库行为。
 
@@ -102,9 +102,9 @@ Android 端使用 elapsedRealtimeNanos 单调计时；PSS 以200ms固定延迟�
 
 新增精确 ModelDescriptor、受信任 engines/<id>、任务专属 contracts/<task> 和 features/<task>，由 runtime 显式装配并增加入口。复用 core 的安装、租约、任务排他、取消、通用采样、事务存储；新任务返回自身结果/指标，不实现虚假的语音接口或 WAV/RTF。新引擎自行拥有参数 schema 与显式迁移，不引用 Qwen 内部实现。是否拆分 Gradle 模块留给实际第二引擎加入时由总控决定。
 
-下一步由总控完成正式App及保留的独立测试App集成/打包，新增接口、API29构建及设备待测范围见来源清单第10节。既有模块证据和第9节单次试听基线沿用。
+下一步由总控按第11节完成新入口接线、正式App集成/打包与新增设备项；原生/API29及第9节试听证据在未变化范围沿用。
 
-## 正式朗读入口、队列和同Activity往返
+## 0.2.0兼容入口与共用队列
 
 SpeechFeature的request=null入口从空白输入/粘贴开始，不读取probe-sample.txt，也不会因缺少样例阻塞。ModelProbeFeature继续使用原样例与诊断UI。正式入口收到请求只展示预览和设置，用户点击生成才计算。FULL取所有英文段落，PARAGRAPH必须有有效索引，SENTENCE必须非空且是指定段落的精确子串；越界或不匹配显示错误，不回退到全文。
 
@@ -116,7 +116,7 @@ ReadingQueue顺序调用SpeechService，每片先保存WAV和子报告，再开�
 
 子报告新增可选reading上下文（session/request ID、标题、范围、片段及原文offset），不保存正文。最后把可用子WAV按原顺序流式合并成独立PCM16 WAV与speech.reading.v1父报告，不额外加静音；部分完成明确标注，合并失败仍保留子文件。取消后的保存只完成已有片段的事务，不启动新的native任务。进程在父报告提交前结束时，已经提交的子音频作为可恢复历史显示；不会隐藏或自动续跑。
 
-正式历史先合并父子关系再限制最近100条，长队列的数百个子报告不会挤掉整篇历史；存在父报告的片段在父记录下选择播放。RunStore按需顺序读取/筛选，避免为正式历史同时保留全部子采样报告。旧诊断报告仍可识别，私有目录、设置schema2、模型fingerprint及引擎参数schema1未变，无数据库或破坏式迁移。
+历史按父报告存在关系及显式子引用分组，长队列的子报告不会挤掉整篇项目；父报告未提交时保留可恢复片段，已被其他父记录重用的片段不误显示为孤儿。0.3.0正式管理不截断为100条。旧诊断报告仍可识别，私有目录、设置schema2、模型fingerprint及引擎参数schema1未变，无数据库或破坏式迁移。
 
 ## 播放与低版本方案
 
@@ -127,3 +127,25 @@ ReadingQueue顺序调用SpeechService，每片先保存WAV和子报告，再开�
 Library minSdk改为29，native也实际以aarch64-linux-android29重新编译，不使用tools:overrideLibrary。现用热状态API从29提供，播放器倍速等API更早；API29的Lint与NDK链接验证见当前证据。ABI仍仅arm64，低于能力的设备在入口显示不支持而不调用生成。目标Android16与API29真机的新流程均待总控验收。
 
 页面/后台退出会请求取消并在真实退出后卸载模型；选择SAF文档期间仅停止播放，避免把文件选择器当成离开页面而启动卸载、丢失导出回调。正式页返回只调用宿主onClose，不修改文章、滚动或默写状态；已有结果继续保存。
+
+## 0.3.0文章内嵌与仅设置入口
+
+新正式入口使用Activity自身的ViewModelStore和固定speech-runtime键，避免宿主导航的局部ViewModel作用域生成第二个运行器。设置页仅模型准备/校验/释放/删除副本、音色/指令/高级生成参数、播放倍速、保存/默认；不调用ReadingScreen，无正文输入、生成、播放器或历史列表。
+
+Inline条适配宿主底部最大180dp的槽：范围及“更多”占一行，生成/取消与播放/暂停/继续占一行，普通字体可展示单行状态；大字体隐藏该次要行，不缩小触点。详细状态、停止播放、历史、导出和删除确认使用对话框。控件不声明BackHandler、文章编辑器或滚动容器；只有显式打开的弹窗拥有自己的列表滚动/关闭。宿主需在文章存续期保持底部槽在Composition中，不放进随滚动回收的LazyColumn item；它的dispose用于识别真正离开文章。旋转由同Activity ViewModel保留任务，不重新生成。
+
+documentId作为不透明身份（本次word-memory:<notebookId>）校验并参与hash，绝不拼入文件路径。请求只准备范围，推理仅由点击触发。当前文章/选区变化立即停止旧播放、清除错配选择；忙时提示正在取消上一范围，等待真实退出，随后只读取新范围的已保存结果，不自动生成。正文或生成参数变化会将旧结果标为不匹配，旧文件仍可导出；不会用它冒充当前范围/设置。标题或requestId变化不产生新的保留身份。
+
+保留身份是documentId、scope、非全文的段索引及句子逻辑位置（first/last sentence）经hashParts得到的key；正文切片另有bodyKey，全生成参数另有settingsKey，匹配同时核对模型fingerprint与engineVersion。重复相同句子仅凭当前sentenceText契约无法定位到具体出现位置，新内嵌入口会明确要求选段朗读，避免误放第一处；旧请求字段和旧入口语义不变。
+
+## 最新结果事务、引用与删除
+
+`results/catalog.json`是新增schema1索引，包含latest、pending发布意图与garbage回收集合。父报告schema1新增可选retentionKey/retention/settingsKey/childRunIds；子报告reading新增可选retentionKey。先保存并fsync音频及完整哈希报告，登记发布意图，再原子rename结果目录；重新验证新音频/报告及子引用后，将latest切换与旧版回收意图一同原子写入catalog，最后才回收旧文件。失败、取消、触顶或合并失败的父报告不进入latest。保存失败/进程中断保留旧latest；恢复对存在且完整的待发布目录完成切换，对不存在的目录撤销意图。已激活结果的回收失败独立提示并重试，不把已经完成的生成报为失败。
+
+回收先计算可达引用：未删除父记录、最新索引以及进程内活动租约都保护自身和子片段。需回收的目录先原子改名为.trash-<id>再逐文件删除，ledger直到实际完成才去掉该ID；进程中断后可重试，不让半删报告占住已提交命名空间。删除相关缓存指针；无效缓存指针可丢弃，不以缓存索引阻止永久回收。私有目录、runId、artifact路径及清理树拒绝越界/符号链接；遇到无法确定引用的损坏记录，停止相关回收并显示待重试问题，不扩大删除。
+
+新内嵌缓存命中直接引用既有子结果，不复制新的片段WAV；items明确记录reused/cache及来源runId。父结果仍保留独立完整WAV，以支持连续MediaPlayer播放和一次SAF导出；子WAV用于按片段复用、来源验证及中断恢复，故父/子有效音频可能约双份占用。替换/删除父项目时只回收无其他父记录/租约引用的源片段，当前仍引用的共享片段可继续精确缓存复用，最后引用消失后回收。不会随每次重生成累积整套旧WAV。
+
+播放校验开始前取得租约，播放器实际release后才归还（暂停仍持有）；SAF选择器打开前固定ID并持有导出租约，取消选择或完成拷贝后归还；队列生成/合并持有源片段租约。用户确认删除时停止播放，工作中则排队，导出或共享引用尚在时登记待回收；不会提前移除正在使用的文件。删除范围仅本宿主私有results/cache-index，模型、文章、其他数据库、仓库文件及用户已导出文档都不在这条清理链。
+
+升级不猜测旧记录归属：无稳定retention身份的0.1/0.2项目继续保留并可手动删除；同标题、正文hash或随机requestId不是自动合并依据。独立旧生成记录即使作为新父项目的缓存源，也保留其独立所有权，删除父项目不会自动删除它。新子报告的稳定retentionKey可以证明父提交前中断的孤儿片段归属，之后该范围成功生成可安全回收无引用旧片段。没有用户数据库迁移或开发机真实资料清理。
