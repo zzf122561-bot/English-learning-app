@@ -82,6 +82,14 @@ using tts_code_frame_callback_t = std::function<bool(const int32_t * frame_codes
                                                      int32_t frame_index)>;
 
 // TTS Transformer class
+// Local probe observation only; no sampling or prompt changes.
+struct probe_generation_info {
+    bool eos_reached = false;
+    int32_t steps = 0;
+    int64_t prefill_ms = 0;
+    int64_t token_loop_ms = 0;
+};
+
 class TTSTransformer {
 public:
     TTSTransformer();
@@ -176,6 +184,7 @@ public:
                   const tts_code_frame_callback_t * frame_callback = nullptr);
     
     const tts_transformer_config & get_config() const;
+    const probe_generation_info & get_probe_generation() const { return probe_generation_; }
     
     const std::string & get_error() const { return error_msg_; }
 
@@ -193,6 +202,7 @@ public:
                             std::vector<float> & output);
     
 private:
+    probe_generation_info probe_generation_;
     friend struct transformer_internal::ops;
 
     bool forward_step_internal(const float * step_embd,

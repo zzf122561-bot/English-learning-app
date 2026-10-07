@@ -93,7 +93,7 @@ class DuplicateSentenceTest {
         assertTrue(target.plan.items.size > 1)
         assertEquals(sentence, target.plan.items.joinToString("") { it.text })
         val saved = generate(target)
-        assertEquals(target.plan.items.size, engine.calls); assertEquals(sentence, spoken.joinToString(""))
+        assertEquals(saved.report.getInt("plannedCount"), engine.calls); assertEquals(sentence, spoken.joinToString(""))
         val rows = saved.report.getJSONArray("items")
         repeat(rows.length()) { i ->
             val row = rows.getJSONObject(i)

@@ -10,6 +10,8 @@ internal interface SpeechParameters {
     val schemaVersion: Int
     val threads: Int
     val randomSeed: Boolean
+    // Engine-owned conservative planning hint, not a tokenizer or duration guarantee.
+    val readingChunkCodePoints: Int get() = 800
     fun validate()
     fun resolved(): SpeechParameters
     fun forSegment(index: Int): SpeechParameters
@@ -20,7 +22,14 @@ internal data class SpeechAudio(
     val pcm: FloatArray, val sampleRate: Int, val effective: SpeechParameters,
     val tokenizeMillis: Long, val generateMillis: Long, val decodeMillis: Long,
     val totalMillis: Long, val hitTokenLimit: Boolean,
+    val diagnostics: SpeechDiagnostics? = null,
 )
+internal data class SpeechDiagnostics(val textTokens: Int, val generatedFrames: Int, val generationSteps: Int,
+    val termination: String, val prefillMillis: Long, val tokenGenerationMillis: Long) {
+    fun snapshot() = JSONObject().put("textTokens", textTokens).put("generatedFrames", generatedFrames)
+        .put("generationSteps", generationSteps).put("termination", termination)
+        .put("prefillMillis", prefillMillis).put("tokenGenerationMillis", tokenGenerationMillis)
+}
 internal class SpeechExecutionFailure(val cancelled: Boolean, val effective: SpeechParameters?, message: String) : RuntimeException(message)
 internal interface SpeechEngine {
     val descriptor: ModelDescriptor

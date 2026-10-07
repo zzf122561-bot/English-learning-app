@@ -97,6 +97,13 @@ struct tts_result {
     bool success = false;
     // Local probe patch (2026-10-02): possible truncation at requested frame cap.
     bool hit_token_limit = false;
+    // Local probe diagnostics: observed EOS versus loop budget, not inferred from PCM length.
+    int32_t probe_text_tokens = 0;
+    int32_t probe_generated_frames = 0;
+    int32_t probe_generation_steps = 0;
+    std::string probe_termination = "failed";
+    int64_t probe_prefill_ms = 0;
+    int64_t probe_token_loop_ms = 0;
     
     // Error message if failed
     std::string error_msg;

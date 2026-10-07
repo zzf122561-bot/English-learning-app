@@ -21,6 +21,10 @@ class QwenJniContractTest {
             assertEquals(2, bad.status)
             assertTrue(bad.audio.isEmpty())
             assertNull(bad.effective)
+            assertEquals("failed", bad.termination)
+            assertEquals(0, bad.generatedFrames)
+            assertEquals(0, bad.generationSteps)
+            assertEquals(0L, bad.prefillMillis)
         } finally { QwenNativeBindings.close(h) }
     }
 }

@@ -1,9 +1,9 @@
 # 当前状态
 
-- 2026-10-06：0.3.0首批交接已被总控接收、提交05981da并集成；同日“重复句收尾差异”现为 `ready_for_integration / awaiting_manager_integration`，对应定位/报告、测试和更新AAR已完成并成功交接。App接线、Git、签名、图标及APK归总控。
-- 新增精确公共契约SpeechInlineReadingFeature(documentId,request,modifier)、SpeechSettingsFeature(modifier)，保留原请求类型及SpeechFeature/ModelProbeFeature。新入口共用Activity运行器/设置；底部控件适配180dp，主要操作在条内，历史/详细错误/删除确认在弹窗，不接管文章Back或滚动。
-- 稳定文章/逻辑范围只保留最新成功结果；新WAV/报告完整提交并原子切换后回收旧版。失败/取消/触顶保留旧成功音频，引用/租约保护共享片段及播放/导出/生成；旧无documentId项目可手删但不猜配归属。正文、数据库、模型和已导出文件不在生成结果删除范围。
-- 收尾8项针对性JVM测试全部通过（0失败/错误/跳过），Android测试源码及更新Release AAR编译通过；当前命令/产物见 [SOURCE_MANIFEST.md 第12节](SOURCE_MANIFEST.md#12-2026-10-06-重复单句收尾差异)。第11节首批45通过/1跳过、Lint 0错误/6既有警告按范围沿用，未复跑；Windows符号链接特权与设备待测边界仍保留。两份原生SO hash不变，旧0.2.0证据保留在第10节。
-- 当前无新增设备执行/视觉验收：180dp/大字体、文章滚动/Back、设置往返与旋转、真实取消/范围切换、删除/重生成/SAF和实际进程/低空间恢复待总控设备验收。重复句收尾改为同段精确内容共享单句范围，只朗读一次，并在标签/报告明示未指定第几次出现；唯一句定位和公共契约保持。
-- 用户此前一次34.08秒设备合成及“完整且清晰，没有明显漏读或重复”的试听反馈仍仅对应 [SOURCE_MANIFEST.md 第9节](SOURCE_MANIFEST.md#9-2026-10-03-设备截图与用户试听反馈)，不推广为0.3.0设备通过。
-- 当前实现规则见 [ARCHITECTURE.md](ARCHITECTURE.md)，授权/回复对象见 [MANAGER_LINK.md](MANAGER_LINK.md)。2026-10-06首批及本次重复句收尾的完整FEATURE_MILESTONE均已各成功发送一次至总控01a024cb-1fba-7b23-a357-67eb2ad592b4（消息工具isError=false）；现等待总控合入收尾，不轮询、不自行Git/APK或扩展范围。
+- 2026-10-08：0.3.1核心语音修复候选为 `ready_for_integration / awaiting_manager_integration`，真实设备失败尚未闭环。唯一详细证据及已证实问题/未知根因/最小实机步骤见 [SOURCE_MANIFEST.md 第13节](SOURCE_MANIFEST.md#13-2026-10-08-核心语音031修复候选与失败证据)。来源为总控登记49baa81之后的本模块增量；未执行Git/APK/签名或读取其他功能。
+- 正式队列按有效预算分片，触顶最多2层/全请求32次重分片，覆盖原文且不重复拼失败PCM；异常不写完整缓存/最新索引，旧成功保留。单段不再被未选中非法段阻塞，同范围不重复占用运行器，读取失败清除切换锁；原布局与公开请求字段不变。
+- 原生新增明确EOS/上限、token/帧/阶段计时，父报告记录尝试与PCM数据；engine adapter3、缓存v2，显式只读兼容adapter2原设置。仍为原1.7B Q4/CPU，模型无需重装，没有新依赖/权限/数据库迁移。
+- 两轮共50个不同JVM用例通过（先49项，收尾12项含1项新增；0失败/错误/跳过）。Android测试源码、Release AAR、Lint均通过；Lint 0错误/6既有警告，新增native AAR的16KiB/notice/JNI构造静态检查通过。当前XML为收尾12项；精确命令、AAR/SO大小与hash只维护在第13节。未复跑旧无关清理/许可/模型解析证据。
+- 当前没有真实模型新音频、Android执行或视觉验收。FULL样本首片触顶和WAV数值已核对，但非静音怪音的原因、001请求→生成→匹配→播放的实际失败点仍未知。新Android用例只编译，不以WAV头正确或测试数宣称手机可用。
+- 旧34.08秒音频“完整且清晰，没有明显漏读或重复”的用户反馈仍仅对应第9节。下一步总控将本候选与功能1已合入的去编号输入整合，出包后先短句/同文段落A-B及001完整链，再多段/取消恢复；保持原音质路线，暂无同文设备速度改进数据。
+- 当前设计见 [ARCHITECTURE.md](ARCHITECTURE.md)，授权和回复对象见 [MANAGER_LINK.md](MANAGER_LINK.md)。本次完整FEATURE_MILESTONE已成功发送至总控01a024cb-1fba-7b23-a357-67eb2ad592b4（工具isError=false）；现等待集成和设备反馈，不轮询或自行扩展。
