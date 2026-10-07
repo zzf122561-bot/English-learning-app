@@ -95,7 +95,7 @@ jobject java_load(JNIEnv * env, const model_probe::LoadResult & result) {
 jobject java_result(JNIEnv * env, const model_probe::RunResult & result) {
     jclass cls = env->FindClass(result_class);
     if (!cls) return nullptr;
-    auto ctor = env->GetMethodID(cls, "<init>", "(ILjava/lang/String;[FIJJJJZLcom/xuesui/englishapp/modelprobe/engines/qwen3tts/QwenNativeParameters;)V");
+    auto ctor = env->GetMethodID(cls, "<init>", "(ILjava/lang/String;[FIJJJJZLcom/xuesui/englishapp/modelprobe/engines/qwen3tts/QwenNativeParameters;IIILjava/lang/String;JJ)V");
     if (!ctor) return nullptr;
     const auto & r = result.synthesis;
     auto pcm = env->NewFloatArray(static_cast<jsize>(r.audio.size()));
@@ -106,7 +106,9 @@ jobject java_result(JNIEnv * env, const model_probe::RunResult & result) {
     if (env->ExceptionCheck()) return nullptr;
     return env->NewObject(cls, ctor, static_cast<jint>(result.status), java_string(env, result.error), pcm, r.sample_rate,
         static_cast<jlong>(r.t_tokenize_ms), static_cast<jlong>(r.t_generate_ms), static_cast<jlong>(r.t_decode_ms),
-        static_cast<jlong>(r.t_total_ms), static_cast<jboolean>(r.hit_token_limit), effective);
+        static_cast<jlong>(r.t_total_ms), static_cast<jboolean>(r.hit_token_limit), effective,
+        r.probe_text_tokens, r.probe_generated_frames, r.probe_generation_steps, java_string(env, r.probe_termination),
+        static_cast<jlong>(r.probe_prefill_ms), static_cast<jlong>(r.probe_token_loop_ms));
 }
 } // namespace
 

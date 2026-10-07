@@ -1504,8 +1504,14 @@ tts_result pipeline_internal::ops::synthesize_internal(Qwen3TTS & self,
 
     int n_codebooks = self.transformer_.get_config().n_codebooks;
     int n_frames = (int) generated_codes.size() / n_codebooks;
-    // Local probe patch: conservative marker, not proof of missing speech.
-    result.hit_token_limit = n_frames >= params.max_audio_tokens;
+    const auto & observed = self.transformer_.get_probe_generation();
+    result.hit_token_limit = !observed.eos_reached;
+    result.probe_text_tokens = (int32_t) text_tokens.size();
+    result.probe_generated_frames = n_frames;
+    result.probe_generation_steps = observed.steps;
+    result.probe_termination = observed.eos_reached ? "eos" : "token_limit";
+    result.probe_prefill_ms = observed.prefill_ms;
+    result.probe_token_loop_ms = observed.token_loop_ms;
 
     if (params.print_progress) {
         fprintf(stderr, "Speech codes generated: %d frames x %d codebooks\n", n_frames, n_codebooks);

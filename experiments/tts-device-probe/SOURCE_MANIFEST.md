@@ -534,3 +534,77 @@ ReadingPlan仍从原文提取所选文字一次，超过既有上限时只分片
 更新产物 `build/outputs/aar/runtime-release.aar`：**1,929,016字节**，SHA-256 **`e1c75f1b025d944cd0ae5f37989bcc18391dd2f1a35050673d1c6e8f0867fd3f`**。本轮直接读取新AAR与两个SO成员hash：libmodel_probe_qwen.so为`1e90f7d682ef31332a89c70e831f857efeb2dcd7cb23aa96f374dc3b389c1c29`，libc++_shared.so为`cd61762848882a16c8244c964a6f396c0caa0b440588a210ce9cc4ab0e6d9f0c`，与第11节相同，沿用其ELF证据；没有新模型或原生行为变更。
 
 本次只有合成fixture/JVM与源码/产物编译证据，没有新设备或视觉验收。待总控将本最小差异提交集成、用更新产物打包；首次设备测试补看重复单句标签与一次播放效果，其余缺口沿用第11节。不扩公开契约、不迁移/清理实际用户历史，本任务一次报告后等待。
+
+
+## 13. 2026-10-08 核心语音0.3.1修复候选与失败证据
+
+本节执行总控2026-10-07持续更新的同一BRIEFING顶部修复节，来源为总控登记49baa81后的本模块增量（功能任务未执行Git）。功能1的1453bdb／总控8379c34按target span/key清理学习编号的公共语义已由总控转达；未读取该功能实现。此次交付状态为ready_for_integration，设备失败尚未闭环；旧第9节用户对34.08秒音频的肯定只用作对照。
+
+### 已提供样本的事实与限制
+
+仅原地只读分析获授权的 `D:/App data/QQ聊天记录/QQ files/reading-7c0fc0f0-d2ea-461c-b0b2-3fe191947e42.json` 与同名WAV；没有扫描QQ目录、复制原件、上传或记录朗读正文。
+
+- JSON SHA-256：`2b501c58f870463f64f145f223099515b2d7767bf7b7c2291482d252a6f66d03`；runId为7c0fc0f0-d2ea-461c-b0b2-3fe191947e42，scope=FULL，plannedCount118／completedCount0，第一片token_limit、reused=false，后117片not_started。第一片为原第0段offset0..561，子runId为fce759fa-55a6-4373-884e-4abcc00add49，textSha256为6760c013891949f49eb31e7713775f56a787e3f50a67a820f1c0993289bcb56f。
+- 请求与resolvedBase均Ryan、英语2050、4线程、temp0.9、topK50、topP1、repetition1.05、maxAudioTokens1024、seed42、空instruction；实际存储浮点值是对应Float转Double的精度。engineVersion为16bb5afc-ggml-af97976c-patch-08f2da86-adapter2，modelFingerprint为613f4b1971604bd2044e3fccfab97e954dd9d912e02f7b428907511fff508f3e。
+- elapsedMillis311990（约5分12秒）；WAV3,932,204字节，SHA-256 `3976c2219c4f218407075b681e8fe871e33d9ade6a66e650406e91d81b9e21c2`，与JSON artifact相同。24kHz单声道PCM16，1,966,080样本，81.92秒，正好1024×1920样本。只能确认输出长度与预算吻合，不能推出加大上限能恢复正确内容。
+- stdlib wave/array只读计算：归一化PCM16峰值约0.468719，RMS0.047969，DC0.00006626，没有abs>=32767的样本，2秒窗口有持续信号。可排除全静音或明显PCM16硬削波；不能据此证明音质、正确采样率语义、无重复/漏读或原始Float PCM健康。本轮没有听感/ASR判定。
+- 父JSON没有原文、子effective、分阶段耗时及原始终止token，error=null。不能确认实际子参数或自然EOS为何未出现。截图PARAGRAPH底部已显示第1段，只证明截图时选区显示，不能证明生成/播放成功；FULL样本不能代替001单段故障证据。
+
+### 已证实代码问题与修复
+
+1. 原800码点规划忽略当前帧预算，遇首片token_limit即停止全部队列，没有恢复路径。现按Qwen参数取clamp((maxAudioTokens-64)/2,24,400)码点，优先句/词边界；这只是保守启发式。最多1024个执行叶子；只对触顶一分为二，单支最多2层、整请求最多32次重分片（最多1056次尝试），取消/异常/不可再分短片停止。原文与offset覆盖保持，不删除任何数字、不提高用户帧上限。预览/逻辑保留身份使用规范800码点规划，实际进度和父报告使用执行计划。
+2. 原规划先校验所有段落，未选中中文/空段也拒绝合法001。现只校验所选段的内容，整个请求的256段/100000字符资源边界仍在；越界/不存在句子不回退。合成fixture已执行确认，尚不能认定这是用户001的实际根因。
+3. 同一活动范围每次enterInline都发起历史读取，占用唯一runner；读取latest异常可能让switching一直为true。现同范围重选不重复提交，离开后再进入才读一次；读取失败清除切换锁并显示原因。显式生成的无效范围/参数、busy/switching及提交拒绝均给出原因。失败/取消后等真实worker退出再生成；FULL失败→001再次生成→匹配→播放的Android用例已编译，未执行，不能以修提示结案。
+4. 原生终止改为记录是否采到EOS及实际循环步数，不再仅从输出帧数推测；补textTokens、generatedFrames、generationSteps、prefillMillis、tokenGenerationMillis。prefill是提示构建、图准备/KV初始化及前向的整体时间；原generateMillis仍包含它。JNI采用匹配的类型化构造参数。
+5. 新检查Qwen的24kHz／1920样本每帧／实际PCM长度一致性，拒绝参数不一致、全静音、非有限PCM及终止状态矛盾。WAV记录peak/RMS/DC/clippedSamples，保留已有有限值/大小检查。数值有效、EOS正常仍不代表语义正确，非静音怪音或漏读仍需听感判断。
+6. 重试替换失败片段，成功父WAV只拼最终叶子；失败尝试保留在attempts/childRunIds，后续替换统一回收无引用记录。异常/触顶不写完整缓存或latest、不删旧成功。规划版本english-budget-queue-v2，音频缓存speech-cache-v2-validated-output，engineVersion升级adapter3，收到去编号正文后不会命中旧带编号缓存。旧历史不批量清除、旧唯一句身份不猜配。
+7. 父报告新增逐尝试输入hash/长度、子实际参数、runKind、PCM/终止和时间，初始/最终片数、重分片数及首个完整子WAV提交耗时firstCompletedSegmentMillis。后者不是流式首PCM，不表示面板已自动播放；firstPcmLatencyMillis保持null。阶段汇总只算已返回且可测的片段并含重试，缓存排除；未返回的原生异常细分阶段不可测，覆盖数单列。整体elapsed仍不含最终父报告哈希/提交。
+
+公共请求字段/Composable签名/宿主依赖/模型权重/采样算法/重复惩罚/线程默认值/UI布局不变，未增加云端或新后端。模型fingerprint与安装身份不含engineVersion，因此无需重新安装权重。设置schema2不变；只对白名单adapter2→adapter3只读沿用原设置，用户保存才写新版本，未知版本/坏schema仍显式报错；数据库迁移无。原生补丁只增加观测和终止判定，未改KV清理/解码算法。
+
+### 仍待日志或实机的假设
+
+固定源码pipeline在每次合成前clear_kv_cache，generate也初始化KV/采样状态；批量decoder每次上传本片codes/positions/mask，CPU图按帧数缓存，未发现此差异引入跨片PCM拼接。正式和诊断均经同SpeechService/Qwen适配器；该FULL首片没有前一片，因此“跨片残留”不能单独解释本例。但这些静态事实与模拟A/B不能排除原生模型长文本退化、真实输入差异、早期EOS/异常非静音输出或设备状态问题。没有证据把怪音归因为上述已修的UI/规划问题。
+
+本机PATH未发现cl.exe/g++/clang++可用主机工具链；既有NDK用于ARM64 Android库编译，本轮没有主机真实模型合成或手机执行。不安装新环境、不下载替代模型。已知失败不要求用户先重复一次来证明；补原始子JSON可帮助追查effective/时间，若没有也可直接用新候选新增报告完成下一次复测。
+
+### 新增验证与实际边界
+
+第一轮修正work返回类型引起的6处Kotlin覆盖方法编译错误后，执行49项JVM全通过（0失败/错误/跳过）：ReadingPlanTest8、ReadingQueueTest8、DuplicateSentenceTest6、SpeechServiceTest9、StorageSettingsTest7、SpeechRepairTest11。Android测试源码、Release AAR、Lint均通过；BUILD SUCCESSFUL 2m20s，74任务（24执行／50up-to-date）。随后只补报告计时覆盖说明、重试记录回收断言及全请求32次重分片上限用例，针对SpeechRepairTest复跑12项全部通过（0失败/错误/跳过），重编译AAR/Lint；BUILD SUCCESSFUL 1m40s，74任务（23执行／51up-to-date）。两轮合计50个不同用例，最终XML为12项，不称最终又跑了50项。
+
+SpeechRepairTest覆盖：合法001不受其他非法段影响；小预算/编号长文/Unicode精确切片；超过资源边界提前拒绝；同一合成英文段的诊断与队列输入、seed/参数、WAV字节一致；触顶后两片成功只拼新PCM；失败/全静音/NaN/Infinity保留旧成功且不缓存；取消重分片后可再次生成；118段合成fixture完整覆盖且只load一次；去编号输入不命中旧音频且12/2026等正常数字不改；实际参数/终止矛盾拒绝；adapter2设置只读兼容；32次全局重试上限。所有PCM均来自模拟引擎，绝非真实1.7B音质测试。旧无关许可/模型解析/完整存储破坏恢复证据沿用第10至12节，没有重复整套核验。
+
+InlineRuntimeDeviceTest新增2项（FULL触顶后001生成匹配及播放、同范围新requestId不占worker且其他非法段不阻塞）；原4项保持，模拟PCM改为非零信号。QwenJniContractTest补新诊断字段在失败返回时的契约断言。以上Android源码只编译，未在设备运行，UI点击/生命周期/实际MediaPlayer/JNI运行均待验证。
+
+```powershell
+$env:JAVA_HOME='D:\CodexData\android-toolchain\jdk-17'
+$env:ANDROID_HOME='D:\CodexData\android-toolchain\android-sdk'
+$env:ANDROID_SDK_ROOT=$env:ANDROID_HOME
+$env:GRADLE_OPTS='-Xmx3g -Dfile.encoding=UTF-8 -Djdk.net.hosts.file=C:/Users/zzf86/.codex/worktrees/5551/Codex_EnglishApp/_manager/tools/gradle-hosts.txt'
+& 'D:\CodexData\android-toolchain\gradle\gradle-9.5.0\bin\gradle.bat' `
+  -p '_manager/probes/tts-device' --no-daemon --no-configuration-cache --max-workers=2 `
+  :runtime:testDebugUnitTest --tests '*SpeechRepairTest' --tests '*ReadingPlanTest' `
+  --tests '*ReadingQueueTest' --tests '*DuplicateSentenceTest' --tests '*SpeechServiceTest' --tests '*StorageSettingsTest' `
+  :runtime:compileDebugAndroidTestKotlin :runtime:assembleRelease :runtime:lintDebug
+# 收尾命令相同，但--tests仅保留'*SpeechRepairTest'。
+python experiments/tts-device-probe/tools/inspect-native-artifact.py
+```
+
+最终JVM XML时间2026-10-07T16:08:18.205Z（北京时间10-08 00:08），位于build/test-results/testDebugUnitTest；HTML在build/reports/tests/testDebugUnitTest/index.html。Lint最终0错误／6项既有警告：GradleDependency1、NewerVersionAvailable1、ChromeOsAbiSupport1、UsableSpace2、UseTomlInstead1；报告build/reports/lint-results-debug.{xml,html,sarif}。JNI编译4条既有codecvt弃用警告，无新增错误。
+
+### 最终产物
+
+- `build/outputs/aar/runtime-release.aar`：1,947,076字节，SHA-256 `f2e7e4cc99d851f6fa036e37daac1114a096f8a6287ef40e00983bb42275e2c2`。
+- 新libmodel_probe_qwen.so：2,303,760字节，SHA-256 `3da2a46ff18771ae35afa2d9b762142b1b80dc61593ea537930f1df47ff48c5b`；libc++_shared.so仍1,253,544字节，SHA-256 `cd61762848882a16c8244c964a6f396c0caa0b440588a210ce9cc4ab0e6d9f0c`。
+- 新vendor/LOCAL_CHANGES.patch SHA-256 `ae30dc345902b789e3bd0bc6b7c5837033147e3605ad0b8b50640309a81e1233`；引擎身份`16bb5afc-ggml-af97976c-patch-ae30dc34-adapter3`，upstream提交和GGML仍与第7节一致。
+- AAR独立检查：仅arm64-v8a两份SO，LOAD 16384对齐/RELRO覆盖通过，4份notice匹配；Manifest只有minSdk29，无Activity/Application/新增权限。检查结果`.local/artifact-check/inspection.json`（当前产物，历史hash仍在旧节）。javap核对新QwenNativeResult构造descriptor与JNI一致：参数后缀IIILjava/lang/String;JJ；这是静态构造契约，不声称已跑JNI。
+
+### 总控下一步与停止条件
+
+交由总控接收本模块源/AAR，结合已合入的功能1去编号输入，从其干净提交生成候选APK；无需重跑已覆盖模块检查，只补新增集成/JNI及实际手机链。最小验证顺序：
+
+1. 同一无私有资料的短句及不足400码点英文段，在旧诊断与新正式PARAGRAPH入口用同Ryan/seed42/4线程及原参数生成，分别保存JSON/WAV并试听。核对输入hash、实际参数、EOS、帧/PCM、分阶段耗时；没有一致输入不能作性能或音质优劣结论。
+2. 新候选直接验证用户001单段的接收→显式生成→退出busy/switching→匹配完整结果→播放；保留同次JSON/WAV与实际安装版本。不要以底部出现第1段或仅WAV头正确验收；无需强求用户导出完整正文。若还失败，最小补充是该单段同次报告及实际安装版本；原失败子fce759fa…的JSON若可取得有助回溯。
+3. 短多段/含正常数字的长段，检查无漏读/重复、分片接缝和无学习编号；再扩大到118段。触顶/取消后切001再生成，旧成功版本应保留。首片保存时间与整篇时间分别读新报告，不把批量接口称流式。
+
+不能承诺速度提升倍数：已有样本311990ms是失败整请求时间，旧34.08秒样本RTF4.71来自另一文本且没有同文报告；二者不能直接比较。模拟只证明串行队列包括重试无需每片重新load。保留1.7B Q4，未提高线程或引入GPU/NPU/新依赖。完成一次交接后等待总控，不Git/APK/上传，不以此结案真实怪音和001不可用。

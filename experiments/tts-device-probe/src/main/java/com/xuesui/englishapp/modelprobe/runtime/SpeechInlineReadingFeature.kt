@@ -67,7 +67,8 @@ fun SpeechInlineReadingFeature(documentId: String, request: SpeechReadingRequest
         inline.error.isNotBlank() -> inline.error
         !vm.supportedAbi -> "本地语音需要arm64-v8a设备。"
         inline.switching -> "正在停止上一范围，完成后可生成当前范围。"
-        state.busy -> "${inline.completed}/${inline.target?.plan?.items?.size ?: 0}片段 · ${state.phase.ifBlank { "处理中" }} · ${state.elapsedSeconds}秒"
+        state.busy -> "${inline.completed}/${inline.planned}片段 · ${state.phase.ifBlank { "处理中" }} · ${state.elapsedSeconds}秒"
+        !current -> "正在接收当前朗读范围；如有错误请查看朗读详情。"
         !state.installed -> "首次使用请到“语音”页准备本地模型。"
         !state.parametersValid -> "声音参数有误，请到“语音”页检查。"
         current && inline.latest != null && !inline.matchesSettings -> "正文或声音设置已变化，请重新生成；旧版仍在音频管理中。"

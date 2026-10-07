@@ -7,9 +7,10 @@ import java.security.SecureRandom
 import org.json.JSONObject
 
 internal object QwenModel {
+    const val PREVIOUS_ENGINE_VERSION = "16bb5afc-ggml-af97976c-patch-08f2da86-adapter2"
     val descriptor = ModelDescriptor(
         modelId = "qwen3-tts-1.7b-customvoice-q4", engineId = "qwen3tts-cpu",
-        engineVersion = "16bb5afc-ggml-af97976c-patch-08f2da86-adapter2", taskId = "speech.synthesis.v1",
+        engineVersion = "16bb5afc-ggml-af97976c-patch-ae30dc34-adapter3", taskId = "speech.synthesis.v1",
         revision = "b7ee2e8c7459c3bea99da23e3d178125a7d1713c", license = "Apache-2.0",
         title = "Qwen3-TTS · 1.7B CustomVoice · Q4", runtime = "GGUF / GGML CPU", abi = "arm64-v8a",
         capabilities = setOf("named-speaker", "instruction", "batch-synthesis", "cooperative-cancel"),
@@ -24,6 +25,9 @@ internal data class QwenConfiguration(val native: QwenNativeParameters = QwenNat
     override val schemaVersion = 1
     override val threads get() = native.threads
     override val randomSeed get() = native.seed == -1L
+    // Reserve 64 frames, budget conservatively at 2 frames/code point, cap at 400.
+    // This only bounds input; EOS and bounded retries still determine completion.
+    override val readingChunkCodePoints get() = ((native.maxAudioTokens - 64) / 2).coerceIn(24, 400)
     override fun validate() = native.validate()
     override fun resolved() = if (randomSeed) copy(native = native.copy(seed = SecureRandom().nextInt(Int.MAX_VALUE).toLong())) else this
     override fun forSegment(index: Int): QwenConfiguration {
@@ -91,8 +95,12 @@ internal class QwenSpeechEngine : SpeechEngine {
             if (result.status != 0 || token.cancelled.get()) throw SpeechExecutionFailure(
                 result.status == 1 || token.cancelled.get(), result.effective?.let(::QwenConfiguration),
                 result.error.ifBlank { if (token.cancelled.get()) "已取消，原生调用已退出" else "原生合成失败" })
+            check(result.sampleRate == 24000 && result.generatedFrames > 0 &&
+                result.audio.size.toLong() == result.generatedFrames * 1920L) { "Qwen输出的采样率/帧数/PCM长度不一致" }
             return SpeechAudio(result.audio, result.sampleRate, QwenConfiguration(checkNotNull(result.effective)),
-                result.tokenizeMillis, result.generateMillis, result.decodeMillis, result.totalMillis, result.hitTokenLimit)
+                result.tokenizeMillis, result.generateMillis, result.decodeMillis, result.totalMillis, result.hitTokenLimit,
+                SpeechDiagnostics(result.textTokens, result.generatedFrames, result.generationSteps, result.termination,
+                    result.prefillMillis, result.tokenGenerationMillis))
         } catch (error: Throwable) { runCatching { unload() }; throw error }
     }
     override fun unload() {

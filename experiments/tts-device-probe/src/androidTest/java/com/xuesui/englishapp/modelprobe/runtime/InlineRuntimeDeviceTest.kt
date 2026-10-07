@@ -64,12 +64,13 @@ class InlineRuntimeDeviceTest {
         val calls = AtomicInteger()
         @Volatile var started: CountDownLatch? = null
         @Volatile var allowExit: CountDownLatch? = null
+        @Volatile var limit = false
         override fun load(lease: ModelLease, threads: Int, token: WorkToken): Long { this.lease = lease; loaded = true; return 1 }
         override fun synthesize(text: String, parameters: SpeechParameters, token: WorkToken): SpeechAudio {
             calls.incrementAndGet(); started?.countDown()
             allowExit?.let { check(it.await(10, TimeUnit.SECONDS)) }
             token.check()
-            return SpeechAudio(FloatArray(240), 24000, parameters, 0, 1, 0, 1, false)
+            return SpeechAudio(FloatArray(240) { if (it % 2 == 0) 0.1f else -0.1f }, 24000, parameters, 0, 1, 0, 1, limit)
         }
         override fun unload() { loaded = false; lease?.close(); lease = null }
         override fun phase() = "synthetic"
@@ -117,6 +118,37 @@ class InlineRuntimeDeviceTest {
         f.main { f.vm.enterInline("word-memory:two", request("invalid", 999)); f.vm.playInline() }
         assertNull(f.vm.inline.value.target); assertNull(f.vm.inline.value.latest)
         assertTrue(f.vm.inline.value.error.isNotBlank()); assertEquals(1, f.engine.calls.get())
+    }
+    @Test fun failedFullThenParagraph001UnlocksGeneratesMatchesAndStartsPlayback() = Fixture().use { f ->
+        val full = request().copy(scope = SpeechReadingScope.FULL, paragraphIndex = null)
+        f.main { f.vm.enterInline("word-memory:one", full) }; f.idle()
+        f.engine.limit = true
+        f.main { f.vm.generateInline() }; f.idle()
+        assertFalse(f.vm.state.value.busy); assertFalse(f.vm.inline.value.switching)
+        assertNull(f.vm.inline.value.latest); assertFalse(f.vm.inline.value.matchesSettings)
+        assertEquals("token_limit", f.vm.state.value.history.first().status)
+        f.engine.limit = false
+        f.main { f.vm.enterInline("word-memory:one", request("paragraph-001")) }; f.idle()
+        f.main { f.vm.generateInline() }; f.idle()
+        val saved = f.vm.inline.value.latest!!
+        assertEquals("PARAGRAPH", saved.report.getString("scope"))
+        assertEquals(1, saved.report.getInt("completedCount"))
+        assertTrue(f.vm.inline.value.matchesSettings); assertFalse(f.vm.inline.value.switching)
+        f.main { f.vm.playInline() }; f.idle()
+        assertEquals(saved.id, f.vm.reading.value.playback.runId)
+        assertNotEquals(com.xuesui.englishapp.modelprobe.features.speech.PlaybackPhase.FAILED, f.vm.reading.value.playback.phase)
+    }
+    @Test fun identicalRangeReselectionDoesNotOccupyWorkerAndOtherBadParagraphDoesNotBlock() = Fixture().use { f ->
+        val selected = request().copy(englishParagraphs = listOf("A valid paragraph zero one.", "中文备注", ""))
+        f.main { f.vm.enterInline("word-memory:one", selected) }; f.idle()
+        f.main {
+            f.vm.enterInline("word-memory:one", selected.copy(requestId = "same-range-new-id"))
+            assertFalse(f.vm.state.value.busy)
+            f.vm.generateInline()
+        }
+        f.idle()
+        assertEquals(1, f.engine.calls.get()); assertNotNull(f.vm.inline.value.latest)
+        assertTrue(f.vm.inline.value.matchesSettings)
     }
     @Test fun androidPrivateStorageRejectsSymlinkDeletionWithoutTouchingTarget() = Fixture().use { f ->
         val runs = RunStore(File(f.root, "results"), File(f.root, "cache-index"))

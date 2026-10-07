@@ -35,7 +35,7 @@ internal object SpeechText {
         return segments
     }
     fun key(engine: SpeechEngine, request: SpeechRequest, resolved: SpeechParameters): String = hashParts(
-        listOf("speech-cache-v1", engine.descriptor.modelId, engine.descriptor.fingerprint, engine.descriptor.engineVersion,
+        listOf("speech-cache-v2-validated-output", engine.descriptor.modelId, engine.descriptor.fingerprint, engine.descriptor.engineVersion,
             request.text, request.mode.name, SPLITTER) + resolved.cacheParts())
 }
 
@@ -44,16 +44,27 @@ internal class WavWriter(file: File) : Closeable {
     var samples = 0L; private set
     var sampleRate = 0; private set
     var clippedSamples = 0L; private set
+    var peak = 0.0; private set
+    var lastPeak = 0.0; private set
+    private var squaredSum = 0.0
+    private var sampleSum = 0.0
+    fun pcmSnapshot() = JSONObject().put("finite", true).put("peak", peak)
+        .put("rms", if (samples == 0L) 0.0 else kotlin.math.sqrt(squaredSum / samples))
+        .put("dcMean", if (samples == 0L) 0.0 else sampleSum / samples).put("clippedSamples", clippedSamples)
     init { out.setLength(0); out.write(ByteArray(44)) }
     fun append(pcm: FloatArray, rate: Int, token: WorkToken) {
         require(rate in 8000..192000 && pcm.isNotEmpty()) { "原生音频为空或采样率无效" }
         require(sampleRate == 0 || rate == sampleRate) { "音频片段采样率不一致" }; sampleRate = rate
         require((samples + pcm.size) * 2 < 2_000_000_000L) { "WAV超过本实验大小限制" }
         val buffer = ByteArray(8192)
+        lastPeak = 0.0
         var used = 0
         pcm.forEachIndexed { i, sample ->
             if (i % 4096 == 0) token.check()
             require(sample.isFinite()) { "原生音频包含NaN/Infinity" }
+            peak = maxOf(peak, kotlin.math.abs(sample.toDouble()))
+            lastPeak = maxOf(lastPeak, kotlin.math.abs(sample.toDouble()))
+            squaredSum += sample.toDouble() * sample; sampleSum += sample
             if (sample < -1 || sample > 1) clippedSamples++
             val value = (sample.coerceIn(-1f, 1f) * 32767).toInt()
             buffer[used++] = value.toByte(); buffer[used++] = (value shr 8).toByte()
@@ -160,6 +171,7 @@ internal class SpeechService(
             var inferenceMillis = 0L
             var hitLimit = false
             var cacheMatches = true
+            var wavWriteMillis = 0L
             var currentSegment = -1
             try {
                 if (request.kind == RunKind.COLD) {
@@ -181,20 +193,34 @@ internal class SpeechService(
                         effective.put(JSONObject().put("index", index).put("parameters", audio.effective.snapshot())
                             .put("samples", audio.pcm.size).put("sampleRate", audio.sampleRate).put("tokenizeMillis", audio.tokenizeMillis)
                             .put("generateMillis", audio.generateMillis).put("decodeMillis", audio.decodeMillis)
-                            .put("nativeTotalMillis", audio.totalMillis).put("hitTokenLimit", audio.hitTokenLimit))
+                            .put("nativeTotalMillis", audio.totalMillis).put("hitTokenLimit", audio.hitTokenLimit)
+                            .put("textSha256", text.toByteArray(Charsets.UTF_8).sha256())
+                            .put("textCodePoints", text.codePointCount(0, text.length))
+                            .put("native", audio.diagnostics?.snapshot() ?: JSONObject.NULL))
+                        check(cacheMatches) { "原生实际参数与请求不一致，结果不能作为完整音频保存" }
+                        audio.diagnostics?.let { check(it.termination == if (audio.hitTokenLimit) "token_limit" else "eos") { "原生终止状态不一致" } }
+                        val writeStarted = metrics.nowNanos()
                         wav.append(audio.pcm, audio.sampleRate, token)
+                        wavWriteMillis += (metrics.nowNanos() - writeStarted) / 1_000_000
+                        effective.getJSONObject(effective.length() - 1).put("pcmCumulative", wav.pcmSnapshot())
+                        check(wav.lastPeak > 0.0) { "原生返回全静音，不能作为成功音频保存" }
                         if (audio.hitTokenLimit) break // Stop remaining sentences; retain and flag actual partial output.
                     }
                     token.check(); progress("保存WAV和报告")
+                    val finishStarted = metrics.nowNanos()
                     wav.finish()
+                    wavWriteMillis += (metrics.nowNanos() - finishStarted) / 1_000_000
                     val seconds = wav.samples.toDouble() / wav.sampleRate
                     report.put("audio", JSONObject().put("samples", wav.samples).put("sampleRate", wav.sampleRate)
-                        .put("durationSeconds", seconds).put("channels", 1).put("pcmBits", 16).put("clippedSamples", wav.clippedSamples))
+                        .put("durationSeconds", seconds).put("channels", 1).put("pcmBits", 16).put("clippedSamples", wav.clippedSamples)
+                        .put("pcm", wav.pcmSnapshot()))
                     report.put("rtf", inferenceMillis / 1000.0 / seconds)
                 }
                 token.check(); measurement.close()
                 report.put("status", if (hitLimit) "token_limit" else "success").put("hitTokenLimit", hitLimit)
                     .put("effectiveSegments", effective).put("loadMillis", loadMillis).put("inferenceMillis", inferenceMillis)
+                    .put("wavWriteMillis", wavWriteMillis)
+                    .put("termination", if (hitLimit) "token_limit" else "eos")
                     .put("elapsedMillis", (metrics.nowNanos() - start) / 1_000_000).put("measurement", measurement.snapshot())
                 report.getJSONObject("validation").put("nativeReturnedSuccessfully", true)
                 return draft.commit(report, mapOf("audio" to "audio.wav"), if (!hitLimit && cacheMatches) key else null)
@@ -207,6 +233,7 @@ internal class SpeechService(
                     .put("failedSegmentIndex", currentSegment)
                     .put("failedSegmentEffective", (failure as? SpeechExecutionFailure)?.effective?.snapshot() ?: JSONObject.NULL)
                     .put("effectiveSegments", effective).put("loadMillis", loadMillis).put("inferenceMillis", JSONObject.NULL)
+                    .put("wavWriteMillis", wavWriteMillis)
                     .put("rtf", JSONObject.NULL).put("measurement", measurement.snapshot())
                     .put("elapsedMillis", (metrics.nowNanos() - start) / 1_000_000)
                 return draft.commit(report, emptyMap())

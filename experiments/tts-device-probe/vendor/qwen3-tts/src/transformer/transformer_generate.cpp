@@ -5,6 +5,7 @@
 #include "transformer/transformer_sampling.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -58,6 +59,8 @@ bool TTSTransformer::generate(const int32_t * text_tokens, int32_t n_tokens,
                               int32_t n_reference_frames,
                               int32_t n_reference_codebooks,
                               const tts_code_frame_callback_t * frame_callback) {
+    probe_generation_ = {};
+    const auto probe_start = std::chrono::steady_clock::now();
 #ifdef QWEN3_TTS_TIMING
     using clk = std::chrono::high_resolution_clock;
     tts_timing timing = {};
@@ -227,6 +230,8 @@ bool TTSTransformer::generate(const int32_t * text_tokens, int32_t n_tokens,
     output.reserve(max_len * cfg.n_codebooks);
 
     int32_t n_past = prefill_len;
+    const auto probe_loop_start = std::chrono::steady_clock::now();
+    probe_generation_.prefill_ms = std::chrono::duration_cast<std::chrono::milliseconds>(probe_loop_start - probe_start).count();
     std::vector<int32_t> frame_codes(cfg.n_codebooks);
     std::vector<int32_t> generated_cb0_tokens;
     transformer_sampling_state sampling{resolve_sampling_seed(seed), 0};
@@ -273,6 +278,7 @@ bool TTSTransformer::generate(const int32_t * text_tokens, int32_t n_tokens,
         }
 
         if (next_token == cfg.codec_eos_id) {
+            probe_generation_.eos_reached = true;
             if (trace_frame) {
                 int32_t eos_token = next_token;
                 char eos_name[128];
@@ -283,6 +289,7 @@ bool TTSTransformer::generate(const int32_t * text_tokens, int32_t n_tokens,
         }
 
         const bool is_thinking = (next_token >= cfg.codec_think_id && next_token <= cfg.codec_think_eos_id);
+        probe_generation_.steps = frame + 1;
         if (is_thinking) {
             fprintf(stderr, "  [frame %d] Filtering thinking token: %d\n", frame, next_token);
         }
@@ -373,6 +380,7 @@ bool TTSTransformer::generate(const int32_t * text_tokens, int32_t n_tokens,
         n_past++;
     }
 
+    probe_generation_.token_loop_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - probe_loop_start).count();
 #ifdef QWEN3_TTS_TIMING
     timing.t_generate_total_ms = std::chrono::duration<double, std::milli>(clk::now() - t_gen_start).count();
     impl_->timing = nullptr;

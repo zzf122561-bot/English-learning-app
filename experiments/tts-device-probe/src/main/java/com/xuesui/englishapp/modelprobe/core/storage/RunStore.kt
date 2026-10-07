@@ -320,11 +320,15 @@ internal class SettingsStore(private val directory: File) {
     init { directory.mkdirs() }
     private fun file(model: String, engineVersion: String) = child(directory, hashParts(listOf(model, engineVersion)) + ".json")
     private fun profile(model: String) = child(directory, hashParts(listOf(model)) + ".active.json")
-    fun load(model: String, engineVersion: String, schema: Int): JSONObject? {
+    fun load(model: String, engineVersion: String, schema: Int, compatiblePrevious: Set<String> = emptySet()): JSONObject? {
         val file = file(model, engineVersion)
         if (!file.isFile) {
             val previous = profile(model)
-            require(!previous.isFile || previous.readJson(4096).getString("engineVersion") == engineVersion) { "引擎版本已变更，使用默认参数；旧设置保留，确认新设置后保存" }
+            val previousVersion = if (previous.isFile) previous.readJson(4096).getString("engineVersion") else null
+            // Explicit adapter-owned compatibility only; retain the old file until the user saves.
+            if (previousVersion != null && previousVersion in compatiblePrevious)
+                return load(model, previousVersion, schema)
+            require(previousVersion == null || previousVersion == engineVersion) { "引擎版本已变更，使用默认参数；旧设置保留，确认新设置后保存" }
             return null
         }
         val json = file.readJson(32768)

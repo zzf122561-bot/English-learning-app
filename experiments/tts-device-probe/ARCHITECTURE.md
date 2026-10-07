@@ -1,6 +1,6 @@
 # 共享本地语音 Library 架构
 
-0.3.0阅读页候选，2026-10-06重复单句收尾。正式生成/播放嵌入文章，语音Tab仅设置；保留原独立测试入口和0.2.0兼容入口。只注册Qwen英语语音任务，不读取其他功能内部实现。当前差异/产物见 [SOURCE_MANIFEST.md](SOURCE_MANIFEST.md) 第12节，首批0.3.0证据保留在第11节；第9节的单次手机试听不能代替新增流程的设备验收，0.2.0证据保留在第10节。
+0.3.1核心语音修复候选，2026-10-08。正式生成/播放继续嵌入文章，语音Tab仅设置；保留独立测试和兼容入口。当前修复证据与未闭环设备项见SOURCE_MANIFEST第13节，旧第9节单次试听及第10至12节历史验证按范围保留。
 
 ## 边界与依赖
 
@@ -66,7 +66,7 @@ RunStore每次运行创建独立临时目录，完成artifact哈希与报告后�
 
 数字编辑保留原始输入，非法值会阻止生成/保存，不回退使用旧有效值。所有生成参数在 Kotlin 与 JNI/C++ 两层校验。没有独立模型语速、GPU/NPU 或未接线的采样开关；默认值只是实验策略，未认定为手机最佳配置。
 
-设置按 modelId + engineVersion 保存。外层 SettingsStore schema=2，内容为 generation（Qwen schema=1）与 speech（页面偏好 schema=1）。保存和恢复默认同时覆盖生成参数、模式、批次、播放速度。引擎版本变化或未知/损坏 schema 显示恢复默认原因，旧文件保留；只有用户显式保存才写入当前配置，没有静默跨版本沿用。
+设置按 modelId + engineVersion 保存。外层 SettingsStore schema=2，内容为 generation（Qwen schema=1）与 speech（页面偏好 schema=1）。保存和恢复默认同时覆盖生成参数、模式、批次、播放速度。0.3.1仅显式兼容adapter2到adapter3的原schema2设置：新版本尚未保存时只读旧配置，原文件保留，模型文件身份不变。其他引擎或未知/损坏schema显示恢复默认原因；只有显式保存才写当前版本。
 
 ## 运行、取消与生命周期
 
@@ -86,13 +86,13 @@ MediaPlayer 使用异步准备和音频焦点，回调核对播放器身份及�
 
 完整段落默认原样一次合成。逐句模式使用 Locale.US BreakIterator，最多64句，去除片段边缘空白、保留顺序与标点，不额外加入静音；算法标识为 breakiterator-en-v1-no-added-silence。每句 seed 为本次显式 base seed + index（31位范围取模），结果逐片段保存实际 effective 配置。原生返回 token limit 时保存已返回的部分 WAV，标记可能截断，停止剩余句子且不进入缓存。
 
-缓存键覆盖精确文本、模型 fingerprint/revision/文件哈希、引擎/补丁/适配器版本、参数 schema、全部有效生成参数（含线程、instruction、seed）、模式及分句算法。实际返回参数与预期不一致的运行也不写缓存索引。播放速度不影响生成缓存键。
+缓存键覆盖精确文本、模型 fingerprint/revision/文件哈希、引擎/补丁/适配器版本、参数 schema、全部有效生成参数（含线程、instruction、seed）、模式及分句算法。实际返回参数与预期不一致、无明确EOS、全静音或非有限PCM不作为成功。缓存身份为speech-cache-v2-validated-output，避免复用旧验证规则下的音频。播放速度不影响生成缓存键。
 
 ## 报告与测量
 
 RunStore 报告 schema=1，记录模型/引擎身份、运行方式、requested、各段实际 effective、WAV 样本数/采样率/哈希、测量及验收状态。失败原生调用只有返回了 effective 才记录 failedSegmentEffective，未进入推理不编造参数快照。
 
-WAV 为单声道 PCM16；从实际 FloatArray 顺序写入，检查 NaN/Infinity、采样率一致性和文件大小，记录限幅样本数。音频时长=样本数/采样率；RTF=(native generateMillis + decodeMillis)/1000/音频秒数。逐段同时保留 tokenize、generate、decode、native total。loadMillis 是原生加载耗时；端到端 elapsedMillis 还包含私有校验等外围工作，但不含最终报告提交。未提供独立精确保存耗时或流式首PCM指标，firstPcmLatencyMillis 为 null。
+WAV 为单声道 PCM16；从实际 FloatArray 顺序写入，检查 NaN/Infinity、采样率一致性和文件大小，记录限幅样本数。音频时长=样本数/采样率；RTF=(native generateMillis + decodeMillis)/1000/音频秒数。逐段同时保留 tokenize、generate、decode、native total。loadMillis 是原生加载耗时；端到端 elapsedMillis 还包含私有校验等外围工作，但不含最终报告提交。0.3.1新增原生textTokens、generatedFrames、generationSteps、EOS/触顶、prefillMillis及tokenGenerationMillis；prefill含提示构建/图准备/KV初始化/预填充前向，generateMillis仍含这些阶段。WAV写入及fsync单独计时；报告最终哈希/提交仍不计入elapsedMillis。firstPcmLatencyMillis继续为null。
 
 Android 端使用 elapsedRealtimeNanos 单调计时；PSS 以200ms固定延迟采样，保留真实时间戳、最大实际间隔、样本数、错误数、采样峰值。最多保留6000条，超过后保留前5999条与最新一条并标记截断；峰值仍汇总全部成功采样。温度是电池温度，热状态是 Android 等级，均不可冒充 CPU 温度；PSS 不是瞬时绝对峰值。报告另含 ABI、系统、设备、逻辑处理器数和实际页大小。
 
@@ -102,17 +102,21 @@ Android 端使用 elapsedRealtimeNanos 单调计时；PSS 以200ms固定延迟�
 
 新增精确 ModelDescriptor、受信任 engines/<id>、任务专属 contracts/<task> 和 features/<task>，由 runtime 显式装配并增加入口。复用 core 的安装、租约、任务排他、取消、通用采样、事务存储；新任务返回自身结果/指标，不实现虚假的语音接口或 WAV/RTF。新引擎自行拥有参数 schema 与显式迁移，不引用 Qwen 内部实现。是否拆分 Gradle 模块留给实际第二引擎加入时由总控决定。
 
-下一步由总控合入第12节最小差异、完成正式App打包，并补第11/12节新增设备项；原生/API29及第9节试听证据在未变化范围沿用。
+当前0.3.1的修复与未闭环设备项见SOURCE_MANIFEST第13节；旧第9节单次试听不推广到正式候选。
 
 ## 0.2.0兼容入口与共用队列
 
 SpeechFeature的request=null入口从空白输入/粘贴开始，不读取probe-sample.txt，也不会因缺少样例阻塞。ModelProbeFeature继续使用原样例与诊断UI。正式入口收到请求只展示预览和设置，用户点击生成才计算。FULL取所有英文段落，PARAGRAPH必须有有效索引，SENTENCE必须非空且是指定段落的精确子串；越界或不匹配显示错误，不回退到全文。
 
-ReadingPlanner最多接收256段、100000个UTF-16字符，生成最多256片，每片最多800个Unicode code point。优先在句末切分，超长句优先在空白处切分，极端长词按完整code point切分。每片都是原文连续切片，保留顺序/标点及段、句、offset标识；范围选择与个性化要求不会改写正文。固定68词段落可在一片内保持原样；诊断入口的完整段落模式仍未改成队列。
+ReadingPlanner最多接收256段、100000个UTF-16字符；原段/唯一句定位保持，只有选中段参与内容合法性校验。预览/保留身份使用800码点的规范分片，执行时按参数重规划：Qwen取clamp((maxAudioTokens-64)/2,24,400)码点，优先句/词边界，最多1024片。该预算是保守启发式，不保证EOS；不删编号/正常数字、不补写文本。功能1已按target元数据去学习编号，缓存和正文身份均针对收到的干净字符串。
+
+队列仅对token_limit按原句/词边界一分为二，单支最多2层、整请求最多32次重分片、总叶子最多1024；不加大用户帧上限，不重试取消、原生异常或无词边界的短片。未触发重试时仍为baseSeed+index；发生重试后按实际尝试序号派生seed并逐次报告。被替换的失败尝试只保留为证据，不把它的PCM再拼入最终成功音频；childRunIds覆盖全部尝试以便引用/回收。最终未恢复片仍可保留明确标token_limit的部分音频，但不会成为最新成功或缓存。
+
+父报告新增attempts（输入hash/长度、requested与effective来源、终止/PCM/阶段时间）、初始/最终计划数、重分片数、timing与firstCompletedSegmentMillis。此首片指标是第一次完整子WAV提交的耗时，不是流式首PCM或已自动播放；正式条仍播放完整父音频。阶段汇总仅累加已返回且可测的片段，缓存不算新推理；异常原生调用缺失细分耗时须看freshAttempts与覆盖数，不用0代替不可测。
 
 ReadingInbox按requestId去重；新ID同文本可进入，忙时保留待切换请求，用户确认停止后等待原任务真实退出再打开新预览，不自动生成。正式两个入口共享同Activity的speech-runtime ViewModel和任务串行器，ReadingEntryMemory分别保存独立页草稿与文章请求状态。request=null恢复自己的输入，返回模式由本次入口参数决定；旋转/重复重组不重复消费或启动生成。
 
-ReadingQueue顺序调用SpeechService，每片先保存WAV和子报告，再开始下一片；优先复用正文/模型/参数全部匹配的缓存，随机seed仍真实生成。整次只解析一个显式base seed，逐片派生；group报告保留原requested与resolved base，子报告记录实际effective。失败、取消、触顶立即停止余下队列，保留已完成片段，完整完成状态只在所有计划片段成功或命中缓存时成立。
+ReadingQueue顺序调用SpeechService，每片先保存WAV和子报告，再开始下一片；优先复用正文/模型/参数全部匹配的缓存，随机seed仍真实生成。整次只解析一个显式base seed，逐片派生；group报告保留原requested与resolved base，子报告记录实际effective。失败、取消或有限触顶恢复耗尽才停止余下队列，保留已完成片段；只有全部最终片段成功或命中缓存才标完整完成。
 
 子报告新增可选reading上下文（session/request ID、标题、范围、片段及原文offset），不保存正文。最后把可用子WAV按原顺序流式合并成独立PCM16 WAV与speech.reading.v1父报告，不额外加静音；部分完成明确标注，合并失败仍保留子文件。取消后的保存只完成已有片段的事务，不启动新的native任务。进程在父报告提交前结束时，已经提交的子音频作为可恢复历史显示；不会隐藏或自动续跑。
 
@@ -151,3 +155,10 @@ documentId作为不透明身份（本次word-memory:<notebookId>）校验并参�
 播放校验开始前取得租约，播放器实际release后才归还（暂停仍持有）；SAF选择器打开前固定ID并持有导出租约，取消选择或完成拷贝后归还；队列生成/合并持有源片段租约。用户确认删除时停止播放，工作中则排队，导出或共享引用尚在时登记待回收；不会提前移除正在使用的文件。删除范围仅本宿主私有results/cache-index，模型、文章、其他数据库、仓库文件及用户已导出文档都不在这条清理链。
 
 升级不猜测旧记录归属：无稳定retention身份的0.1/0.2项目继续保留并可手动删除；同标题、正文hash或随机requestId不是自动合并依据。独立旧生成记录即使作为新父项目的缓存源，也保留其独立所有权，删除父项目不会自动删除它。新子报告的稳定retentionKey可以证明父提交前中断的孤儿片段归属，之后该范围成功生成可安全回收无引用旧片段。没有用户数据库迁移或开发机真实资料清理。
+
+
+## 0.3.1 单段恢复与设备边界
+
+同一活动范围的新requestId/重组不再启动重复历史读取任务；离开后再次进入仍读取一次。读取最新结果异常必须清除switching并显示原因；生成门控拒绝有明确说明。失败、触顶、取消后由真实worker退出释放busy；下一次显式选择/生成重新核对target和参数。播放仍要求当前逻辑范围、正文/参数/模型/engineVersion与最新成功一致；旧完整音频不因失败被删。控件尺寸和导航不变，动态进度使用实际预算/重分片后的总数。
+
+这些修复不证明用户001按钮与怪音的真实故障已复现或修好。SOURCE_MANIFEST第13节严格区分JVM模拟、Android源码/AAR编译、原始FULL失败样本及待设备同文A/B。新原生只增加观测和EOS判定；模型、采样算法、重复惩罚、KV/解码策略未改。

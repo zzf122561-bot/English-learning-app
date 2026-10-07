@@ -84,7 +84,8 @@ internal class ProbeViewModel(context: Context, private val diagnostic: Boolean 
             val manifest = runCatching { app.assets.open("models/manifest.json").use { ModelCatalog(listOf(descriptor)).parseManifest(it.boundedText(65536)) } }
             var settingMessage = ""
             val (config, preferences) = runCatching {
-                settings.load(descriptor.modelId, descriptor.engineVersion, 2)?.let {
+                settings.load(descriptor.modelId, descriptor.engineVersion, 2,
+                    if (descriptor == QwenModel.descriptor) setOf(QwenModel.PREVIOUS_ENGINE_VERSION) else emptySet())?.let {
                     QwenConfiguration.fromJson(it.getJSONObject("generation")) to SpeechPreferences.fromJson(it.getJSONObject("speech"))
                 } ?: (QwenConfiguration() to SpeechPreferences())
             }.getOrElse { settingMessage = "设置读取失败，已恢复默认，原文件保留：${it.message}"; QwenConfiguration() to SpeechPreferences() }
@@ -108,9 +109,10 @@ internal class ProbeViewModel(context: Context, private val diagnostic: Boolean 
             message = if (runs.maintenanceIssue != null && !it.message.contains("旧音频待回收")) "${it.message}；旧音频待回收：${runs.maintenanceIssue}" else it.message,
             hasSynthesis = it.hasSynthesis || history.any { run -> run.status == "success" || run.status == "token_limit" }) }
     }
-    private fun work(title: String, action: (WorkToken) -> Unit) {
-        if (disposed) return
-        runner.submit { token ->
+    private fun work(title: String, action: (WorkToken) -> Unit) { submitWork(title, action) }
+    private fun submitWork(title: String, action: (WorkToken) -> Unit): Boolean {
+        if (disposed) return false
+        return runner.submit { token ->
             started = SystemClock.elapsedRealtimeNanos()
             mutable.update { it.copy(message = title, elapsedSeconds = 0, progress = null) }
             try { action(token) }
@@ -363,14 +365,18 @@ internal class ProbeViewModel(context: Context, private val diagnostic: Boolean 
     }
     private fun refreshInlineLatest() {
         val target = inline.value.target ?: return
-        val latest = runs.latest(target.key)
+        val result = runCatching { runs.latest(target.key) }
         mutableInline.update { current ->
             if (current.target?.key != target.key || current.target.bodyKey != target.bodyKey) current
-            else current.copy(latest = latest, switching = false)
+            else current.copy(latest = result.getOrNull(), switching = false,
+                error = result.exceptionOrNull()?.let { "读取此范围音频失败：${it.message}；可重新生成" } ?: current.error)
         }
         matchInlineSettings()
+        if (result.isSuccess) mutable.update { it.copy(message = if (inline.value.matchesSettings) "此范围已有完整音频，可直接播放"
+            else if (result.getOrNull() == null) "此范围尚无完整音频，点击生成朗读" else "正文或设置已变化，可重新生成") }
     }
     fun enterInline(documentId: String, request: SpeechReadingRequest) {
+        val wasActive = inlineActive
         inlineActive = true
         val result = runCatching { ReadingTarget(documentId, ReadingPlanner.create(ReadingInput(request.requestId, request.title,
             request.englishParagraphs.toList(), ReadingSelection(ReadingScope.valueOf(request.scope.name), request.paragraphIndex, request.sentenceText)))) }
@@ -385,12 +391,14 @@ internal class ProbeViewModel(context: Context, private val diagnostic: Boolean 
         val old = inline.value.target
         if (old?.key == target.key && old.bodyKey == target.bodyKey) {
             mutableInline.update { it.copy(target = target) }; matchInlineSettings()
-            if (!state.value.busy) { inlineLookupPending = true; onWorkerIdle() }
+            // Recomposition/new request IDs for an unchanged range must not repeatedly occupy
+            // the only worker and race an explicit Generate click. Re-entry still reloads once.
+            if (!wasActive) { inlineLookupPending = true; onWorkerIdle() }
             return
         }
         stopPlayback()
         val stopping = state.value.busy && initialized
-        mutableInline.value = InlineReadingState(target = target, switching = stopping)
+        mutableInline.value = InlineReadingState(target = target, switching = stopping, planned = target.plan.items.size)
         inlineLookupPending = true
         if (stopping) {
             cancel()
@@ -406,25 +414,30 @@ internal class ProbeViewModel(context: Context, private val diagnostic: Boolean 
         matchInlineSettings()
         if (inlineActive && inline.value.matchesSettings && !state.value.busy && !inline.value.switching)
             inline.value.latest?.let { play(it.id) }
+        else mutable.update { it.copy(message = if (state.value.busy || inline.value.switching) "当前任务退出后才可播放"
+            else "此范围还没有匹配的完整音频，请先生成") }
     }
     fun generateInline() {
-        if (!inlineActive || state.value.busy || inline.value.switching) return
-        val target = inline.value.target ?: return
-        val params = runCatching { form.value.parse() }.getOrElse { return }
+        fun reject(message: String) { mutable.update { it.copy(message = message) } }
+        if (!inlineActive) { reject("朗读页面已离开，请回到文章重新选择范围"); return }
+        if (state.value.busy || inline.value.switching) { reject("上一任务尚未退出，请等待或取消后再生成"); return }
+        val target = inline.value.target ?: run { reject(inline.value.error.ifBlank { "请先选择有效朗读范围" }); return }
+        val params = runCatching { form.value.parse() }.getOrElse { reject("参数无效，请到语音设置检查：${it.message}"); return }
         stopPlayback()
-        mutableInline.update { it.copy(completed = 0, activeItem = "", error = "") }
-        work("生成${target.label}；旧音频保留至新结果完整保存") { token ->
+        mutableInline.update { it.copy(completed = 0, planned = target.plan.items.size, activeItem = "", error = "") }
+        val accepted = submitWork("生成${target.label}；旧音频保留至新结果完整保存") { token ->
             check(supportedAbi && state.value.installed) { "请先到“语音”页准备本地模型" }
             val saved = ReadingQueue(service, runs, metrics::nowNanos).generate(target.plan, params, token,
                 reuse = runs.latest(target.key) == null, target = target) { update ->
                 mutableInline.update { current -> if (current.target?.key != target.key || current.target.bodyKey != target.bodyKey) current
-                    else current.copy(activeItem = update.item.label,
-                        completed = if (update.state in setOf("success", "cache")) update.item.index + 1 else current.completed) }
+                    else current.copy(activeItem = update.item.label + if (update.state == "repartitioning") " · 触顶后分片重试" else "",
+                        completed = update.completed, planned = update.total) }
             }
             refreshInlineLatest()
             mutable.update { it.copy(message = if (saved.status == "success") "新音频已保存，可边看文章边播放"
-                else "${runStatusTitle(saved.status)}；原有完整音频仍保留，已完成部分可在音频管理中导出") }
+                else "${runStatusTitle(saved.status)}；${saved.report.optString("error").takeUnless { error -> error == "null" }.orEmpty()}。可再次生成，原有完整音频仍保留") }
         }
+        if (!accepted) reject("生成尚未启动：运行器仍有任务，请等待退出后重试")
     }
     fun deleteGenerated(id: String) {
         stopPlayback()

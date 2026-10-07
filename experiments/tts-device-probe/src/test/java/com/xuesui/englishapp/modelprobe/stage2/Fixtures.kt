@@ -41,11 +41,14 @@ internal class FakeSpeechEngine(override val descriptor: ModelDescriptor) : Spee
     var action: ((WorkToken) -> Unit)? = null
     var limit = false
     val requests = mutableListOf<SpeechParameters>()
+    val texts = mutableListOf<String>()
+    var response: ((String, SpeechParameters) -> SpeechAudio)? = null
     override fun load(lease: ModelLease, threads: Int, token: WorkToken): Long {
         unload(); token.check(); this.lease = lease; loaded = true; loads++; return 100
     }
     override fun synthesize(text: String, parameters: SpeechParameters, token: WorkToken): SpeechAudio {
-        check(loaded); calls++; requests.add(parameters); action?.invoke(token); token.check()
+        check(loaded); calls++; requests.add(parameters); texts.add(text); action?.invoke(token); token.check()
+        response?.let { return it(text, parameters) }
         return SpeechAudio(FloatArray(240) { if (it % 2 == 0) 0.2f else -0.2f }, 24000, parameters, 3, 20, 5, 28, limit)
     }
     override fun unload() { unloads++; lease?.close(); lease = null; loaded = false }

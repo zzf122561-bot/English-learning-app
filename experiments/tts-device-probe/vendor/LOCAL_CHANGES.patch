@@ -135,16 +135,22 @@
      std::vector<int32_t> text_tokens = self.tokenizer_.encode_for_tts(text);
      std::vector<int32_t> instruct_tokens;
      if (!params.instruction.empty()) {
-@@ -1502,6 +1504,8 @@
+@@ -1502,6 +1504,14 @@
  
      int n_codebooks = self.transformer_.get_config().n_codebooks;
      int n_frames = (int) generated_codes.size() / n_codebooks;
-+    // Local probe patch: conservative marker, not proof of missing speech.
-+    result.hit_token_limit = n_frames >= params.max_audio_tokens;
++    const auto & observed = self.transformer_.get_probe_generation();
++    result.hit_token_limit = !observed.eos_reached;
++    result.probe_text_tokens = (int32_t) text_tokens.size();
++    result.probe_generated_frames = n_frames;
++    result.probe_generation_steps = observed.steps;
++    result.probe_termination = observed.eos_reached ? "eos" : "token_limit";
++    result.probe_prefill_ms = observed.prefill_ms;
++    result.probe_token_loop_ms = observed.token_loop_ms;
  
      if (params.print_progress) {
          fprintf(stderr, "Speech codes generated: %d frames x %d codebooks\n", n_frames, n_codebooks);
-@@ -1664,6 +1668,8 @@
+@@ -1664,6 +1674,8 @@
          }
      }
  
@@ -155,24 +161,46 @@
          return result;
 --- a/vendor/qwen3-tts/src/qwen3_tts.h
 +++ b/vendor/qwen3-tts/src/qwen3_tts.h
-@@ -95,6 +95,8 @@
+@@ -95,6 +95,15 @@
      
      // Success flag
      bool success = false;
 +    // Local probe patch (2026-10-02): possible truncation at requested frame cap.
 +    bool hit_token_limit = false;
++    // Local probe diagnostics: observed EOS versus loop budget, not inferred from PCM length.
++    int32_t probe_text_tokens = 0;
++    int32_t probe_generated_frames = 0;
++    int32_t probe_generation_steps = 0;
++    std::string probe_termination = "failed";
++    int64_t probe_prefill_ms = 0;
++    int64_t probe_token_loop_ms = 0;
      
      // Error message if failed
      std::string error_msg;
 --- a/vendor/qwen3-tts/src/transformer/transformer_generate.cpp
 +++ b/vendor/qwen3-tts/src/transformer/transformer_generate.cpp
-@@ -1,4 +1,5 @@
+@@ -1,9 +1,11 @@
  #include "tts_transformer.h"
 +#include "gguf_loader.h"
  #include "transformer/transformer_state_internal.h"
  #include "transformer/transformer_internal.h"
  #include "transformer/transformer_sampling.h"
-@@ -94,6 +95,8 @@
+ 
+ #include <algorithm>
++#include <chrono>
+ #include <cmath>
+ #include <cstdio>
+ #include <cstdlib>
+@@ -57,6 +59,8 @@
+                               int32_t n_reference_frames,
+                               int32_t n_reference_codebooks,
+                               const tts_code_frame_callback_t * frame_callback) {
++    probe_generation_ = {};
++    const auto probe_start = std::chrono::steady_clock::now();
+ #ifdef QWEN3_TTS_TIMING
+     using clk = std::chrono::high_resolution_clock;
+     tts_timing timing = {};
+@@ -94,6 +98,8 @@
      }
  
      std::vector<float> prefill_embd;
@@ -181,7 +209,15 @@
      std::vector<float> trailing_text_hidden;
      std::vector<float> tts_pad_embed;
  
-@@ -230,6 +233,8 @@
+@@ -224,12 +230,16 @@
+     output.reserve(max_len * cfg.n_codebooks);
+ 
+     int32_t n_past = prefill_len;
++    const auto probe_loop_start = std::chrono::steady_clock::now();
++    probe_generation_.prefill_ms = std::chrono::duration_cast<std::chrono::milliseconds>(probe_loop_start - probe_start).count();
+     std::vector<int32_t> frame_codes(cfg.n_codebooks);
+     std::vector<int32_t> generated_cb0_tokens;
+     transformer_sampling_state sampling{resolve_sampling_seed(seed), 0};
      const int32_t suppress_start = std::min(cfg.code_pred_vocab_size, cfg.codec_vocab_size);
  
      for (int frame = 0; frame < max_len; ++frame) {
@@ -190,6 +226,30 @@
          const bool trace_frame = transformer_internal::debug_trace_should_dump_frame(trace_cfg, frame);
          if (trace_frame) {
              char raw_name[128];
+@@ -268,6 +278,7 @@
+         }
+ 
+         if (next_token == cfg.codec_eos_id) {
++            probe_generation_.eos_reached = true;
+             if (trace_frame) {
+                 int32_t eos_token = next_token;
+                 char eos_name[128];
+@@ -278,6 +289,7 @@
+         }
+ 
+         const bool is_thinking = (next_token >= cfg.codec_think_id && next_token <= cfg.codec_think_eos_id);
++        probe_generation_.steps = frame + 1;
+         if (is_thinking) {
+             fprintf(stderr, "  [frame %d] Filtering thinking token: %d\n", frame, next_token);
+         }
+@@ -368,6 +380,7 @@
+         n_past++;
+     }
+ 
++    probe_generation_.token_loop_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - probe_loop_start).count();
+ #ifdef QWEN3_TTS_TIMING
+     timing.t_generate_total_ms = std::chrono::duration<double, std::milli>(clk::now() - t_gen_start).count();
+     impl_->timing = nullptr;
 --- a/vendor/qwen3-tts/src/transformer/transformer_loader_tensors.cpp
 +++ b/vendor/qwen3-tts/src/transformer/transformer_loader_tensors.cpp
 @@ -44,6 +44,7 @@
@@ -209,6 +269,39 @@
              error_msg = "Failed to read tensor data: " + std::string(name);
              fclose(f);
              release_preferred_backend(backend);
+--- a/vendor/qwen3-tts/src/tts_transformer.h
++++ b/vendor/qwen3-tts/src/tts_transformer.h
+@@ -82,6 +82,14 @@
+                                                      int32_t frame_index)>;
+ 
+ // TTS Transformer class
++// Local probe observation only; no sampling or prompt changes.
++struct probe_generation_info {
++    bool eos_reached = false;
++    int32_t steps = 0;
++    int64_t prefill_ms = 0;
++    int64_t token_loop_ms = 0;
++};
++
+ class TTSTransformer {
+ public:
+     TTSTransformer();
+@@ -176,6 +184,7 @@
+                   const tts_code_frame_callback_t * frame_callback = nullptr);
+     
+     const tts_transformer_config & get_config() const;
++    const probe_generation_info & get_probe_generation() const { return probe_generation_; }
+     
+     const std::string & get_error() const { return error_msg_; }
+ 
+@@ -193,6 +202,7 @@
+                             std::vector<float> & output);
+     
+ private:
++    probe_generation_info probe_generation_;
+     friend struct transformer_internal::ops;
+ 
+     bool forward_step_internal(const float * step_embd,
 --- a/vendor/ggml/CMakeLists.txt
 +++ b/vendor/ggml/CMakeLists.txt
 @@ -10,23 +10,8 @@

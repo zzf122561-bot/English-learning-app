@@ -52,6 +52,8 @@ internal class QwenNativeResult(
     val tokenizeMillis: Long, val generateMillis: Long, val decodeMillis: Long,
     val totalMillis: Long, val hitTokenLimit: Boolean,
     val effective: QwenNativeParameters?,
+    val textTokens: Int, val generatedFrames: Int, val generationSteps: Int,
+    val termination: String, val prefillMillis: Long, val tokenGenerationMillis: Long,
 )
 internal data class QwenRunSnapshot(val requested: QwenNativeParameters, val result: QwenNativeResult)
 
