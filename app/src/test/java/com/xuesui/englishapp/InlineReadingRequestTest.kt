@@ -58,4 +58,22 @@ class InlineReadingRequestTest {
         assertNotEquals(request(text = listOf("a", "bc"))!!.requestId,
             request(text = listOf("ab", "c"))!!.requestId)
     }
+
+    @Test fun cleanedReadingTextChangesContentIdentityWithoutChangingDocumentScope() {
+        val old = request(text = listOf("A0001. Learners pay 12.50 in 2026."), index = 0)!!
+        val clean = request(text = listOf("Learners pay 12.50 in 2026."), index = 0)!!
+        assertNotEquals(old.requestId, clean.requestId)
+        assertEquals(old.paragraphIndex, clean.paragraphIndex)
+        assertEquals(SpeechReadingScope.PARAGRAPH, clean.scope)
+        assertEquals("Learners pay 12.50 in 2026.", clean.englishParagraphs.single())
+        assertEquals(clean.requestId, request(title = "Renamed", text = clean.englishParagraphs, index = 0)!!.requestId)
+    }
+
+    @Test fun paragraphRequestPreservesIndexDespiteUnselectedInvalidText() {
+        val selected = request(text = listOf("A valid first paragraph.", "", "中文备注"), index = 0)!!
+        assertEquals(0, selected.paragraphIndex)
+        assertEquals(3, selected.englishParagraphs.size)
+        assertEquals(SpeechReadingScope.PARAGRAPH, selected.scope)
+        assertEquals("A valid first paragraph.", selected.englishParagraphs[0])
+    }
 }
