@@ -9,6 +9,12 @@ internal data class ReadingRequest(
 
 internal fun wordMemoryDocumentId(notebookId: Long): String = "word-memory:$notebookId"
 
+internal fun readingSelectionNotice(paragraphIndex: Int?, sentenceText: String?): String = when {
+    paragraphIndex == null -> "朗读范围已选为全文，请点击下方“生成朗读”。"
+    sentenceText == null -> "朗读范围已选为第 ${paragraphIndex + 1} 段，请点击下方“生成朗读”。"
+    else -> "朗读范围已选为第 ${paragraphIndex + 1} 段中的一句，请点击下方“生成朗读”。"
+}
+
 internal fun buildReadingRequest(
     title: String,
     englishParagraphs: List<String>,
