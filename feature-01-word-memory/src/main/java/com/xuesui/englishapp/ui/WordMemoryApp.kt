@@ -58,6 +58,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.buildAnnotatedString
@@ -71,9 +72,13 @@ import com.xuesui.englishapp.data.NotebookEntity
 import com.xuesui.englishapp.data.StudySegmentWithTargets
 import com.xuesui.englishapp.data.TargetEntity
 import com.xuesui.englishapp.study.StudyFontScale
+import com.xuesui.englishapp.study.ReadingParagraphPreparation
+import com.xuesui.englishapp.study.ReadingTargetMarker
 import com.xuesui.englishapp.study.buildReadingRequest
 import com.xuesui.englishapp.study.deliverReadingRequest
 import com.xuesui.englishapp.study.findLatinWordAtOffset
+import com.xuesui.englishapp.study.prepareReadingParagraph
+import com.xuesui.englishapp.study.readingSelectionNotice
 import com.xuesui.englishapp.study.splitEnglishSentences
 import com.xuesui.englishapp.study.wordMemoryDocumentId
 import com.xuesui.englishapp.ui.theme.Cobalt
@@ -246,7 +251,7 @@ private fun NotebookRow(notebook: NotebookEntity, onOpen: () -> Unit, onRename: 
 }
 
 @Composable
-private fun StudyScreen(
+internal fun StudyScreen(
     notebook: NotebookEntity,
     segments: List<StudySegmentWithTargets>,
     onBack: () -> Unit,
@@ -275,24 +280,57 @@ private fun StudyScreen(
     val startIndex = notebook.lastSegmentIndex.coerceIn(0, (notebook.segmentCount - 1).coerceAtLeast(0))
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = startIndex)
     val orderedSegments = remember(segments) { segments.sortedBy { it.segment.position } }
-    val englishParagraphs = remember(orderedSegments) { orderedSegments.map { it.segment.englishText } }
+    val preparedParagraphs = remember(orderedSegments) {
+        orderedSegments.map { item ->
+            prepareReadingParagraph(
+                storedText = item.segment.englishText,
+                targets = item.targets.map { target ->
+                    ReadingTargetMarker(
+                        key = target.key,
+                        english = target.english,
+                        start = target.englishStart,
+                        end = target.englishEnd,
+                    )
+                },
+            )
+        }
+    }
+    val readingPreparationError = preparedParagraphs
+        .mapIndexedNotNull { index, preparation ->
+            (preparation as? ReadingParagraphPreparation.Invalid)?.let {
+                "第 ${index + 1} 段暂时无法朗读：${it.reason}"
+            }
+        }
+        .firstOrNull()
+    val englishParagraphs = if (readingPreparationError == null) {
+        preparedParagraphs.map { (it as ReadingParagraphPreparation.Ready).text }
+    } else {
+        emptyList()
+    }
     val currentReadingRequested by rememberUpdatedState(onReadingRequested)
     var selectedParagraphIndex by rememberSaveable(notebook.id) { mutableIntStateOf(FULL_ARTICLE_SELECTION) }
     var selectedSentenceText by rememberSaveable(notebook.id) { mutableStateOf<String?>(null) }
     var selectionNotice by remember(notebook.id) { mutableStateOf<String?>(null) }
     val submitReadingRequest = { paragraphIndex: Int?, sentenceText: String? ->
-        val request = deliverReadingRequest(
-            title = notebook.title,
-            englishParagraphs = englishParagraphs,
-            paragraphIndex = paragraphIndex,
-            sentenceText = sentenceText,
-            inlineContentAvailable = readingContent != null,
-            onReadingRequested = currentReadingRequested,
-        )
-        if (readingContent != null && request != null) {
-            selectedParagraphIndex = request.paragraphIndex ?: FULL_ARTICLE_SELECTION
-            selectedSentenceText = request.sentenceText
-            selectionNotice = null
+        if (readingPreparationError != null) {
+            selectionNotice = readingPreparationError
+        } else {
+            val request = deliverReadingRequest(
+                title = notebook.title,
+                englishParagraphs = englishParagraphs,
+                paragraphIndex = paragraphIndex,
+                sentenceText = sentenceText,
+                inlineContentAvailable = readingContent != null,
+                onReadingRequested = currentReadingRequested,
+            )
+            when {
+                request == null -> selectionNotice = "无法选择此朗读范围，请重新选择。"
+                readingContent != null -> {
+                    selectedParagraphIndex = request.paragraphIndex ?: FULL_ARTICLE_SELECTION
+                    selectedSentenceText = request.sentenceText
+                    selectionNotice = readingSelectionNotice(request.paragraphIndex, request.sentenceText)
+                }
+            }
         }
     }
     val selectedReadingRequest = remember(
@@ -339,7 +377,7 @@ private fun StudyScreen(
                     onClick = { submitReadingRequest(null, null) },
                     enabled = englishParagraphs.isNotEmpty(),
                 ) {
-                    Text("全文朗读")
+                    Text(if (readingContent == null) "全文朗读" else "选全文")
                 }
                 IconButton(onClick = { showFontDialog = true }) {
                     Text("Aa", fontWeight = FontWeight.Bold)
@@ -357,6 +395,10 @@ private fun StudyScreen(
                             onDictationChange = { onDictationChange(item.segment.id, it) },
                             fontLevel = displayedFontLevel,
                             onLookupRequested = onLookupRequested,
+                            paragraphIndex = paragraphIndex,
+                            readingParagraphText = englishParagraphs.getOrNull(paragraphIndex).orEmpty(),
+                            readingEnabled = readingPreparationError == null,
+                            inlineSelectionEnabled = readingContent != null,
                             onReadingRequested = { sentenceText ->
                                 submitReadingRequest(paragraphIndex, sentenceText)
                             },
@@ -364,7 +406,7 @@ private fun StudyScreen(
                     }
                     item { Spacer(Modifier.height(42.dp)) }
                 }
-                if (readingContent != null && selectedReadingRequest != null) {
+                if (readingContent != null) {
                     HorizontalDivider(color = Hairline)
                     Column(
                         Modifier
@@ -373,18 +415,27 @@ private fun StudyScreen(
                             .background(Paper)
                             .padding(horizontal = 16.dp, vertical = 10.dp),
                     ) {
-                        selectionNotice?.let { notice ->
+                        (readingPreparationError ?: selectionNotice)?.let { notice ->
                             Text(notice, style = MaterialTheme.typography.labelMedium, color = Slate)
                             Spacer(Modifier.height(6.dp))
                         }
-                        readingContent(
-                            wordMemoryDocumentId(notebook.id),
-                            selectedReadingRequest.title,
-                            selectedReadingRequest.englishParagraphs,
-                            selectedReadingRequest.paragraphIndex,
-                            selectedReadingRequest.sentenceText,
-                        )
+                        selectedReadingRequest?.let { request ->
+                            readingContent(
+                                wordMemoryDocumentId(notebook.id),
+                                request.title,
+                                request.englishParagraphs,
+                                request.paragraphIndex,
+                                request.sentenceText,
+                            )
+                        }
                     }
+                } else if (readingPreparationError != null) {
+                    Text(
+                        readingPreparationError,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
                 }
             }
         }
@@ -410,6 +461,10 @@ private fun StudySegment(
     onDictationChange: (String) -> Unit,
     fontLevel: Int,
     onLookupRequested: (String) -> Unit,
+    paragraphIndex: Int,
+    readingParagraphText: String,
+    readingEnabled: Boolean,
+    inlineSelectionEnabled: Boolean,
     onReadingRequested: (String?) -> Unit,
 ) {
     val segment = data.segment
@@ -431,8 +486,12 @@ private fun StudySegment(
             Spacer(Modifier.width(12.dp))
             Text("${targets.size} TARGETS", style = MaterialTheme.typography.labelMedium, color = Slate)
             Spacer(Modifier.width(6.dp))
-            TextButton(onClick = { showReadingDialog = true }) {
-                Text("朗读")
+            TextButton(
+                onClick = { showReadingDialog = true },
+                modifier = Modifier.testTag("paragraph-reading-$paragraphIndex"),
+                enabled = readingEnabled,
+            ) {
+                Text(if (inlineSelectionEnabled) "选范围" else "朗读")
             }
         }
         Spacer(Modifier.height(19.dp))
@@ -477,7 +536,8 @@ private fun StudySegment(
     }
     if (showReadingDialog) {
         ReadingSelectionDialog(
-            paragraphText = segment.englishText,
+            paragraphText = readingParagraphText,
+            inlineSelectionEnabled = inlineSelectionEnabled,
             onDismiss = { showReadingDialog = false },
             onConfirm = { sentenceText ->
                 onReadingRequested(sentenceText)
@@ -491,6 +551,7 @@ private fun StudySegment(
 @Composable
 private fun ReadingSelectionDialog(
     paragraphText: String,
+    inlineSelectionEnabled: Boolean,
     onDismiss: () -> Unit,
     onConfirm: (String?) -> Unit,
 ) {
@@ -522,8 +583,9 @@ private fun ReadingSelectionDialog(
         confirmButton = {
             TextButton(
                 onClick = { onConfirm(sentences.getOrNull(selectedSentenceIndex)) },
+                modifier = Modifier.testTag("reading-selection-confirm"),
             ) {
-                Text("开始朗读")
+                Text(if (inlineSelectionEnabled) "确认范围" else "开始朗读")
             }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
