@@ -2,6 +2,14 @@
 
 ## 2026-10-14 当前授权：语音0.4.0 / saber1.3.0
 
+### 同日Media3官方依赖阻塞已排除（总控证据沿用）
+
+官方稳定1.11.1保持不变。原dependencies/dependencyInsight超时保留；总控GET通过既有120.253.253.225取得两个官方POM HTTP200（exoplayer2974/session2906 bytes）。Gradle试验在仅GRADLE_OPTS/普通-Dorg.gradle.jvmargs设置下，任务看到hosts属性但InetAddress实际仍为198.18.0.28，POM超时。显式将hosts通过**进程级JAVA_TOOL_OPTIONS**传入，使新构建JVM从启动时启用同一hosts，解析变成120.253.253.225，真实debugRuntimeClasspath解析87制品成功（26s），8个Media3均1.11.1且AAR已落Gradle缓存。无版本/镜像/hosts内容/系统代理修改。
+
+明确授权本任务修改自己tools/test-module.ps1：仅Gradle调用作用域设置 `$env:JAVA_TOOL_OPTIONS = '-Djdk.net.hosts.file=D:/Codex_Project/Codex_EnglishApp/_manager/tools/gradle-hosts.txt'`；调用前保存原值，finally恢复（无原值则移除）；其他既有工具链参数保留。不设置用户/系统环境变量，不改root/global Gradle/代理。该已授权主工作区单文件可读，旧worktree副本无需修改；新JVM启动前设置，不能只在init task或VM已启动后System.setProperty。
+
+额外单文件只读证据：`D:/Codex_Project/Codex_EnglishApp/_manager/local/media3-resolution/resolution-startup-hosts.log`。直接沿用成功依赖获取，不再重复GET/调研/换源；继续模块代码编译和受影响测试。这次只验证依赖解析，不代表Kotlin/AAR/设备通过。总控诊断首次init注册时机失败和随后仅-D方式失败另保留日志；不是模块源码失败。未来若出现不同下载/兼容异常，报告精确错误，不盲目重复。
+
 当前最高优先级实施正文为 `D:/Codex_Project/Codex_EnglishApp/_manager/features/feature-03-speech/V1_3_0_PLAN.md`，明确额外只读授权该单一文件及主工作区PROJECT.md/AGENTS.md/本简报。旧“切页面即停止/单个全文成功才发布”等与新正文冲突的规则被替代，历史证据保留。用户当前反馈语音基本正常，不重复修旧PCM/编号链；实现后台服务、逐段持久队列、Media3播放、直接播放控件和参数说明。
 
 继续在 `C:/Users/zzf86/.codex/worktrees/5551/Codex_EnglishApp/experiments/tts-device-probe` 修改本Library（含本模块build.gradle.kts、Manifest、基线和规则）。允许新增必要Media3固定稳定版本依赖，模块服务及其最小权限可写本模块Manifest；无Activity/Application/launcher。独立宿主及根App接线交总控。原授权工具链/hosts/catalog单文件保持可读，不读功能1/Skill/global memory。更新本模块过期“仅独立验证”的范围说明以反映已授权正式功能，不能扩大其他权限。
