@@ -1,5 +1,13 @@
 # 2026-10-03 正式 App 内嵌语音开发与交接
 
+## 2026-10-14 当前授权：语音0.4.0 / saber1.3.0
+
+当前最高优先级实施正文为 `D:/Codex_Project/Codex_EnglishApp/_manager/features/feature-03-speech/V1_3_0_PLAN.md`，明确额外只读授权该单一文件及主工作区PROJECT.md/AGENTS.md/本简报。旧“切页面即停止/单个全文成功才发布”等与新正文冲突的规则被替代，历史证据保留。用户当前反馈语音基本正常，不重复修旧PCM/编号链；实现后台服务、逐段持久队列、Media3播放、直接播放控件和参数说明。
+
+继续在 `C:/Users/zzf86/.codex/worktrees/5551/Codex_EnglishApp/experiments/tts-device-probe` 修改本Library（含本模块build.gradle.kts、Manifest、基线和规则）。允许新增必要Media3固定稳定版本依赖，模块服务及其最小权限可写本模块Manifest；无Activity/Application/launcher。独立宿主及根App接线交总控。原授权工具链/hosts/catalog单文件保持可读，不读功能1/Skill/global memory。更新本模块过期“仅独立验证”的范围说明以反映已授权正式功能，不能扩大其他权限。
+
+回复总控01a024cb-1fba-7b23-a357-67eb2ad592b4；完成整个本模块增量、相应测试/AAR与交接后一次报告并等待。阻塞/额外契约/依赖获取权限问题即时一次报告，不要求确认回执，不提交Git/生成APK/改根版本，不重跑未受影响旧核验。需平台批准的动作遵守审批，不能以本简报替代。
+
 ## 2026-10-07 当前修复：核心语音设备失败（目标0.3.1）
 
 ### 功能1 0.5.1公共语义交接（已合入，不授权读取其实现）
