@@ -27,6 +27,8 @@ if ($LASTEXITCODE -ne 0 -or !($badging -match "package: name='com.xuesui.english
 if (!($badging -match "^application-label:'saber'$")) { throw 'App label must be lowercase saber' }
 $expectedPermissions = @(
     "uses-permission: name='android.permission.INTERNET'",
+    # Added by the approved Media3 1.11.1 exoplayer/common dependency manifests.
+    "uses-permission: name='android.permission.ACCESS_NETWORK_STATE'",
     "uses-permission: name='com.xuesui.englishapp.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'",
     "uses-permission: name='android.permission.FOREGROUND_SERVICE'",
     "uses-permission: name='android.permission.FOREGROUND_SERVICE_DATA_SYNC'",
@@ -62,9 +64,9 @@ foreach ($service in @(
         }
     }
     if ($found.Count -ne 1 -or
-        $found[0] -notmatch 'android:exported[^\r\n]*=\(type 0x12\)0x0(?:\s|$)' -or
-        $found[0] -notmatch 'android:stopWithTask[^\r\n]*=\(type 0x12\)0x0(?:\s|$)' -or
-        $found[0] -notmatch ('android:foregroundServiceType[^\r\n]*=\(type 0x11\)0x' + $service.type + '(?:\s|$)')) {
+        $found[0] -notmatch 'android:exported[^\r\n]*=(?:false|\(type 0x12\)0x0)(?:\s|$)' -or
+        $found[0] -notmatch 'android:stopWithTask[^\r\n]*=(?:false|\(type 0x12\)0x0)(?:\s|$)' -or
+        $found[0] -notmatch ('android:foregroundServiceType[^\r\n]*=(?:\(type 0x11\))?0x0*' + $service.type + '(?:\s|$)')) {
         throw "Packaged service contract mismatch: $($service.name)"
     }
     $serviceChecks += @{name=$service.name;manifest=$found[0];exported=$false;stopWithTask=$false}

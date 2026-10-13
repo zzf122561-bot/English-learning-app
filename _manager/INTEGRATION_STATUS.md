@@ -2,7 +2,8 @@
 
 ## 2026-10-14 saber1.3.0实施中
 
-- 总控接收语音0.4.0首次完整交付：66项定向JVM（65通过/1环境跳过）、Android源码/AAR/Lint证据沿用SOURCE_MANIFEST第14节；只要求将新服务45分钟主动预算修正为5小时50分、保留系统更早超时约束，等待定向回报。宿主播放槽/RuntimeHost/1.3.0-code8及签名归档检查已准备，尚未构建。
+- 总控接收语音0.4.0完整交付及350分钟预算修正：模块c45be63、合并8192603；66项定向JVM（65通过/1环境跳过）与新增2项预算测试、Android源码/AAR/Lint证据沿用SOURCE_MANIFEST第14节，不重跑。合并只解决STATUS历史段。功能1实际builder定向测试bb5691e/合并64f7d5f已通过1项（非skip），保留2026/3.14且不改原文；不重复39项。Skill迁移已接收，三任务完成后等待设备反馈。
+- 首次根App集成构建8192603成功（2m57s），18项宿主测试全通过、1 Application/3 Library边界通过。打包前检查确认Media3 1.11.1 exoplayer/common Manifest自动带入ACCESS_NETWORK_STATE，明确加入权限清单；aapt2新版打印false/0x00002001，归档脚本按实测格式兼容而不放宽服务取值。将从包含测试交接与该脚本修正的最终干净提交增量构建，尚未归档交付。
 - 已读取生成器授权MANAGER_OUTBOX接收共享Skill迁移：1412词及既有使用历史保留、唯一活动词库、显式schema1→2、并发/幂等门禁和隔离测试通过。报告原跨任务发送被平台拒绝的事实保留，不重试绕过；详细证据仅引用 `short-story-generator/MANAGER_OUTBOX.md`（Git外）。剩余合成DOCX→App parser/cleaner缺口已在功能1原简报授权两个精确fixture路径；没有词库/成品进入Git或APK。
 
 - 语音依赖网络阻塞已由总控排除：Media3官方稳定1.11.1未更换，进程级JAVA_TOOL_OPTIONS使实际构建JVM启动时读取既有hosts；debugRuntimeClasspath实际解析87制品（8个Media3）成功，26s。精确授权/复现和失败证据边界只维护于语音BRIEFING同日节，已续派模块编译；不等同模块代码/AAR或手机验收。根App正式构建也须以相同进程级启动参数传hosts，不能仅依赖GRADLE_OPTS。

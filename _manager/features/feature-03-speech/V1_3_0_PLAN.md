@@ -1,6 +1,6 @@
 # saber 1.3.0 已批准实施契约
 
-批准日期：2026-10-14。状态：implementation_in_progress（功能1已交付合并；语音、Skill、宿主集成及设备验收尚未完成，动态证据统一见INTEGRATION_STATUS.md）。本文件是本轮唯一产品/跨模块契约正文，各任务简报引用而不重复复制。
+批准日期：2026-10-14。状态：integration_in_progress（功能1、语音、Skill已接收，根App初次构建通过，候选归档与设备验收未完成；动态证据统一见INTEGRATION_STATUS.md）。本文件是本轮唯一产品/跨模块契约正文，各任务简报引用而不重复复制。
 
 ## 范围、版本与证据
 
