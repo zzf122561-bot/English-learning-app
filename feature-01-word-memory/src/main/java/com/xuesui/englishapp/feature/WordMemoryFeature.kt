@@ -20,11 +20,17 @@ fun WordMemoryFeature(
         paragraphIndex: Int?,
         sentenceText: String?,
     ) -> Unit)? = null,
+    playbackControl: (@Composable (
+        documentId: String,
+        title: String,
+        englishParagraphs: List<String>,
+        paragraphIndex: Int?,
+    ) -> Unit)? = null,
 ) {
     val context = LocalContext.current.applicationContext
     val repository = NotebookRepository(WordMemoryDatabase.getInstance(context))
     WordMemoryTheme {
         val model: WordMemoryViewModel = viewModel(factory = WordMemoryViewModel.Factory(repository))
-        WordMemoryApp(model, onLookupRequested, onReadingRequested, readingContent)
+        WordMemoryApp(model, onLookupRequested, onReadingRequested, readingContent, playbackControl)
     }
 }
