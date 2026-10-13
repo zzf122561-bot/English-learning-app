@@ -65,13 +65,33 @@
 | v0.5.0 原页底部槽/边看边听 | 未实机验证；滚动状态为结构性保留证据，触摸、旋转、生成和播放待总控集成后验证 |
 | v0.5.1 首段点击与去编号 | 编号清理已有 JVM 执行证据；点击→槽为 Android UI 测试源码编译证据，未在设备执行；生成/播放不在本模块内 |
 | v0.6.0 全文/本段直接播放入口 | 公共接口、响应布局和接线测试源码已编译；无设备执行，不声称触摸、窄屏/大字体视觉、宿主播放状态或声音通过 |
-| `story-docx-v1` | 合成 fixture 的 parser→cleaner JVM 契约已通过；真实生成器 fixture 尚未由总控转交，不冒充真实生成文档验收 |
+| `story-docx-v1` | 仓库内合成单元 fixture 已通过；生成器实际 builder 的最终合成 DOCX 也已完成一次定向 parser→cleaner 比对，详见下节；两者都不等同实机导入或朗读验收 |
 
 验证过程记录：首次 `compileDebugAndroidTestKotlin` 因当前 Compose 测试库不提供 `assertExists` 扩展而失败；仅将测试存在性断言改为同版本支持的 `fetchSemanticsNode`，随后按相同任务完整重跑并成功。主功能实现未因该失败改用替代行为。
 
+## 生成器最终合成 fixture 定向补验（2026-10-14）
+
+- 只读取总控授权的两个精确外部文件，没有扫描目录、读取 Skill/词库或把 fixture 复制进 Git：
+  - `D:\Codex_Project\Codex_EnglishApp\short-story-generator\fixtures\story-docx-v1\20261014\（A0001-A0004）20261014.docx`
+  - `D:\Codex_Project\Codex_EnglishApp\short-story-generator\fixtures\story-docx-v1\20261014\（A0001-A0004）20261014.expected.json`
+- DOCX 实测大小为 37191 bytes，SHA-256 为 `18CC2A65BC64798A26A6C86438CAF118DDF20A712AEEB02796108A00276885F5`，与总控简报及预期 JSON 一致。
+- 新增 `GeneratorStoryDocxFixtureTest`，通过环境变量定向启用外部 fixture；未配置路径的普通模块运行会跳过这一项，避免把仓库测试永久绑定到项目外文件。定向运行必须显式传入两个授权路径，不能把“跳过”记为通过。
+- 测试实际走当前 `DocxNotebookParser` 和 `prepareReadingParagraph`，核对 `story-docx-v1`、标题 `The 2026 Compass`、2 个学习段、4 个目标、显示正文逐段不变、纯净英文逐段与预期 JSON 完全一致，并确认 `2026`、`3.14` 保留。
+- 精确执行命令如下；只运行新增测试类，没有重复原 39 项：
+
+```powershell
+$env:WORD_MEMORY_GENERATOR_FIXTURE_DOCX = 'D:\Codex_Project\Codex_EnglishApp\short-story-generator\fixtures\story-docx-v1\20261014\（A0001-A0004）20261014.docx'
+$env:WORD_MEMORY_GENERATOR_FIXTURE_EXPECTED = 'D:\Codex_Project\Codex_EnglishApp\short-story-generator\fixtures\story-docx-v1\20261014\（A0001-A0004）20261014.expected.json'
+& 'feature-01-word-memory\tools\test-module.ps1' -Tasks @(':feature-01-word-memory:testDebugUnitTest', '--tests', 'com.xuesui.englishapp.docx.GeneratorStoryDocxFixtureTest')
+```
+
+- 最终结果：`1 test / 0 failures / 0 errors / 0 skipped`，测试时间 0.137 秒；功能目录 APK 数量仍为 0。
+- 首次定向编译因 Android 单元测试编译环境不提供 `Files.readString` 而失败；仅将测试 JSON 读取改为兼容的 `Files.readAllBytes + UTF-8`，随后使用相同 fixture 和相同定向任务重跑成功，产品源码未修改。
+- 证据边界：这证明实际 builder 合成 DOCX 与当前 parser→cleaner 契约相容；不证明系统文件选择器、Room 导入、界面、生成语音、播放或实机流程通过。本轮没有重建 AAR，也没有执行设备测试。
+
 ## 下一道门槛
 
-v0.6.0 已由总控提交519c487并接收本地集成，39项JVM、Android源码编译和AAR证据直接沿用，不按报告中的旧“复跑”要求重复验证。已完成公共播放槽、直接入口、独立“生成全文”菜单、窄屏布局和合成文档契约测试。下一步等待语音交付后总控接入宿主播放控件；真实生成器fixture到位后只补缺口导入链验证，设备执行触摸/窄屏/状态仍待用户。功能对话停止等待，不自行提交、签名或发版。
+v0.6.0 已由总控提交519c487并接收本地集成，39项JVM、Android源码编译和AAR证据直接沿用，不重复验证。后续实际builder fixture定向测试提交bb5691e，1项非跳过通过，产品源码未变。根App播放控件已接线并完成初次编译/18项宿主测试；最终APK归档见总控发布记录。设备仍需系统导入、全文/本段入口、窄屏/大字体、生成/播放分离及既有学习行为回归。功能对话停止等待，不自行提交、签名或发版。
 
 历史v0.5.1交接：提交1453bdb，AAR 275840 bytes，SHA-256 `1B5D84832CCF57E9D2847AA79C699A74C6721135F9D5546A443575D818149EA3`。该阶段修正编号输入并补首段UI测试源码，当时尚待语音修复/设备反馈；不因本模块完成追溯结案。2026-10-14用户现概括反馈语音基本正常，不替代本次0.6.0新增入口验收。
 
