@@ -2,6 +2,14 @@
 
 ## 2026-10-14 当前授权：功能1 v0.6.0 / saber1.3.0
 
+### 生成器最终合成 fixture 定向补验（2026-10-14）
+
+总控已从生成器 MANAGER_OUTBOX 接收迁移/生成器结构证据，不要求重跑39项或复审旧解析器。仅补实际builder产物→当前DocxParser→朗读cleaner这一个剩余集成缺口。只读授权以下两个精确文件，不扫描其目录、不读取Skill或词库：
+- `D:/Codex_Project/Codex_EnglishApp/short-story-generator/fixtures/story-docx-v1/20261014/（A0001-A0004）20261014.docx`
+- `D:/Codex_Project/Codex_EnglishApp/short-story-generator/fixtures/story-docx-v1/20261014/（A0001-A0004）20261014.expected.json`
+
+该DOCX为隔离测试库合成，SHA-256 `18cc2a65bc64798a26a6c86438caf118ddf20a712aeeb02796108a00276885f5`。可由定向测试读取上述外部文件并核对预期；不得把原文件或词库复制进Git。验证标题/两段/4目标、纯净英文与预期一致、2026/3.14仍保留、原显示正文不被修改；只补必要测试源码及STATUS证据，不扩展UI/数据库/功能。不Git、不APK。一次完整报告回总控 `01a024cb-1fba-7b23-a357-67eb2ad592b4` 后等待；失败按既有OUTBOX机制，不绕过平台拒绝。精确测试命令与结果/限制须记录，不能用合成导入证明实机导入或朗读成功。
+
 唯一新实施正文：`D:/Codex_Project/Codex_EnglishApp/_manager/features/feature-03-speech/V1_3_0_PLAN.md`，明确只读授权该文件及主工作区PROJECT.md/AGENTS.md/本简报；只用其中公共接口、阅读交互和story-docx-v1契约，不读取其他功能实现或Skill。用户已批准直接播放入口，取代旧“入口仅选区”的对应规则，其余基线保留。
 
 继续在 `C:/Users/zzf86/.codex/worktrees/d2f2/Codex_EnglishApp/feature-01-word-memory` 实现新增playbackControl可空槽：译文显隐旁段落槽、右上全文槽、生成全文菜单、窄屏布局；空槽保持旧调用。播放状态/确认由宿主注入，不能在本模块猜音频是否存在。模块内更新基线/公共契约/状态；Room与现有去编号算法不重写。按共享格式契约用合成样例补parser→cleaner和UI接线测试；真实生成器合成fixture稍后由总控提供精确路径，不等待该fixture才开发。

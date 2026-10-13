@@ -8,7 +8,7 @@ $receipt = Get-Content -Raw -LiteralPath (Join-Path $repo '_manager/local/build-
 if (!$receipt.clean -or (git status --porcelain) -or (git rev-parse HEAD).Trim() -ne $receipt.sourceCommit) { throw 'Require matching clean build receipt and source checkout' }
 $apk = Join-Path $repo 'app/build/outputs/apk/release/app-release.apk'
 if ($receipt.apkPath -ne $apk -or (Get-FileHash -LiteralPath $apk -Algorithm SHA256).Hash -ne $receipt.apkSha256) { throw 'APK does not match build receipt' }
-$version = '1.2.0'
+$version = '1.3.0'
 $stem = 'EnglishApp-v{0}-test.{1:D3}-{2}' -f $version,$TestNumber,$receipt.sourceCommit.Substring(0,7)
 $archive = Join-Path $repo ("_manager/artifacts/app/v$version/test.{0:D3}" -f $TestNumber)
 $release = Join-Path $repo ("_manager/releases/app/v$version/test.{0:D3}" -f $TestNumber)
@@ -23,10 +23,52 @@ if (!($signature -match "certificate SHA-256 digest: $expectedCert") -or !($sign
 & (Join-Path $toolsDir 'zipalign.exe') -c -P 16 4 $apk
 if ($LASTEXITCODE -ne 0) { throw 'APK ZIP 16KiB alignment failure' }
 $badging = & (Join-Path $toolsDir 'aapt2.exe') dump badging $apk
-if ($LASTEXITCODE -ne 0 -or !($badging -match "package: name='com.xuesui.englishapp' versionCode='7' versionName='1.2.0'") -or !($badging -match "minSdkVersion:'29'|sdkVersion:'29'")) { throw 'Package/version/minSdk mismatch' }
+if ($LASTEXITCODE -ne 0 -or !($badging -match "package: name='com.xuesui.englishapp' versionCode='8' versionName='1.3.0'") -or !($badging -match "minSdkVersion:'29'|sdkVersion:'29'")) { throw 'Package/version/minSdk mismatch' }
 if (!($badging -match "^application-label:'saber'$")) { throw 'App label must be lowercase saber' }
-$expectedPermissions = @("uses-permission: name='android.permission.INTERNET'", "uses-permission: name='com.xuesui.englishapp.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'")
+$expectedPermissions = @(
+    "uses-permission: name='android.permission.INTERNET'",
+    "uses-permission: name='com.xuesui.englishapp.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'",
+    "uses-permission: name='android.permission.FOREGROUND_SERVICE'",
+    "uses-permission: name='android.permission.FOREGROUND_SERVICE_DATA_SYNC'",
+    "uses-permission: name='android.permission.FOREGROUND_SERVICE_MEDIA_PROCESSING'",
+    "uses-permission: name='android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK'",
+    "uses-permission: name='android.permission.POST_NOTIFICATIONS'",
+    "uses-permission: name='android.permission.WAKE_LOCK'"
+)
 if ($badging | Where-Object { $_ -match '^uses-permission:' -and $_ -notin $expectedPermissions }) { throw 'Unexpected App permission' }
+foreach ($permission in $expectedPermissions) {
+    if ($permission -notin $badging) { throw "Missing required App permission: $permission" }
+}
+$manifestDump = @(& (Join-Path $toolsDir 'aapt2.exe') dump xmltree $apk --file AndroidManifest.xml)
+if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect packaged Manifest services' }
+$serviceChecks = @()
+foreach ($service in @(
+    @{name='com.xuesui.englishapp.modelprobe.runtime.SpeechGenerationService';type='2001'},
+    @{name='com.xuesui.englishapp.modelprobe.runtime.SpeechMediaService';type='2'}
+)) {
+    $found = @()
+    for ($i = 0; $i -lt $manifestDump.Count; $i++) {
+        if ($manifestDump[$i] -match '^(\s*)E: service(?:\s|$)') {
+            $indent = $Matches[1].Length
+            $end = $i + 1
+            while ($end -lt $manifestDump.Count) {
+                if ($manifestDump[$end] -match '^(\s*)E:' -and $Matches[1].Length -le $indent) { break }
+                $end++
+            }
+            $block = $manifestDump[$i..($end - 1)] -join "`n"
+            if ($block -match ('android:name[^\r\n]*="' + [regex]::Escape($service.name) + '"')) {
+                $found += $block
+            }
+        }
+    }
+    if ($found.Count -ne 1 -or
+        $found[0] -notmatch 'android:exported[^\r\n]*=\(type 0x12\)0x0(?:\s|$)' -or
+        $found[0] -notmatch 'android:stopWithTask[^\r\n]*=\(type 0x12\)0x0(?:\s|$)' -or
+        $found[0] -notmatch ('android:foregroundServiceType[^\r\n]*=\(type 0x11\)0x' + $service.type + '(?:\s|$)')) {
+        throw "Packaged service contract mismatch: $($service.name)"
+    }
+    $serviceChecks += @{name=$service.name;manifest=$found[0];exported=$false;stopWithTask=$false}
+}
 $assets = Join-Path $repo 'app/src/main/assets'
 $modelManifest = Get-Content -Raw -LiteralPath (Join-Path $repo '_manager/probes/tts-device/model-manifest.json') | ConvertFrom-Json
 $dictionaryManifest = Get-Content -Raw -LiteralPath (Join-Path $assets 'dictionaries/manifest.json') | ConvertFrom-Json
@@ -81,7 +123,7 @@ foreach ($file in Get-ChildItem -LiteralPath $stage -Filter '*.so') {
     if (!$loads.Count -or ($loads | Where-Object { $_ -notmatch '0x4000\s*$|0x10000\s*$' })) { throw 'ELF LOAD alignment below 16KiB' }
     $elf += @{library=$file.Name;headers=$headers}
 }
-$result = [ordered]@{sourceCommit=$receipt.sourceCommit;buildCompletedUtc=$receipt.completedUtc;archivedUtc=[DateTime]::UtcNow.ToString('o');filename="$stem.apk";sizeBytes=(Get-Item -LiteralPath $apk).Length;sha256=$receipt.apkSha256;package='com.xuesui.englishapp';applicationLabel='saber';versionName=$version;versionCode=7;minSdk=29;features=@{wordMemory='0.5.1';dictionary='0.2.1';speech='0.3.1'};signature=$signature;badging=$badging;modelManifest=$modelManifest;dictionaryManifest=$dictionaryManifest;verifiedEntries=$checks;zip16KiB='passed';elf=$elf;buildTasks=$receipt.tasks;deviceAcceptance='repair candidate; test.001 device failure remains unresolved until real model listening and paragraph playback acceptance'}
+$result = [ordered]@{sourceCommit=$receipt.sourceCommit;buildCompletedUtc=$receipt.completedUtc;archivedUtc=[DateTime]::UtcNow.ToString('o');filename="$stem.apk";sizeBytes=(Get-Item -LiteralPath $apk).Length;sha256=$receipt.apkSha256;package='com.xuesui.englishapp';applicationLabel='saber';versionName=$version;versionCode=8;minSdk=29;features=@{wordMemory='0.6.0';dictionary='0.2.1';speech='0.4.0'};signature=$signature;badging=$badging;services=$serviceChecks;modelManifest=$modelManifest;dictionaryManifest=$dictionaryManifest;verifiedEntries=$checks;zip16KiB='passed';elf=$elf;buildTasks=$receipt.tasks;deviceAcceptance='awaiting device validation: direct playback, FGS, lock screen, resume, no autoplay, existing data; historical failures retained separately'}
 New-Item -ItemType Directory -Force $archive,$release | Out-Null
 [IO.File]::Copy($apk,(Join-Path $archive "$stem.apk"),$false)
 $result | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $release 'ARTIFACT.json') -Encoding utf8NoBOM

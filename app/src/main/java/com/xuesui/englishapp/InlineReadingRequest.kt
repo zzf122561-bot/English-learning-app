@@ -44,3 +44,13 @@ internal fun createInlineReadingRequest(
         sentenceText = sentenceText,
     )
 }
+
+/** Direct playback has no selected-sentence state and cannot silently widen a bad index. */
+internal fun createPlaybackReadingRequest(
+    documentId: String,
+    title: String,
+    paragraphs: List<String>,
+    paragraphIndex: Int?,
+): SpeechReadingRequest? = createInlineReadingRequest(
+    documentId, title, paragraphs, paragraphIndex, sentenceText = null,
+)

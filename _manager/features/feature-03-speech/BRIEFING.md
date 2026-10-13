@@ -2,6 +2,10 @@
 
 ## 2026-10-14 当前授权：语音0.4.0 / saber1.3.0
 
+### 0.4.0接收后的单一定向修正
+
+第14节交付的65通过/1环境跳过、Android源码/AAR/Lint/原生身份等证据直接沿用。仅因交付新增45分钟主动停止会让长文在系统6小时预算前人为停下来，总控固定单次服务主动预算为5小时50分钟（350分钟），wake lock兜底为预算+1分钟，保留onTimeout处理共享系统时限可能更早耗尽、同实例不续期、唯一native所有者及安全退出。不能承诺系统一定给满这个时间，不自动循环重启绕过限制。只改预算及对应文档/针对该预算的测试（若无既有纯测试则提取小的内部策略作断言）；既有状态机/原生/队列不重写、不重复审查。另清理SpeechInlineReadingFeature.kt第106行行尾空格。完成增量必要编译/AAR和新测试后一次汇报，保持其他交付已接收，不要求重跑66项。未收到新AAR前总控不构建最终候选。
+
 ### 同日Media3官方依赖阻塞已排除（总控证据沿用）
 
 官方稳定1.11.1保持不变。原dependencies/dependencyInsight超时保留；总控GET通过既有120.253.253.225取得两个官方POM HTTP200（exoplayer2974/session2906 bytes）。Gradle试验在仅GRADLE_OPTS/普通-Dorg.gradle.jvmargs设置下，任务看到hosts属性但InetAddress实际仍为198.18.0.28，POM超时。显式将hosts通过**进程级JAVA_TOOL_OPTIONS**传入，使新构建JVM从启动时启用同一hosts，解析变成120.253.253.225，真实debugRuntimeClasspath解析87制品成功（26s），8个Media3均1.11.1且AAR已落Gradle缓存。无版本/镜像/hosts内容/系统代理修改。

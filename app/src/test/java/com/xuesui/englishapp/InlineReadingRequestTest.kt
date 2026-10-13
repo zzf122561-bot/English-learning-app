@@ -9,6 +9,31 @@ class InlineReadingRequestTest {
     private fun request(doc: String = "word-memory:1", title: String = "Book", text: List<String> = paragraphs,
         index: Int? = null, sentence: String? = null) = createInlineReadingRequest(doc, title, text, index, sentence)
 
+    @Test fun directPlaybackMapsToolbarAndParagraphWithoutSentenceSelection() {
+        val full = createPlaybackReadingRequest("word-memory:1", "Book", paragraphs, null)!!
+        val first = createPlaybackReadingRequest("word-memory:1", "Book", paragraphs, 0)!!
+        val second = createPlaybackReadingRequest("word-memory:1", "Book", paragraphs, 1)!!
+        assertEquals(SpeechReadingScope.FULL, full.scope)
+        assertNull(full.paragraphIndex)
+        assertEquals(SpeechReadingScope.PARAGRAPH, first.scope)
+        assertEquals(0, first.paragraphIndex)
+        assertEquals(1, second.paragraphIndex)
+        assertNull(first.sentenceText)
+        assertEquals(request(index = 0), first)
+        assertNotEquals(first.requestId, second.requestId)
+    }
+
+    @Test fun directPlaybackRejectsInvalidContextAndKeepsCleanNumericContent() {
+        assertNull(createPlaybackReadingRequest("word-memory:1", "Book", paragraphs, -1))
+        assertNull(createPlaybackReadingRequest("word-memory:1", "Book", paragraphs, 2))
+        assertNull(createPlaybackReadingRequest("", "Book", paragraphs, null))
+        val clean = listOf("Learners pay 12.50 in 2026.")
+        val result = createPlaybackReadingRequest("word-memory:42", "Book", clean, 0)!!
+        assertEquals(clean, result.englishParagraphs)
+        assertEquals(result.requestId,
+            createPlaybackReadingRequest("word-memory:42", "Renamed", clean, 0)!!.requestId)
+    }
+
     @Test fun recompositionAndRecreationKeepIdentityWithoutSavingArticleInBundle() {
         val first = request()!!
         val recreated = request(text = paragraphs.toList())!!

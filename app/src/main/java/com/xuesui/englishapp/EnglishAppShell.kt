@@ -29,6 +29,8 @@ import com.xuesui.englishapp.dictionary.DictionaryFeature
 import com.xuesui.englishapp.dictionary.DictionaryPresentation
 import com.xuesui.englishapp.feature.WordMemoryFeature
 import com.xuesui.englishapp.modelprobe.runtime.SpeechInlineReadingFeature
+import com.xuesui.englishapp.modelprobe.runtime.SpeechReadingPlayButton
+import com.xuesui.englishapp.modelprobe.runtime.SpeechRuntimeHost
 import com.xuesui.englishapp.modelprobe.runtime.SpeechSettingsFeature
 
 private enum class MainSection {
@@ -53,6 +55,9 @@ internal fun EnglishAppShell() {
     val selectedSection = MainSection.valueOf(selectedSectionName)
 
     MaterialTheme(colorScheme = AppShellColors) {
+        // Keep the runtime host outside tab/quick-lookup branches. It reconnects generation
+        // on foreground entry, but changing screens must not create another owner or auto-play.
+        SpeechRuntimeHost()
         val activeQuickQuery = quickLookupQuery
         if (activeQuickQuery != null) {
             stateHolder.SaveableStateProvider("quick-lookup") {
@@ -108,6 +113,16 @@ internal fun EnglishAppShell() {
                                         SpeechInlineReadingFeature(documentId = documentId, request = request)
                                     } else {
                                         Text("当前朗读范围无效，请重新选择原文。")
+                                    }
+                                },
+                                playbackControl = { documentId, title, paragraphs, index ->
+                                    val request = remember(documentId, title, paragraphs, index) {
+                                        createPlaybackReadingRequest(documentId, title, paragraphs, index)
+                                    }
+                                    if (request != null) {
+                                        SpeechReadingPlayButton(documentId = documentId, request = request)
+                                    } else {
+                                        Text("当前播放范围无效。")
                                     }
                                 },
                             )

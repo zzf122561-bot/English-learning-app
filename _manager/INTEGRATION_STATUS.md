@@ -2,6 +2,9 @@
 
 ## 2026-10-14 saber1.3.0实施中
 
+- 总控接收语音0.4.0首次完整交付：66项定向JVM（65通过/1环境跳过）、Android源码/AAR/Lint证据沿用SOURCE_MANIFEST第14节；只要求将新服务45分钟主动预算修正为5小时50分、保留系统更早超时约束，等待定向回报。宿主播放槽/RuntimeHost/1.3.0-code8及签名归档检查已准备，尚未构建。
+- 已读取生成器授权MANAGER_OUTBOX接收共享Skill迁移：1412词及既有使用历史保留、唯一活动词库、显式schema1→2、并发/幂等门禁和隔离测试通过。报告原跨任务发送被平台拒绝的事实保留，不重试绕过；详细证据仅引用 `short-story-generator/MANAGER_OUTBOX.md`（Git外）。剩余合成DOCX→App parser/cleaner缺口已在功能1原简报授权两个精确fixture路径；没有词库/成品进入Git或APK。
+
 - 语音依赖网络阻塞已由总控排除：Media3官方稳定1.11.1未更换，进程级JAVA_TOOL_OPTIONS使实际构建JVM启动时读取既有hosts；debugRuntimeClasspath实际解析87制品（8个Media3）成功，26s。精确授权/复现和失败证据边界只维护于语音BRIEFING同日节，已续派模块编译；不等同模块代码/AAR或手机验收。根App正式构建也须以相同进程级启动参数传hosts，不能仅依赖GRADLE_OPTS。
 
 - 功能1 v0.6.0已接收：模块提交519c487，合并d16d416；变更范围及精确playbackControl签名与批准契约一致。39项JVM/Android测试源码编译/AAR证据沿用其STATUS，不重复审查或复跑。合并只解决STATUS历史记录冲突，无代码/构建配置冲突；既有边界结果适用，不单独重跑。当前未注入语音PlayButton，宿主旧调用仍兼容；等待语音交付后完成新接线，生成器合成成品到位后只补parser→cleaner缺口。无1.3.0 APK或新增设备验收。

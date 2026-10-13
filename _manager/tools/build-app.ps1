@@ -68,14 +68,23 @@ if ($LASTEXITCODE -ne 0) {
 if ($LASTEXITCODE -ne 0) { throw 'Speech asset preparation failed' }
 
 $gradleArguments = @('--no-daemon', '--no-configuration-cache', '--max-workers=2') + $Tasks
+$previousJavaToolOptions = [Environment]::GetEnvironmentVariable('JAVA_TOOL_OPTIONS', 'Process')
 Push-Location -LiteralPath $projectRoot
 try {
+    # Gradle may fork a fresh JVM before forwarding ordinary system properties. Initialize
+    # the existing project-local resolver at JVM startup, without changing global settings.
+    $env:JAVA_TOOL_OPTIONS = "-Djdk.net.hosts.file=$javaHostsPath"
     & $gradle @gradleArguments
     $gradleExitCode = $LASTEXITCODE
     if ($gradleExitCode -ne 0) {
         throw "Android build failed with exit code $gradleExitCode"
     }
 } finally {
+    if ($null -eq $previousJavaToolOptions) {
+        Remove-Item Env:JAVA_TOOL_OPTIONS -ErrorAction SilentlyContinue
+    } else {
+        $env:JAVA_TOOL_OPTIONS = $previousJavaToolOptions
+    }
     Pop-Location
 }
 
