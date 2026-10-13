@@ -96,20 +96,20 @@ class InlineRuntimeDeviceTest {
         assertEquals(1, f.engine.calls.get()); assertEquals(saved.id, f.vm.inline.value.latest!!.id)
         f.main { f.vm.editForm(f.vm.form.value.copy(seed = "99")) }
         assertFalse(f.vm.inline.value.matchesSettings)
-        f.main { f.vm.leaveInline() }; f.idle(); assertFalse(f.engine.loaded)
+        f.main { f.vm.leaveInline(); f.vm.hostStopped(); f.vm.pageStopped() }; f.idle(); assertTrue(f.engine.loaded)
     }
-    @Test fun selectionSwitchWaitsForRealWorkerExitAndNeverStartsNewRangeAutomatically() = Fixture().use { f ->
+    @Test fun pageAndSelectionChangesKeepSingleWorkerAliveWithoutAutoGeneratingAnotherRange() = Fixture().use { f ->
         f.main { f.vm.enterInline("word-memory:one", request()) }; f.idle()
         f.engine.started = CountDownLatch(1); f.engine.allowExit = CountDownLatch(1)
         f.main { f.vm.generateInline() }
         assertTrue(f.engine.started!!.await(10, TimeUnit.SECONDS))
         f.main { f.vm.enterInline("word-memory:one", request("next-range", 1)) }
-        assertTrue(f.vm.state.value.busy); assertTrue(f.vm.state.value.cancelling)
+        assertTrue(f.vm.state.value.busy); assertFalse(f.vm.state.value.cancelling)
         assertTrue(f.engine.loaded); assertNull(f.vm.inline.value.latest)
         assertEquals(1, f.vm.inline.value.target!!.plan.input.selection.paragraph)
         f.engine.allowExit!!.countDown(); f.idle()
         assertEquals(1, f.engine.calls.get()); assertFalse(f.vm.inline.value.switching)
-        assertNull(f.vm.inline.value.latest); assertFalse(f.engine.loaded)
+        assertNull(f.vm.inline.value.latest); assertTrue(f.engine.loaded)
     }
     @Test fun invalidNewRangeClearsOldSelectionAndNeverFallsBackToPreviousAudio() = Fixture().use { f ->
         f.main { f.vm.enterInline("word-memory:one", request()); }; f.idle()
@@ -119,7 +119,7 @@ class InlineRuntimeDeviceTest {
         assertNull(f.vm.inline.value.target); assertNull(f.vm.inline.value.latest)
         assertTrue(f.vm.inline.value.error.isNotBlank()); assertEquals(1, f.engine.calls.get())
     }
-    @Test fun failedFullThenParagraph001UnlocksGeneratesMatchesAndStartsPlayback() = Fixture().use { f ->
+    @Test fun failedFullThenParagraph001UnlocksGeneratesAndMatchesSavedAudio() = Fixture().use { f ->
         val full = request().copy(scope = SpeechReadingScope.FULL, paragraphIndex = null)
         f.main { f.vm.enterInline("word-memory:one", full) }; f.idle()
         f.engine.limit = true
@@ -134,9 +134,9 @@ class InlineRuntimeDeviceTest {
         assertEquals("PARAGRAPH", saved.report.getString("scope"))
         assertEquals(1, saved.report.getInt("completedCount"))
         assertTrue(f.vm.inline.value.matchesSettings); assertFalse(f.vm.inline.value.switching)
-        f.main { f.vm.playInline() }; f.idle()
-        assertEquals(saved.id, f.vm.reading.value.playback.runId)
-        assertNotEquals(com.xuesui.englishapp.modelprobe.features.speech.PlaybackPhase.FAILED, f.vm.reading.value.playback.phase)
+        // Playback now belongs to the process MediaSessionService, not this isolated fake
+        // controller. The saved file is verified here; the Media3 lifecycle requires its host.
+        assertTrue(saved.artifact("audio").length() > 44)
     }
     @Test fun identicalRangeReselectionDoesNotOccupyWorkerAndOtherBadParagraphDoesNotBlock() = Fixture().use { f ->
         val selected = request().copy(englishParagraphs = listOf("A valid paragraph zero one.", "中文备注", ""))

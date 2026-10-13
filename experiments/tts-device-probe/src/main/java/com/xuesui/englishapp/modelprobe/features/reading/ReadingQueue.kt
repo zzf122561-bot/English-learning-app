@@ -38,7 +38,8 @@ internal class ReadingQueue(private val service: SpeechService, private val runs
     private data class Piece(val item: ReadingItem, val depth: Int = 0, var run: SavedRun? = null, var reused: Boolean = false)
     companion object { const val MAX_RETRY_DEPTH = 2; const val MAX_REPARTITIONS = 32 }
     fun generate(plan: ReadingPlan, parameters: SpeechParameters, token: WorkToken, reuse: Boolean,
-        target: ReadingTarget? = null, progress: (ReadingProgress) -> Unit): SavedRun {
+        target: ReadingTarget? = null, durableDraft: ((String) -> Unit)? = null, durableMetadata: JSONObject? = null,
+        progress: (ReadingProgress) -> Unit): SavedRun {
         parameters.validate(); token.check()
         val resolved = parameters.resolved()
         val execution = ReadingPlanner.create(plan.input, resolved.readingChunkCodePoints.coerceIn(1, ReadingPlanner.CHUNK_CODEPOINTS))
@@ -47,6 +48,7 @@ internal class ReadingQueue(private val service: SpeechService, private val runs
         val started = nowNanos()
         val leases = mutableListOf<RunStore.Lease>()
         try { runs.begin().use { draft ->
+            durableDraft?.invoke(draft.id)
             val attempts = mutableListOf<Pair<ReadingItem, SavedRun>>()
             val reusedIds = mutableSetOf<String>()
             var status = "success"
@@ -68,10 +70,10 @@ internal class ReadingQueue(private val service: SpeechService, private val runs
                         ReadingPlanner.VERSION, target?.key, item.occurrenceCount)
                     val request = SpeechRequest(item.text, resolved.forSegment(attempts.size), SpeechMode.PARAGRAPH,
                         if (service.engine.loaded) RunKind.WARM else RunKind.COLD, origin)
-                    val cached = if (target != null && reuse && !parameters.randomSeed)
+                    val cached = if ((target != null || durableDraft != null) && reuse && !parameters.randomSeed)
                         runs.cachedLease(SpeechText.key(service.engine, request, request.parameters)) else null
                     val run = if (cached != null) { leases += cached; cached.run } else {
-                        service.run(request, token, preferCache = target == null && reuse && !parameters.randomSeed).also {
+                        service.run(request, token, preferCache = target == null && durableDraft == null && reuse && !parameters.randomSeed).also {
                             leases += runs.acquire(it.id)
                         }
                     }
@@ -161,6 +163,7 @@ internal class ReadingQueue(private val service: SpeechService, private val runs
                 .put("validation", JSONObject().put("compatibilityGate", "pending").put("listening", "unreviewed").put("offlineTest", "not_recorded"))
             target?.let { report.put("retentionKey", it.key).put("retention", it.snapshot())
                 .put("settingsKey", ReadingTarget.settingsKey(parameters)) }
+            durableMetadata?.let { report.put("durableParagraph", it) }
             // Keep only final leaves: discarded partial attempts stay in childRunIds for evidence
             // and safe reclamation, but are not concatenated again before successful retries.
             val audio = pieces.mapNotNull { it.run }.filter { it.report.has("audio") }

@@ -1,10 +1,10 @@
 # 共享本地语音 Library 架构
 
-0.3.1核心语音修复候选，2026-10-08。正式生成/播放继续嵌入文章，语音Tab仅设置；保留独立测试和兼容入口。当前修复证据与未闭环设备项见SOURCE_MANIFEST第13节，旧第9节单次试听及第10至12节历史验证按范围保留。
+0.4.0后台语音候选，2026-10-14。正式生成/播放继续嵌入文章，语音Tab仅设置；保留独立测试和兼容入口。新宿主契约、服务/数据库/依赖及验收边界唯一详细记录见 SOURCE_MANIFEST 第14节。此前各节设备/失败证据按原范围保留。以下标明历史版本的实现描述由本节当前运行期规则覆盖。
 
 ## 边界与依赖
 
-仍为单个Android Library。正式宿主接 `com.xuesui.englishapp.modelprobe.runtime.SpeechInlineReadingFeature(documentId, request, modifier)` 与 `SpeechSettingsFeature(modifier)`；同包ModelProbeFeature、SpeechFeature(request,onClose)及SpeechReadingScope/SpeechReadingRequest字段完整兼容。Activity、Application、包名、assets、签名与APK由总控维护；其余新增业务类型为internal，JNI只用于本模块。正式App与测试App各用自己的私有目录，不互读或自动迁移。
+仍为单个Android Library。正式宿主接 `com.xuesui.englishapp.modelprobe.runtime.SpeechInlineReadingFeature(documentId, request, modifier)` 与 `SpeechSettingsFeature(modifier)`，Activity内容根增加 `SpeechRuntimeHost()`，播放槽注入 `SpeechReadingPlayButton(documentId,request,modifier)`；同包ModelProbeFeature、SpeechFeature(request,onClose)及SpeechReadingScope/SpeechReadingRequest字段完整兼容。Activity、Application、包名、assets、签名与APK由总控维护；两个Manifest服务类需供Android实例化，领域与调度类型仍为internal，JNI只用于本模块。正式App与测试App各用自己的私有目录，不互读或自动迁移。
 
 | 目录 | 已实现责任 | 依赖边界 |
 |---|---|---|
@@ -15,12 +15,13 @@
 | `contracts/speech` | SpeechParameters、SpeechEngine、SpeechRequest、SpeechAudio、失败快照 | 任务专属类型，无 UI 或具体引擎依赖 |
 | `engines/qwen3tts` | 受信任模型描述、类型化参数、参数编辑器/摘要、JNI 适配 | 实现 speech 契约并使用 core；不依赖语音页面 |
 | `features/speech` | SpeechService、PCM16 WAV及合并、诊断页面、纯播放状态机、页面偏好 | 使用任务契约和core；不引用具体引擎、runtime ViewModel或native句柄 |
-| `features/reading` | 正式页面、范围规划、串行队列、请求去重/切换、入口草稿、历史分组 | 使用speech任务契约与服务；不访问文章模块、导航或数据库 |
-| `runtime` | 正式内嵌/设置、兼容/诊断入口及请求映射、ProbeViewModel、SAF、AndroidAudioFactory、生命周期 | 唯一具体装配处，选择Qwen编辑器/适配器；不读取文章数据库或导航 |
+| `features/reading` | 范围规划、段内有限重试、自然段账本状态转换、播放意图、历史分组 | 使用speech契约与持久化接口；不访问文章模块、导航或Android数据库 |
+| `runtime` | 入口/观察VM、进程运行器、SQLite适配、生成FGS、MediaSession服务、SAF与生命周期 | 唯一具体装配处，选择Qwen编辑器/适配器；不读取文章数据库或导航 |
 
 ```mermaid
 flowchart LR
-  H[总控宿主] --> R[Inline / Settings / 兼容入口 / ProbeViewModel]
+  H[总控宿主] --> R[RuntimeHost / PlayButton / Inline / Settings / 观察VM]
+  R --> B[进程运行器 / SQLite队列 / 两个服务]
   R --> A[features/reading]
   A --> S[features/speech]
   R --> S[features/speech]
@@ -36,7 +37,7 @@ ModelCatalog 只接收 runtime 显式注册的 ModelDescriptor。清单描述数
 
 ## 模型与私有存储
 
-根目录是宿主的 `noBackupFilesDir/model-probe-v1/`，子目录分为 `models`、`results`、`cache-index`、`settings`。不访问正式 App 或管理端文件。源资产与私有副本分离，源样例只在页面内存中用于编辑/恢复；报告保存正文 SHA-256、字符数和近似词数，不写入正文。
+根目录是宿主的 `noBackupFilesDir/model-probe-v1/`，子目录分为 `models`、`results`、`cache-index`、`settings`；新增本模块 `speech-queue.sqlite3`。不访问其他模块数据库或管理端文件。源资产与私有副本分离，源样例只在页面内存中用于编辑/恢复；报告保存正文 SHA-256、字符数和近似词数，不写入正文；仅私有SQLite队列保存断点恢复所需的冻结正文，不放入Intent/Bundle或日志。
 
 ModelStore 在受控 staging 内顺序复制两个文件，同时验证完整长度和 SHA-256，fsync 后把完整 generation 原子切换为当前版本。失败或取消保留旧安装，不产生半个 Ready 模型。空间检查使用当前 usableSpace，要求新副本总长加 64 MiB；重装时旧副本尚在，所以需要额外一整套空间。不会主动回收其他应用缓存。
 
@@ -44,7 +45,7 @@ ModelStore 在受控 staging 内顺序复制两个文件，同时验证完整长
 
 RunStore每次运行创建独立临时目录，完成artifact哈希与报告后原子提交。失败/取消丢弃未完成WAV，保存失败报告；未提交目录不进入历史。同根活动草稿在进程内登记，防止新控制器误清理活动写入。播放、缓存读取与导出前核对长度和SHA-256。原诊断列表仍为最近100条；正式音频管理按父子关系列出所有项目，读取轻量管理元数据，不为每个历史片段常驻完整采样数组。
 
-模型删除保留结果；“清理缓存”仅移除缓存索引，既有 WAV/报告继续可播放和导出。没有数据库迁移或删库行为。
+模型删除保留结果；“清理缓存”仅移除缓存索引，既有 WAV/报告继续可播放和导出。新增任务库初始schema1，未知升级/降级显式失败而不删库；不修改其他数据库。
 
 ## 设置与真实能力
 
@@ -62,7 +63,7 @@ RunStore每次运行创建独立临时目录，完成artifact哈希与报告后�
 | 最大音频帧 | 1024；整数1…4096 | 触顶保留可能截断状态 |
 | seed | 42；-1或0…2147483647 | -1先解析为显式随机 seed |
 | 模式 / 暖运行批次 | 完整段落 / 3；可选逐句，批次1…5 | 多次连续测试仅用于暖运行 |
-| 播放速度 | 1.0；0.5…2.0 | MediaPlayer 后处理，不改变原始 WAV/RTF |
+| 播放速度 | 1.0；0.5…2.0 | Media3 播放变速，不改变原始 WAV/RTF |
 
 数字编辑保留原始输入，非法值会阻止生成/保存，不回退使用旧有效值。所有生成参数在 Kotlin 与 JNI/C++ 两层校验。没有独立模型语速、GPU/NPU 或未接线的采样开关；默认值只是实验策略，未认定为手机最佳配置。
 
@@ -70,13 +71,13 @@ RunStore每次运行创建独立临时目录，完成artifact哈希与报告后�
 
 ## 运行、取消与生命周期
 
-TaskRunner 串行化校验、安装、加载、推理、保存和导出。UI 只发请求；WorkToken 可以在原生回调登记之前或之后接收取消。页面分开显示“已请求取消”和实际工作线程退出；线程/原生尚未返回时保持 busy/cancelling，不提前释放模型。
+唯一进程级ProbeController/TaskRunner拥有模型，生成前台服务驱动跨文章FIFO；UI ViewModel仅观察与发命令。数据库、校验播放文件和SAF使用独立I/O线程，不排在长时推理之后。WorkToken 可以在原生回调登记之前或之后接收取消。页面分开显示“已请求取消”和实际工作线程退出；线程/原生尚未返回时保持 busy/cancelling，不提前释放模型。
 
-适配器持有 lease 至阻塞式 native close 返回。失败/取消卸载模型，下次需要重新载入。退出页面或进入后台请求取消并停止播放；旋转由 ViewModel 保持运行归属。onCleared 先请求取消，再排队等待真实退出后关闭资源，不用 shutdownNow 假装中止 native。运算期间仅设置页面 keepScreenOn，不新增服务或唤醒锁权限。
+适配器持有 lease 至阻塞式 native close 返回。失败/取消卸载模型，下次需要重新载入。切页面/Tab/ON_STOP/Compose销毁和Activity ViewModel清理不取消生成或播放。生成服务主动预算为5小时50分钟（350分钟），partial wake lock兜底为预算加1分钟（351分钟）；同一运行实例不因后续启动指令续期，系统共享时限可能更早经onTimeout终止，不自动重启绕过限额。移除keepScreenOn。超时请求合作取消、异步写中断并立即停止前台服务，不在主线程join/free native；旧工作线程实际退出前不能启动第二任务。明确诊断加载可保持驻留用于warm测试，正式持久队列完成/停止后释放模型。
 
 原生合作取消仍受系统 I/O、GGUF 元数据解析、内存分配、张量转换和单个 CPU 节点约束。页面提供“JNI无模型契约自检”：创建/关闭、预取消、过期取消隔离、非法参数拒绝；其报告标为 jni_contract_only_no_model，不能替代加载中的取消或 CPU graph 中断测试。
 
-MediaPlayer 使用异步准备和音频焦点，回调核对播放器身份及播放代次，避免退出页面后迟到回调自动开始播放。每次播放绑定已选历史 runId，结果参数与当前编辑设置分开呈现。SAF 导出在打开选择器前固定 runId；失败/取消尝试删除本次新建的不完整文档，若提供方拒绝删除则告知用户。没有广泛存储权限或网络上传。
+正式及旧保存音频统一使用Media3服务；控制代次、当前目标和播放意图阻止用户暂停/切目标后的迟到回调启动旧声音。MediaSession系统控制、音频焦点及noisy暂停独立于生成。每次播放绑定已选历史 runId，结果参数与当前编辑设置分开呈现。SAF 导出在打开选择器前固定 runId；失败/取消尝试删除本次新建的不完整文档，若提供方拒绝删除则告知用户。没有广泛存储权限或网络上传。
 
 ## 冷启动、暖运行、逐句与缓存
 
@@ -102,9 +103,9 @@ Android 端使用 elapsedRealtimeNanos 单调计时；PSS 以200ms固定延迟�
 
 新增精确 ModelDescriptor、受信任 engines/<id>、任务专属 contracts/<task> 和 features/<task>，由 runtime 显式装配并增加入口。复用 core 的安装、租约、任务排他、取消、通用采样、事务存储；新任务返回自身结果/指标，不实现虚假的语音接口或 WAV/RTF。新引擎自行拥有参数 schema 与显式迁移，不引用 Qwen 内部实现。是否拆分 Gradle 模块留给实际第二引擎加入时由总控决定。
 
-当前0.3.1的修复与未闭环设备项见SOURCE_MANIFEST第13节；旧第9节单次试听不推广到正式候选。
+当前证据见SOURCE_MANIFEST第14节；旧第9节单次试听与第13节失败/修复范围均不被提高为0.4.0设备通过。
 
-## 0.2.0兼容入口与共用队列
+## 历史：0.2.0兼容入口与段内队列（生命周期已由0.4.0替代）
 
 SpeechFeature的request=null入口从空白输入/粘贴开始，不读取probe-sample.txt，也不会因缺少样例阻塞。ModelProbeFeature继续使用原样例与诊断UI。正式入口收到请求只展示预览和设置，用户点击生成才计算。FULL取所有英文段落，PARAGRAPH必须有有效索引，SENTENCE必须非空且是指定段落的精确子串；越界或不匹配显示错误，不回退到全文。
 
@@ -122,7 +123,7 @@ ReadingQueue顺序调用SpeechService，每片先保存WAV和子报告，再开�
 
 历史按父报告存在关系及显式子引用分组，长队列的子报告不会挤掉整篇项目；父报告未提交时保留可恢复片段，已被其他父记录重用的片段不误显示为孤儿。0.3.0正式管理不截断为100条。旧诊断报告仍可识别，私有目录、设置schema2、模型fingerprint及引擎参数schema1未变，无数据库或破坏式迁移。
 
-## 播放与低版本方案
+## 历史：MediaPlayer播放与低版本方案（现改用Media3）
 
 两个入口共用SpeechPlayback状态机和AndroidAudioFactory。异步prepare、暂停/原位置继续、完成后重播、焦点丢失暂停、页面退出停止，都以播放代次阻止迟到回调。倍速0.5–2.0，Android端显式pitch=1；暂停时先保存新倍速，继续时才应用，避免setPlaybackParams的隐式启动行为。不支持的设置报错并释放播放器，不声称已经生效。媒体提供方或系统能力仍以设备实测为准。
 
@@ -132,7 +133,7 @@ Library minSdk改为29，native也实际以aarch64-linux-android29重新编译�
 
 页面/后台退出会请求取消并在真实退出后卸载模型；选择SAF文档期间仅停止播放，避免把文件选择器当成离开页面而启动卸载、丢失导出回调。正式页返回只调用宿主onClose，不修改文章、滚动或默写状态；已有结果继续保存。
 
-## 0.3.0文章内嵌与仅设置入口
+## 历史：0.3.0文章内嵌与仅设置入口（运行归属已由0.4.0替代）
 
 新正式入口使用Activity自身的ViewModelStore和固定speech-runtime键，避免宿主导航的局部ViewModel作用域生成第二个运行器。设置页仅模型准备/校验/释放/删除副本、音色/指令/高级生成参数、播放倍速、保存/默认；不调用ReadingScreen，无正文输入、生成、播放器或历史列表。
 
@@ -162,3 +163,16 @@ documentId作为不透明身份（本次word-memory:<notebookId>）校验并参�
 同一活动范围的新requestId/重组不再启动重复历史读取任务；离开后再次进入仍读取一次。读取最新结果异常必须清除switching并显示原因；生成门控拒绝有明确说明。失败、触顶、取消后由真实worker退出释放busy；下一次显式选择/生成重新核对target和参数。播放仍要求当前逻辑范围、正文/参数/模型/engineVersion与最新成功一致；旧完整音频不因失败被删。控件尺寸和导航不变，动态进度使用实际预算/重分片后的总数。
 
 这些修复不证明用户001按钮与怪音的真实故障已复现或修好。SOURCE_MANIFEST第13节严格区分JVM模拟、Android源码/AAR编译、原始FULL失败样本及待设备同文A/B。新原生只增加观测和EOS判定；模型、采样算法、重复惩罚、KV/解码策略未改。
+
+
+## 0.4.0自然段任务、发布与播放
+
+RuntimeHost在Activity前台可见时初始化/连接进程运行器，恢复queued/interrupted；不要求进入阅读页，不恢复出声。一个模型worker跨诊断、兼容和正式入口共享；SQLite账本与引用操作有独立I/O和发布锁。UI设置可以修改，但任务冻结的原文、配置/引擎摘要、实际随机seed保持不变。自然段预留2048个attempt seed序号，段内沿用原有有限分片重试。失败暂停本篇；用户明确重试后继续，其他文章按FIFO处理。
+
+RunStore先提交校验过的自然段WAV/报告，pending_run与持久pins在跨文件/SQLite事务之间保护它。SQLite事务同时发布DONE和latest_audio，之后对照账本裁剪pins并回收旧版。崩溃后的RUNNING+已完整提交草稿可完成发布；未提交段重做，已成功子片可按精确身份复用。单纯内存Lease不承担进程死亡保护。播放/全文导出持有独立持久pin；整篇历史任务完成后，旧任务元数据不会独占已被更新的音频文件。
+
+FULL以自然段播放列表存在，不长期保存整篇合并WAV；每个自然段内仍有父/子PCM副本以支持校验/片段恢复。全文导出在SAF选择前冻结并pin当前段序列，返回后临时顺序拼接、完成或失败都清临时文件，下次进程恢复清理遗留临时文件。进程在系统选择器期间被终止需重新发起导出。
+
+直接播放入口只接FULL/PARAGRAPH。缺失必须确认；补齐时复用已确认音频（随机模式亦保留既有实际seed），只为缺段生成。显式“仅播放已有”冻结实际段号列表；补齐模式遇缺段等待而不跳读。Media3每次仅送当前自然段，完成后再选下一段，暂停/换目标对异步校验与生成完成加代次检查。SENTENCE仍走原明确选区生成/最新音频链。
+
+旧PARAGRAPH只有明确稳定retention身份时才纳入新索引；旧FULL/单句/无稳定身份项目继续在管理中播放/导出/删除，不按标题或全文hash猜拆。完整精确服务/权限、数据库schema与宿主接线清单见SOURCE_MANIFEST第14节；后台/焦点/时限/通知/实机声音仍以设备执行为准。

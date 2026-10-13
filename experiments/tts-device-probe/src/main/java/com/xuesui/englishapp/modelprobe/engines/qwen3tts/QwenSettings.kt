@@ -73,14 +73,31 @@ internal fun QwenVoiceSettings(form: QwenForm, enabled: Boolean, instructionEnab
 internal fun QwenAdvancedSettings(form: QwenForm, enabled: Boolean, onChange: (QwenForm) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         NumericField("CPU线程 · 1…${Runtime.getRuntime().availableProcessors()}", form.threads, enabled) { onChange(form.copy(threads = it)) }
+        Text(ParameterHelp.threads, style = MaterialTheme.typography.bodySmall)
         NumericField("Temperature · 0…2（0为greedy）", form.temperature, enabled) { onChange(form.copy(temperature = it)) }
+        Text(ParameterHelp.temperature, style = MaterialTheme.typography.bodySmall)
         NumericField("Top-k · 0…2048（0关闭）", form.topK, enabled) { onChange(form.copy(topK = it)) }
+        Text(ParameterHelp.topK, style = MaterialTheme.typography.bodySmall)
         NumericField("Top-p · 大于0且不超过1", form.topP, enabled) { onChange(form.copy(topP = it)) }
+        Text(ParameterHelp.topP, style = MaterialTheme.typography.bodySmall)
         NumericField("Repetition penalty · 1…2", form.repetition, enabled) { onChange(form.copy(repetition = it)) }
+        Text(ParameterHelp.repetition, style = MaterialTheme.typography.bodySmall)
         NumericField("最大音频帧 · 1…4096", form.maxTokens, enabled) { onChange(form.copy(maxTokens = it)) }
+        Text(ParameterHelp.frames, style = MaterialTheme.typography.bodySmall)
         NumericField("Seed · -1随机，或0…2147483647", form.seed, enabled, signed = true) { onChange(form.copy(seed = it)) }
-        Text("触及最大音频帧会标记可能截断。队列/逐句依次使用seed、seed+1…；随机模式记录实际seed。当前使用CPU，无精确合成语速参数。", style = MaterialTheme.typography.bodySmall)
+        Text(ParameterHelp.seed, style = MaterialTheme.typography.bodySmall)
+        Text("默认线程为核心数与4的较小值；其余默认依次为0.9、50、1.0、1.05、1024、42。高级参数不用于调整播放倍速。", style = MaterialTheme.typography.bodySmall)
     }
+}
+
+internal object ParameterHelp {
+    const val threads = "更多线程不一定更快，可能增加发热并触发降频。建议先用默认值，再根据手机实测小幅调整。"
+    const val temperature = "温度控制采样随机性：较低通常更稳定，较高变化更多，也可能降低清晰度。0选择概率最高的候选。"
+    const val topK = "只在概率最高的k个候选中选择；数值越小筛选越严格，0不按数量筛选。"
+    const val topP = "按累计概率筛选候选；越小选择范围通常越窄，1不按累计概率裁剪。它会与Top-k共同作用。"
+    const val repetition = "抑制已经出现的音频符号。过强可能损伤正常发音、节奏或完整性；不能保证消除所有重复。"
+    const val frames = "这是每次模型调用的音频帧预算，不是全文长度限制。长文按自然段及段内片段生成；触顶会有限重试，仍未完整时不会发布为成功。调大上限也会增加单次耗时和资源占用。"
+    const val seed = "固定seed有助于同条件复现，但不能保证跨引擎、设备或并行实现完全相同。-1在入队时抽取一次实际seed并固定段落/片段序列，恢复任务不重新抽取。"
 }
 
 @Composable

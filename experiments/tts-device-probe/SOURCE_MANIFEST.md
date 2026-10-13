@@ -608,3 +608,112 @@ python experiments/tts-device-probe/tools/inspect-native-artifact.py
 3. 短多段/含正常数字的长段，检查无漏读/重复、分片接缝和无学习编号；再扩大到118段。触顶/取消后切001再生成，旧成功版本应保留。首片保存时间与整篇时间分别读新报告，不把批量接口称流式。
 
 不能承诺速度提升倍数：已有样本311990ms是失败整请求时间，旧34.08秒样本RTF4.71来自另一文本且没有同文报告；二者不能直接比较。模拟只证明串行队列包括重试无需每片重新load。保留1.7B Q4，未提高线程或引入GPU/NPU/新依赖。完成一次交接后等待总控，不Git/APK/上传，不以此结案真实怪音和001不可用。
+
+
+## 14. 2026-10-14 语音0.4.0后台与自然段持久队列候选
+
+本节对应总控明确批准的 saber1.3.0 / 语音0.4.0；实施契约唯一正文为已授权的 `D:/Codex_Project/Codex_EnglishApp/_manager/features/feature-03-speech/V1_3_0_PLAN.md`。旧模型、原生/解析和第13节修复证据沿用；总控概括性“基本正常”反馈及第9节单次“完整且清晰、没有明显漏读或重复”不提高为本轮后台/恢复/音质验收。无Git操作、APK、根宿主、全局Gradle/代理/系统环境变更。
+
+### 公共接口与宿主交接
+
+在 `com.xuesui.englishapp.modelprobe.runtime` 新增精确接口：
+
+```kotlin
+@Composable
+fun SpeechReadingPlayButton(documentId: String, request: SpeechReadingRequest, modifier: Modifier = Modifier)
+@Composable
+fun SpeechRuntimeHost()
+```
+
+- 总控在正式Activity内容根调用RuntimeHost一次，覆盖非阅读Tab的前台恢复；给功能1的playbackControl基础类型槽映射FULL/PARAGRAPH请求，稳定documentId/原段索引/去编号英文沿用。请求正文不进Intent/Bundle。进入前台仅恢复生成，绝不恢复出声。
+- ModelProbeFeature、SpeechFeature、SpeechInlineReadingFeature、SpeechSettingsFeature与请求字段保留。独立ModelProbeFeature内部已放RuntimeHost；独立宿主不需要再重复放置它。旧完整/单句音频可管理、播放、导出和删除；不猜拆旧全文文件。
+- ProbeViewModel为观察/命令门面，所有实际入口共享进程级ProbeController与唯一TaskRunner/模型。正式生成经服务驱动，页面、Tab、ON_STOP、旋转和ViewModel清理不触发原生取消。诊断显式加载仍可保持模型驻留用于warm测试；正式持久队列结束后释放模型。
+- 缺段必须确认；全部已有直接播放，补齐按顺序等缺段，显式“仅播放已有”显示真实段号。补齐保留已有随机take的实际seed。新范围/暂停使异步文件准备与迟到生成事件失效，取消弹窗不开始生成。生成全文与播放独立。
+- 底部槽继续最大180dp，详情包含全局播放段号/时间/速度、各批生成进度及暂停/继续/取消、音频管理和全文WAV导出。设置仍只管理模型/声音；正在生成时可改新任务设置，现任务快照不变。默认参数未改，中文说明见QwenSettings.ParameterHelp。
+
+### 新依赖、服务与最小权限
+
+直接依赖 `androidx.media3:media3-exoplayer:1.11.1`、`androidx.media3:media3-session:1.11.1`，使用官方Google Maven、固定版本；复用既有catalog的core-ktx。Media3发布和许可证分别核对 [官方发布页](https://developer.android.com/jetpack/androidx/releases/media3) 与 [1.11.1 LICENSE](https://raw.githubusercontent.com/androidx/media/1.11.1/LICENSE)，Apache-2.0。原生第三方notice保留，新增LICENSE-media3.txt和NOTICE依赖说明；这些Maven库由宿主依赖图解析，AAR不嵌入第二套依赖classes。
+
+新增Manifest服务（没有Application类、Activity或launcher）：
+
+| 全名 | Manifest | 启动与用途 |
+|---|---|---|
+| `com.xuesui.englishapp.modelprobe.runtime.SpeechGenerationService` | exported=false，stopWithTask=false，foregroundServiceType=dataSync\|mediaProcessing | 用户可见操作/RuntimeHost前台恢复调用ContextCompat.startForegroundService；API35+以mediaProcessing类型startForeground，29–34以dataSync类型启动。返回START_NOT_STICKY，无开机/后台自动重启 |
+| `com.xuesui.englishapp.modelprobe.runtime.SpeechMediaService` | exported=false，stopWithTask=false，foregroundServiceType=mediaPlayback；action=androidx.media3.session.MediaSessionService | 用户明确播放时启动，Media3 MediaSessionService管理媒体前台通知。MediaSession仅接纳本UID、系统UID或平台trusted控制器；不开放更换MediaItem命令 |
+
+六项权限为 `android.permission.FOREGROUND_SERVICE`、`FOREGROUND_SERVICE_DATA_SYNC`、`FOREGROUND_SERVICE_MEDIA_PROCESSING`、`FOREGROUND_SERVICE_MEDIA_PLAYBACK`、`POST_NOTIFICATIONS`、`WAKE_LOCK`（后五项同android.permission前缀）。不新增网络/录音/广泛存储权限；播放只使用已校验的本地文件。
+
+生成通知channel `speech-generation-v1` / ID41031，显示标题、完成自然段数和当前段，有暂停/继续/取消；Intent仅带批次UUID，服务不导出。暂停/失败保留可继续的非前台通知；通知点击使用PackageManager现有App启动Intent及immutable PendingIntent，不增加宿主路由。MediaSession复用同一App启动PendingIntent、独立媒体通知和音频焦点/noisy控制；没有用mediaPlayback给推理保活。RuntimeHost在需要时解释并请求通知权限；拒绝后说明生成通知控制不可见，媒体通知遵循系统独立处理，不因拒绝崩溃。
+
+生成服务本次主动预算45分钟，partial wake lock带46分钟兜底超时且在暂停/退出释放；服务预算不因同一实例多次启动指令延长。onTimeout和主动时限请求合作取消、保存中断状态并stopForeground/stopSelf，不在主线程等待原生返回；原所有者仍持有工作线程/模型租约，直到实际退出才释放或开下一任务。内核I/O、模型解析、内存分配、单个CPU计算节点仍可能延迟取消，未实测最大退出延迟。不使用WorkManager或开机恢复；强制停止后需重新打开App，平台/厂商仍可能杀进程。
+
+依据沿用 [FGS类型](https://developer.android.com/develop/background-work/services/fgs/service-types)、[FGS时限](https://developer.android.com/develop/background-work/services/fgs/timeout)、[Media3后台播放](https://developer.android.com/media/media3/session/background-playback)。平台共享时限由系统执行，本模块不声称45分钟预算等于系统剩余额度。
+
+### SQLite schema1与文件发布/恢复
+
+仅新增本宿主 `noBackupFilesDir/model-probe-v1/speech-queue.sqlite3`，SQLiteOpenHelper、WAL、synchronous=FULL、外键启用。四表定义在runtime/SqliteSpeechQueue.kt：
+
+- batches：id主键、queue_order唯一、document_id、state、payload。
+- paragraphs：id主键、batch_id外键、paragraph_index、state、audio_run、pending_run、payload；batch_id+paragraph_index唯一，并有batch/state/index索引。
+- latest_audio：identity主键、audio_run、payload。
+- queue_meta：key主键、value，保存待回收run ID集合。
+
+payload包含冻结正文/参数与实际seed、内容/配置/引擎摘要、标题、任务顺序、状态/原因和音频引用。一次全文入队在一个事务中写完；保存采用UPDATE/INSERT，不通过替换父行破坏外键。没有升级重建或降级兜底：未来版本需显式向前迁移，未知版本报错保留原库。其他模块数据库与原有results/settings不迁移。
+
+进程恢复仅续queued/interrupted；user-paused/cancelled不自动续，failed需要明确重试。单段失败暂停本篇后续，下一文章仍按FIFO运行。随机seed在入队时解析一次，每自然段预留2048个段内attempt序号；恢复使用同一参数字符串，不重新抽取。配置/正文变化创建新快照；取消保留已经发布的完成段。
+
+文件与SQLite之间使用可恢复发布协议而非声称一个跨文件系统事务：先登记pending_run，RunStore完整写入/哈希/原子rename；新run先写入catalog持久pins，再用SQLite事务同时切换DONE和latest_audio，最后按最新账本裁剪pins并回收无引用旧版。数据库写失败时旧latest保持，额外pins宁可暂留；重开可核验完整草稿并完成发布或重试未完成段。RunStore构造恢复先读durablePins，不只依赖内存Lease；已提交子片可精确缓存复用，未提交父的废弃子片按显式sessionId回收。
+
+queue/player/export的持久pin互不覆盖；player在ExoPlayer实际release后再释放引用。替换/删除会保留仍被队列、播放器、导出或其他父结果引用的文件。删除已确认音频同时禁止相关未完成任务迟到发布，防止自动复活；取消后只能显式新建任务。完成/取消批次保留任务元数据，不无限pin被新成功版本替换的音频。
+
+旧PARAGRAPH仅依据明确稳定retention身份进入新latest索引，新body/settings不匹配时不播放错配音频；旧FULL/单句/无documentId的历史不猜测迁移，仍可显式管理。新FULL没有长期整篇WAV，只有自然段WAV和必要段内子片；全文SAF导出先绑定完整段列表、临时顺序拼接、结束/失败清临时产物，下一进程清遗留临时文件。SAF选择器期间若进程被终止，需要重新发起导出。
+
+### 增量验证与边界
+
+受影响命令从仓库根调用（只构建Library）：
+
+```powershell
+& '.\experiments\tts-device-probe\tools\test-module.ps1' -Tests @(
+  '*ParagraphLedgerTest','*DurableAudioTest','*ReadingRetentionTest',
+  '*ReadingQueueTest','*SpeechRepairTest','*TaskRunnerTest','*StorageSettingsTest')
+```
+
+脚本运行testDebugUnitTest、compileDebugAndroidTestKotlin、assembleRelease、lintDebug；JDK17/SDK36/min29/NDK28.2/CMake3.22.1/Gradle9.5.0保持。按总控同日授权，仅Gradle调用作用域设置JAVA_TOOL_OPTIONS的固定主工作区hosts路径，finally恢复原值。初始两次Gradle官方POM超时以及一次独立HEAD超时保留为失败尝试；总控后续新JVM启动参数修正和87制品解析成功直接沿用，未换源/版本/代理。
+
+新增JVM测试覆盖44段完成43段后重建账本、冻结随机seed、暂停/取消不恢复、FIFO/失败让出其他文章、并发入队去重、禁止双claim、存储事务失败保留旧latest、删除禁止迟到发布、跨任务持久pin/子引用/孤儿回收、补齐只生成缺段、缺段等待/显式跳段、暂停后迟到可用事件以及中文帮助语义。其余受影响存储、段内重试和原生工作线程边界回归沿用并补跑调用链；不重审未变模型/native/解析。
+
+新增Android SQLite真实事务/重开44段测试及Media3合成WAV解析/seek测试均只编译；旧fake运行期生命周期测试改为切页不中止，并明确不再把独立fake控制器当作进程MediaSession播放验收。旧MediaPlayer测试仅作为兼容实现历史用例，不宣称测试了新Media3服务。没有运行Android测试、真实模型、FGS、锁屏、音频焦点、系统时限、通知拒绝或视觉UI验证。
+
+设备下一步由总控完成宿主接线与干净提交APK后安排：先2–3段验证直接播放/缺失确认、生成播放分离、切Tab/后台/锁屏、暂停不续、杀进程再开续段但不出声；再验证全文导出、旧音频删除/替换、断点43/44，最后扩大到实际长文。一次合成样本和概括性“基本正常”反馈均不能替代这些新验收；不承诺推理速度倍数改善。
+
+最终测试计数、AAR/二进制hash及交接状态见下方本轮验证收据。Git、集成、根版本/签名和APK由总控负责；本任务报告一次后等待。
+
+
+### 本轮最终验证收据
+
+- 最终命令成功退出0，Gradle `BUILD SUCCESSFUL in 2m 35s`。JVM XML时间2026-10-13T17:26:18.451Z至17:27:01.837Z（北京时间2026-10-14 01:26–01:27），66项：65通过、1环境跳过、0失败/错误。分布：ParagraphLedgerTest10、DurableAudioTest7、ReadingRetentionTest20（含1跳过）、ReadingQueueTest8、SpeechRepairTest12、StorageSettingsTest7、TaskRunnerTest2。
+- 跳过项为既有 `symbolicLinksAreRejectedBeforeAnyResultOrExternalFileIsRemoved`：Windows主机不允许测试创建符号链接。Android对应安全用例已编译，未执行，不将跳过计入通过。
+- `compileDebugAndroidTestKotlin`、`assembleRelease`、`lintDebug`均通过。Lint 0错误/8警告：GradleDependency1、ChromeOsAbiSupport1、UsableSpace2、UseKtx1、UseTomlInstead3。固定SDK/ARM64与模块内依赖版本在本轮范围内保留；UseKtx为建议改写显式SQLite事务的风格提示。精确报告为build/reports/lint-results-debug.{xml,html,sarif}。
+- `build/outputs/aar/runtime-release.aar`：2,124,766字节；SHA-256 `64ce84178bb36675e1611b0a92e22c638521f7d5c21bb77e47006da9b4ce436f`。
+- AAR内 `libmodel_probe_qwen.so`：2,303,760字节，SHA-256 `3da2a46ff18771ae35afa2d9b762142b1b80dc61593ea537930f1df47ff48c5b`；`libc++_shared.so`：1,253,544字节，SHA-256 `cd61762848882a16c8244c964a6f396c0caa0b440588a210ce9cc4ab0e6d9f0c`。两份与第13节逐字节身份一致，因此旧原生/ELF证据直接沿用，没有重复原生审计或模型执行。
+- 读取最终AAR确认两个新增入口class、两个服务class、上述六权限/两个未导出服务及minSdk29；无Activity/launcher/Application类。classes.jar含5份model-probe notice/license资源，包括新增11,358字节LICENSE-media3.txt。此为AAR静态检查，不是APK安装或运行结果。
+- 模块结论 `ready_for_integration / awaiting_manager_integration`。源码/AAR与交接范围完整，Android/FGS/锁屏/焦点/通知拒绝/恢复实际执行、Compose视觉与真实生成音质仍待总控宿主和手机验收。详细当前实现见ARCHITECTURE，授权入口见MANAGER_LINK；不改写旧失败记录。
+
+### 2026-10-14 接收后定向修正：长篇生成预算
+
+总控接收上述0.4.0交付及65通过/1环境跳过等证据后，在同一已授权BRIEFING顶部要求单一预算修正。本小节取代前文45分钟/46分钟的当前运行策略和上一份AAR身份；原实现与验证收据保留为交接时点历史，不撤销其他已接收证据。
+
+- `SpeechGenerationService.kt`主动预算为5小时50分钟（350分钟，21,000,000 ms），wake lock兜底为预算加1分钟（351分钟，21,060,000 ms），通过内部常量`WAKE_TIMEOUT_MS`供原acquire调用使用。保留原`onTimeout`、同一运行实例不续期、`START_NOT_STICKY`、唯一native所有者和安全退出；没有增加重启循环，系统共享额度仍可能更早耗尽，不能保证手机连续运行满预算。
+- 同时仅清理`SpeechInlineReadingFeature.kt`第106行`else`后的行尾空格。公共API、依赖、Manifest、数据库schema、队列/原生/播放状态机及宿主需求不变。
+- 新增`src/test/java/com/xuesui/englishapp/modelprobe/runtime/SpeechServiceBudgetTest.kt`，两项纯JVM断言分别验证5小时50分钟主动时限和wake lock多1分钟的契约。没有启动Android Service或等待实际时限，不能视作真实设备时限测试。
+
+精确增量命令（既有进程级工具链/hosts作用域保持）：
+
+```powershell
+& './experiments/tts-device-probe/tools/test-module.ps1' -Tests '*SpeechServiceBudgetTest' -Tasks @(':runtime:testDebugUnitTest', ':runtime:assembleRelease')
+```
+
+- 退出0，`BUILD SUCCESSFUL in 38s`，45 tasks（12 executed / 33 up-to-date）；Debug/Release Kotlin增量编译和Release AAR成功。预算测试**2通过、0跳过、0失败/错误**，XML时间2026-10-13T17:37:14.741Z（北京时间2026-10-14 01:37）。当前`build/test-results/testDebugUnitTest/`和对应HTML报告只对应本次2项，先前66项以已接收的上一份收据为准；没有重跑Android测试源码编译、Lint或旧66项。
+- 新`build/outputs/aar/runtime-release.aar`：**2,124,811字节**；SHA-256 **`791603640fed2891bcb09dc446a28f4d262facc275ac265ce3fc7f2726057573`**。直接读取新AAR中两份SO的大小/hash，与本节上一份收据完全一致；旧原生/ELF/模型来源证据继续沿用。
+- 变更仅上述2个生产源码、1个定向测试，以及当前架构/状态/变更/授权和本收据5份文档；未执行Git、构建APK或提升任何设备验收。状态仍为`ready_for_integration / awaiting_manager_integration`，完成一次定向交接后等待总控集成。
