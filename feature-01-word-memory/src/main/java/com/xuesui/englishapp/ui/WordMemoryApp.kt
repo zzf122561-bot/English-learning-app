@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -28,11 +29,14 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -100,6 +104,12 @@ fun WordMemoryApp(
         paragraphIndex: Int?,
         sentenceText: String?,
     ) -> Unit)?,
+    playbackControl: (@Composable (
+        documentId: String,
+        title: String,
+        englishParagraphs: List<String>,
+        paragraphIndex: Int?,
+    ) -> Unit)?,
 ) {
     val notebooks by model.notebooks.collectAsStateWithLifecycle(initialValue = emptyList())
     val activeNotebook by model.activeNotebook.collectAsStateWithLifecycle(initialValue = null)
@@ -130,6 +140,7 @@ fun WordMemoryApp(
             onLookupRequested = onLookupRequested,
             onReadingRequested = onReadingRequested,
             readingContent = readingContent,
+            playbackControl = playbackControl,
         )
     }
 
@@ -268,6 +279,12 @@ internal fun StudyScreen(
         paragraphIndex: Int?,
         sentenceText: String?,
     ) -> Unit)?,
+    playbackControl: (@Composable (
+        documentId: String,
+        title: String,
+        englishParagraphs: List<String>,
+        paragraphIndex: Int?,
+    ) -> Unit)? = null,
 ) {
     BackHandler(onBack = onBack)
     var displayedFontLevel by remember(notebook.id) {
@@ -364,25 +381,16 @@ internal fun StudyScreen(
     }
     Scaffold(containerColor = Paper) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            Row(
-                Modifier.fillMaxWidth().background(Paper).padding(horizontal = 8.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回") }
-                Column(Modifier.weight(1f)) {
-                    Text(notebook.title, style = MaterialTheme.typography.titleLarge, maxLines = 1)
-                    Text("${notebook.segmentCount} 段  ·  ${notebook.targetCount} 个目标", style = MaterialTheme.typography.labelMedium, color = Slate)
-                }
-                TextButton(
-                    onClick = { submitReadingRequest(null, null) },
-                    enabled = englishParagraphs.isNotEmpty(),
-                ) {
-                    Text(if (readingContent == null) "全文朗读" else "选全文")
-                }
-                IconButton(onClick = { showFontDialog = true }) {
-                    Text("Aa", fontWeight = FontWeight.Bold)
-                }
-            }
+            StudyHeader(
+                notebook = notebook,
+                englishParagraphs = englishParagraphs,
+                documentId = wordMemoryDocumentId(notebook.id),
+                readingContentAvailable = readingContent != null,
+                playbackControl = playbackControl,
+                onBack = onBack,
+                onGenerateFull = { submitReadingRequest(null, null) },
+                onShowFontDialog = { showFontDialog = true },
+            )
             HorizontalDivider(color = Hairline)
             if (segments.isEmpty()) {
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
@@ -401,6 +409,18 @@ internal fun StudyScreen(
                             inlineSelectionEnabled = readingContent != null,
                             onReadingRequested = { sentenceText ->
                                 submitReadingRequest(paragraphIndex, sentenceText)
+                            },
+                            playbackControl = if (playbackControl != null && readingPreparationError == null) {
+                                {
+                                    playbackControl(
+                                        wordMemoryDocumentId(notebook.id),
+                                        notebook.title,
+                                        englishParagraphs,
+                                        paragraphIndex,
+                                    )
+                                }
+                            } else {
+                                null
                             },
                         )
                     }
@@ -455,6 +475,105 @@ internal fun StudyScreen(
 private const val FULL_ARTICLE_SELECTION = -1
 
 @Composable
+private fun StudyHeader(
+    notebook: NotebookEntity,
+    documentId: String,
+    englishParagraphs: List<String>,
+    readingContentAvailable: Boolean,
+    playbackControl: (@Composable (
+        documentId: String,
+        title: String,
+        englishParagraphs: List<String>,
+        paragraphIndex: Int?,
+    ) -> Unit)?,
+    onBack: () -> Unit,
+    onGenerateFull: () -> Unit,
+    onShowFontDialog: () -> Unit,
+) {
+    var generationMenuExpanded by remember(documentId) { mutableStateOf(false) }
+
+    @Composable
+    fun Title(modifier: Modifier) {
+        Column(modifier) {
+            Text(notebook.title, style = MaterialTheme.typography.titleLarge, maxLines = 1)
+            Text(
+                "${notebook.segmentCount} 段  ·  ${notebook.targetCount} 个目标",
+                style = MaterialTheme.typography.labelMedium,
+                color = Slate,
+            )
+        }
+    }
+
+    @Composable
+    fun Actions() {
+        Row(
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (playbackControl == null) {
+                TextButton(
+                    onClick = onGenerateFull,
+                    enabled = englishParagraphs.isNotEmpty(),
+                ) {
+                    Text(if (readingContentAvailable) "选全文" else "全文朗读")
+                }
+            } else {
+                if (englishParagraphs.isNotEmpty()) {
+                    playbackControl(documentId, notebook.title, englishParagraphs, null)
+                }
+                Box {
+                    IconButton(
+                        onClick = { generationMenuExpanded = true },
+                        modifier = Modifier.testTag("full-reading-menu"),
+                        enabled = englishParagraphs.isNotEmpty(),
+                    ) {
+                        Icon(Icons.Rounded.MoreVert, contentDescription = "更多朗读操作")
+                    }
+                    DropdownMenu(
+                        expanded = generationMenuExpanded,
+                        onDismissRequest = { generationMenuExpanded = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("生成全文") },
+                            onClick = {
+                                generationMenuExpanded = false
+                                onGenerateFull()
+                            },
+                            modifier = Modifier.testTag("generate-full-reading"),
+                        )
+                    }
+                }
+            }
+            IconButton(onClick = onShowFontDialog) {
+                Text("Aa", fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+
+    BoxWithConstraints(
+        Modifier.fillMaxWidth().background(Paper).padding(horizontal = 8.dp, vertical = 10.dp),
+    ) {
+        if (maxWidth < 560.dp && playbackControl != null) {
+            Column(Modifier.fillMaxWidth()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回") }
+                    Title(Modifier.weight(1f))
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    Actions()
+                }
+            }
+        } else {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回") }
+                Title(Modifier.weight(1f))
+                Actions()
+            }
+        }
+    }
+}
+
+@Composable
 private fun StudySegment(
     data: StudySegmentWithTargets,
     onVisibilityChange: (Boolean) -> Unit,
@@ -466,6 +585,7 @@ private fun StudySegment(
     readingEnabled: Boolean,
     inlineSelectionEnabled: Boolean,
     onReadingRequested: (String?) -> Unit,
+    playbackControl: (@Composable () -> Unit)? = null,
 ) {
     val segment = data.segment
     val targets = data.targets.sortedBy { it.position }
@@ -520,15 +640,11 @@ private fun StudySegment(
             minLines = 3,
         )
         Spacer(Modifier.height(14.dp))
-        OutlinedButton(
-            onClick = { onVisibilityChange(!segment.chineseVisible) },
-            modifier = Modifier.fillMaxWidth(),
-            border = BorderStroke(1.dp, Hairline),
-        ) {
-            Icon(if (segment.chineseVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text(if (segment.chineseVisible) "隐藏本段中文" else "显示本段中文")
-        }
+        SegmentTranslationActions(
+            chineseVisible = segment.chineseVisible,
+            onVisibilityChange = onVisibilityChange,
+            playbackControl = playbackControl,
+        )
         if (segment.chineseVisible) {
             Spacer(Modifier.height(16.dp))
             Text(highlightedText(segment.chineseText, targets, true), style = studyTextStyle, color = Ink)
@@ -546,6 +662,49 @@ private fun StudySegment(
         )
     }
     HorizontalDivider(color = Hairline)
+}
+
+@Composable
+private fun SegmentTranslationActions(
+    chineseVisible: Boolean,
+    onVisibilityChange: (Boolean) -> Unit,
+    playbackControl: (@Composable () -> Unit)?,
+) {
+    @Composable
+    fun TranslationButton(modifier: Modifier) {
+        OutlinedButton(
+            onClick = { onVisibilityChange(!chineseVisible) },
+            modifier = modifier,
+            border = BorderStroke(1.dp, Hairline),
+        ) {
+            Icon(if (chineseVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text(if (chineseVisible) "隐藏本段中文" else "显示本段中文")
+        }
+    }
+
+    if (playbackControl == null) {
+        TranslationButton(Modifier.fillMaxWidth())
+        return
+    }
+
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        if (maxWidth < 520.dp) {
+            Column(Modifier.fillMaxWidth()) {
+                TranslationButton(Modifier.fillMaxWidth())
+                Spacer(Modifier.height(8.dp))
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+                    playbackControl()
+                }
+            }
+        } else {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                TranslationButton(Modifier.weight(1f))
+                Spacer(Modifier.width(10.dp))
+                playbackControl()
+            }
+        }
+    }
 }
 
 @Composable

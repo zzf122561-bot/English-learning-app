@@ -1,5 +1,8 @@
 package com.xuesui.englishapp.docx
 
+import com.xuesui.englishapp.study.ReadingParagraphPreparation
+import com.xuesui.englishapp.study.ReadingTargetMarker
+import com.xuesui.englishapp.study.prepareReadingParagraph
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -96,6 +99,59 @@ class DocxNotebookParserTest {
         assertEquals(listOf("1048", "X-9"), result.segments.single().targets.map { it.key })
         assertEquals("重新连接", result.segments.single().targets.first().chinese)
         assertEquals("坚守", result.segments.single().targets.last().chinese)
+    }
+
+    @Test
+    fun storyDocxV1ParsesInOrderAndProducesNumberFreeReadingParagraphs() {
+        val bytes = docx(
+            title = "The Patient Workshop",
+            paragraphXml = buildString {
+                append(paragraph(run("The Patient Workshop", true)))
+                append(
+                    paragraph(
+                        run("In 2026, Mira learned to "),
+                        run("A0001. ", true),
+                        run("articulate", true),
+                        run(" an idea worth 3.14 points."),
+                    ),
+                )
+                append(
+                    paragraph(
+                        run("【中文译文】2026年，米拉学会了"),
+                        run("A0001. ", true),
+                        run("清晰表达", true),
+                        run("一个值3.14分的想法。"),
+                    ),
+                )
+                append(paragraph(run("She made a "), run("A10000. long-term", true), run(" promise.")))
+                append(paragraph(run("【中文译文】她做出了一个"), run("A10000. 长期的", true), run("承诺。")))
+            },
+        )
+
+        val result = parser.parse(ByteArrayInputStream(bytes), "（A0001-A10000）20261014.docx")
+        val spokenParagraphs = result.segments.map { segment ->
+            prepareReadingParagraph(
+                segment.englishText,
+                segment.targets.map { target ->
+                    ReadingTargetMarker(
+                        key = target.key,
+                        english = target.english,
+                        start = target.englishStart,
+                        end = target.englishEnd,
+                    )
+                },
+            )
+        }
+
+        assertEquals("The Patient Workshop", result.title)
+        assertEquals(listOf("A0001", "A10000"), result.segments.flatMap { it.targets }.map { it.key })
+        assertEquals(
+            listOf(
+                ReadingParagraphPreparation.Ready("In 2026, Mira learned to articulate an idea worth 3.14 points."),
+                ReadingParagraphPreparation.Ready("She made a long-term promise."),
+            ),
+            spokenParagraphs,
+        )
     }
 
     private fun docx(title: String, paragraphXml: String): ByteArray {
