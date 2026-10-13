@@ -126,8 +126,9 @@ internal class RunStore(private val root: File, private val cache: File,
         }
     }
     fun acquire(id: String, verify: Boolean = true): Lease = synchronized(draftLock) {
-        val garbage = catalog().getJSONArray("garbage").strings().toSet()
-        require(id !in garbage || recordsStrict().values.any { it.id !in garbage && id in children(it) }) { "该音频正在删除或已被新版替换" }
+        val value = catalog()
+        val garbage = value.getJSONArray("garbage").strings().toSet()
+        require(id !in garbage || durableIds(value).contains(id) || recordsStrict().values.any { it.id !in garbage && id in children(it) }) { "该音频正在删除或已被新版替换" }
         val run = read(id, verify)
         val key = leaseKey(id); leases[key] = (leases[key] ?: 0) + 1
         Lease(run)
@@ -151,7 +152,17 @@ internal class RunStore(private val root: File, private val cache: File,
     /** Returns true only after the selected record's files have actually been removed. */
     fun delete(id: String): Boolean = synchronized(draftLock) {
         checkRoots(); require(id.matches(ID))
-        if (!privateChild(root, id).exists()) return@synchronized true
+        if (!privateChild(root, id).exists()) {
+            // A process may die after child commits but before the paragraph parent rename.
+            // The durable queue knows that draft ID; retire only children declaring it.
+            val value = catalog()
+            val orphanIds = recordsStrict().values.filter { it.report.optJSONObject("reading")?.optString("sessionId") == id }.map { it.id }
+            if (orphanIds.isNotEmpty()) {
+                value.put("garbage", JSONArray((value.getJSONArray("garbage").strings() + orphanIds).distinct()))
+                saveCatalog(value); collectSafely()
+            }
+            return@synchronized orphanIds.none { privateChild(root, it).exists() }
+        }
         val run = read(id, false)
         checkFlatDirectory(run.directory)
         val catalog = catalog()
@@ -173,6 +184,22 @@ internal class RunStore(private val root: File, private val cache: File,
         !privateChild(root, id).exists()
     }
     fun recover() = synchronized(draftLock) { recoverLocked() }
+    /** Pins survive a process death, and are loaded before constructor-time garbage collection.
+     * Publish protocol: union-pin new IDs, commit the SQLite reference transaction, then trim.
+     * A failed DB write leaves extra pins (safe); recovery reconciles them with the ledger. */
+    fun durablePins(owner: String, ids: Set<String>, union: Boolean = false) = synchronized(draftLock) {
+        require(owner.matches(Regex("[a-z][a-z0-9_-]{0,63}")) && ids.all { it.matches(ID) })
+        val value = catalog()
+        val pins = value.optJSONObject("durablePins") ?: JSONObject().also { value.put("durablePins", it) }
+        val previous = pins.optJSONArray(owner)?.strings().orEmpty().toSet()
+        pins.put(owner, JSONArray((if (union) previous + ids else ids).toList()))
+        saveCatalog(value)
+    }
+    private fun durableIds(value: JSONObject): Set<String> {
+        val pins = value.optJSONObject("durablePins") ?: return emptySet()
+        return pins.keys().asSequence().flatMap { owner -> pins.getJSONArray(owner).strings().asSequence() }
+            .toSet().also { require(it.all { id -> id.matches(ID) }) { "持久音频引用损坏，停止清理" } }
+    }
     private fun checkRoots() {
         require(root.absoluteFile.normalize().path == anchor && cache.absoluteFile.normalize().path == cacheAnchor)
         require(!Files.isSymbolicLink(root.toPath()) && !Files.isSymbolicLink(cache.toPath())) { "拒绝符号链接结果目录" }
@@ -194,6 +221,7 @@ internal class RunStore(private val root: File, private val cache: File,
                 }
             }
             require(value.getJSONArray("garbage").strings().all { it.matches(ID) })
+            durableIds(value)
         }
     }
     private fun saveCatalog(value: JSONObject) = atomicJson(privateChild(root, "catalog.json"), value)
@@ -204,7 +232,7 @@ internal class RunStore(private val root: File, private val cache: File,
         // fragment. Full reports stay on disk and are re-read/verified for playback and export.
         val value = JSONObject()
         listOf("reportSchemaVersion", "runId", "status", "taskId", "title", "createdAtEpochMillis", "reading", "items", "childRunIds",
-            "retentionKey", "retention", "settingsKey", "modelFingerprint", "engineVersion", "audio", "artifacts", "requested",
+            "retentionKey", "retention", "durableParagraph", "settingsKey", "modelFingerprint", "engineVersion", "audio", "artifacts", "requested",
             "plannedCount", "completedCount", "error").forEach { key -> if (run.report.has(key)) value.put(key, run.report.get(key)) }
         return run.copy(report = value)
     }
@@ -270,6 +298,7 @@ internal class RunStore(private val root: File, private val cache: File,
         records.keys.filter { it !in garbage || (leases[leaseKey(it)] ?: 0) > 0 }.forEach(::keep)
         val latest = value.getJSONObject("latest")
         latest.keys().forEach { keep(latest.getString(it)) }
+        durableIds(value).forEach(::keep)
         garbage.toList().filter { it !in live }.forEach { id ->
             val directory = privateChild(root, id)
             if (directory.exists()) {

@@ -28,20 +28,21 @@ fun SpeechSettingsFeature(modifier: Modifier = Modifier) {
         item { Text("语音设置", style = MaterialTheme.typography.headlineSmall) }
         item {
             Text("声音与生成风格", style = MaterialTheme.typography.titleMedium)
-            QwenVoiceSettings(form, idle, state.instructionSupported, vm::editForm)
+            Text("正在排队或生成的任务保留入队时的正文和参数。这里的修改只用于之后创建的新任务。", style = MaterialTheme.typography.bodySmall)
+            QwenVoiceSettings(form, true, state.instructionSupported, vm::editForm)
         }
         item {
             Text("播放倍速：${String.format(Locale.ROOT, "%.2f", state.playbackSpeed)}×", style = MaterialTheme.typography.titleMedium)
-            Slider(state.playbackSpeed, vm::setPlaybackSpeed, valueRange = 0.5f..2f, steps = 5, enabled = idle)
+            Slider(state.playbackSpeed, vm::setPlaybackSpeed, valueRange = 0.5f..2f, steps = 5, enabled = true)
             Text("只调整播放，不改动原始音频。生成时的快慢风格可在语气指令中描述，不能保证精确倍速。", style = MaterialTheme.typography.bodySmall)
         }
         item {
             TextButton({ advanced = !advanced }) { Text(if (advanced) "收起高级配置" else "高级生成配置") }
-            if (advanced) QwenAdvancedSettings(form, idle, vm::editForm)
+            if (advanced) QwenAdvancedSettings(form, true, vm::editForm)
             if (!state.parametersValid) Text(state.parameterError, color = MaterialTheme.colorScheme.error)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button({ vm.saveSettings(false) }, enabled = idle && state.parametersValid) { Text("保存设置") }
-                TextButton({ vm.saveSettings(true) }, enabled = idle) { Text("恢复默认") }
+                Button({ vm.saveSettings(false) }, enabled = state.parametersValid) { Text("保存设置") }
+                TextButton({ vm.saveSettings(true) }, enabled = true) { Text("恢复默认") }
             }
         }
         item { HorizontalDivider() }

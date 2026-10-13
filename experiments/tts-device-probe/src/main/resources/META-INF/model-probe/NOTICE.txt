@@ -27,3 +27,11 @@ vendor/LOCAL_CHANGES.patch. The JNI and lifecycle adapter are module-owned code.
 No model weights are included in this AAR. Model-license declarations and the
 undisclosed original conversion-input revision are documented separately in
 SOURCE_MANIFEST.md; this notice does not claim a model repository LICENSE file.
+
+The shared Library uses these unmodified AndroidX Media3 dependencies:
+androidx.media3:media3-exoplayer:1.11.1
+androidx.media3:media3-session:1.11.1
+Source: https://github.com/androidx/media/tree/1.11.1
+Apache License 2.0; see LICENSE-media3.txt.
+They and their transitive dependencies are resolved by the host Gradle build,
+not embedded as a second copy of classes or native inference code in this AAR.

@@ -1,9 +1,8 @@
 # 当前状态
 
-- 2026-10-08：0.3.1核心语音修复候选为 `ready_for_integration / awaiting_manager_integration`，真实设备失败尚未闭环。唯一详细证据及已证实问题/未知根因/最小实机步骤见 [SOURCE_MANIFEST.md 第13节](SOURCE_MANIFEST.md#13-2026-10-08-核心语音031修复候选与失败证据)。来源为总控登记49baa81之后的本模块增量；未执行Git/APK/签名或读取其他功能。
-- 正式队列按有效预算分片，触顶最多2层/全请求32次重分片，覆盖原文且不重复拼失败PCM；异常不写完整缓存/最新索引，旧成功保留。单段不再被未选中非法段阻塞，同范围不重复占用运行器，读取失败清除切换锁；原布局与公开请求字段不变。
-- 原生新增明确EOS/上限、token/帧/阶段计时，父报告记录尝试与PCM数据；engine adapter3、缓存v2，显式只读兼容adapter2原设置。仍为原1.7B Q4/CPU，模型无需重装，没有新依赖/权限/数据库迁移。
-- 两轮共50个不同JVM用例通过（先49项，收尾12项含1项新增；0失败/错误/跳过）。Android测试源码、Release AAR、Lint均通过；Lint 0错误/6既有警告，新增native AAR的16KiB/notice/JNI构造静态检查通过。当前XML为收尾12项；精确命令、AAR/SO大小与hash只维护在第13节。未复跑旧无关清理/许可/模型解析证据。
-- 当前没有真实模型新音频、Android执行或视觉验收。FULL样本首片触顶和WAV数值已核对，但非静音怪音的原因、001请求→生成→匹配→播放的实际失败点仍未知。新Android用例只编译，不以WAV头正确或测试数宣称手机可用。
-- 旧34.08秒音频“完整且清晰，没有明显漏读或重复”的用户反馈仍仅对应第9节。下一步总控将本候选与功能1已合入的去编号输入整合，出包后先短句/同文段落A-B及001完整链，再多段/取消恢复；保持原音质路线，暂无同文设备速度改进数据。
-- 当前设计见 [ARCHITECTURE.md](ARCHITECTURE.md)，授权和回复对象见 [MANAGER_LINK.md](MANAGER_LINK.md)。本次完整FEATURE_MILESTONE已成功发送至总控01a024cb-1fba-7b23-a357-67eb2ad592b4（工具isError=false）；现等待集成和设备反馈，不轮询或自行扩展。
+- 2026-10-14：语音0.4.0 / saber1.3.0模块已获总控接收；接收后预算定向修正亦完成，`ready_for_integration / awaiting_manager_integration`。唯一完整验收与交接正文见 [SOURCE_MANIFEST 第14节](SOURCE_MANIFEST.md#14-2026-10-14-语音040后台与自然段持久队列候选)，当前AAR以节末“接收后定向修正”收据为准。总控登记来源为语音3023608之后增量；本任务未执行Git或构建APK。
+- 新增生成FGS、自然段SQLite持久队列/恢复、RunStore持久引用、Media3后台播放器、精确SpeechReadingPlayButton/SpeechRuntimeHost。切页不中止；缺音频确认、补齐等缺段/显式仅已有、生成播放独立控制、全文按需导出和中文参数帮助已实现。旧接口、模型/native/默认参数和旧音频保留规则按授权兼容。
+- 本次仅将主动预算延长至350分钟、wake lock兜底为预算加1分钟并清理指定行尾空格；2项预算JVM测试通过，增量Kotlin/Release AAR构建通过。先前66项（65通过/1 Windows符号链接条件跳过）、Android测试源码编译与Lint0错误/8提示的已接收证据直接沿用，未重跑；当前测试报告已被本次定向2项覆盖。AAR大小/hash、Manifest、数据库schema、依赖和精确命令只维护于第14节。
+- Android SQLite/Media3测试仅编译；无真实设备、FGS/锁屏/时限/音频焦点/通知拒绝或新音质执行证据。旧第9节34.08秒试听与第13节失败/修复证据仍按原范围保留，总控概括性“基本正常”不能替代0.4.0设备验收。
+- 需要总控在正式Activity根接RuntimeHost，并将功能1的playbackControl映射到新播放入口；独立ModelProbeFeature内部已调用RuntimeHost。由总控负责集成/Git/根版本/签名/APK，再先少量段落验证，随后长文。当前无依赖或编译阻塞。
+- 授权/回复对象见MANAGER_LINK；当前架构见ARCHITECTURE。原完整FEATURE_MILESTONE已成功发送并获总控接收；预算修正收据已完成，待一次发送后等待总控集成/设备反馈，不轮询或自行扩展。

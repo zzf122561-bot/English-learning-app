@@ -4,7 +4,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -13,7 +12,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 internal fun RuntimeLifecycle(vm: ProbeViewModel, busy: Boolean, onLeave: () -> Unit = vm::pageStopped) {
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
-    val view = LocalView.current
     val leave = rememberUpdatedState(onLeave)
     DisposableEffect(owner, vm) {
         val observer = LifecycleEventObserver { _, event ->
@@ -24,10 +22,5 @@ internal fun RuntimeLifecycle(vm: ProbeViewModel, busy: Boolean, onLeave: () -> 
             owner.lifecycle.removeObserver(observer)
             if (context.activity()?.isChangingConfigurations != true) leave.value()
         }
-    }
-    DisposableEffect(busy, view) {
-        val previous = view.keepScreenOn
-        if (busy) view.keepScreenOn = true
-        onDispose { view.keepScreenOn = previous }
     }
 }

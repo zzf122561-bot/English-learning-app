@@ -16,6 +16,7 @@ import com.xuesui.englishapp.modelprobe.features.speech.SpeechScreen
 /** Host owns the Activity/assets/package; only this composition registers a concrete task. */
 @Composable
 fun ModelProbeFeature() {
+    SpeechRuntimeHost()
     val context = LocalContext.current
     val vm: ProbeViewModel = viewModel { ProbeViewModel(context.applicationContext) }
     val state by vm.state.collectAsStateWithLifecycle()

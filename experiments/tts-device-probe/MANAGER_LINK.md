@@ -1,5 +1,15 @@
 # 语音手机验证开发简报
 
+## 2026-10-14 语音0.4.0 / saber1.3.0 当前授权
+
+同日0.4.0已接收，BRIEFING顶部“0.4.0接收后的单一定向修正”仅授权将主动预算改为350分钟、wake lock为预算加1分钟，保留系统更早超时/不续期/唯一native所有者/安全退出，并清理SpeechInlineReadingFeature.kt指定行尾空格。只补预算最小测试与必要增量编译/AAR，65通过/1环境跳过等原证据直接沿用；完成后向下述总控一次回报并等待，不重写状态机或重跑66项。
+
+唯一产品/接口/验收正文为明确只读授权的 `D:/Codex_Project/Codex_EnglishApp/_manager/features/feature-03-speech/V1_3_0_PLAN.md`；授权入口为同目录 `BRIEFING.md` 顶部，主工作区 PROJECT.md/AGENTS.md 亦只读。本轮实施本 Library 的后台生成、自然段 SQLite 持久队列、Media3 播放、精确公共播放入口/RuntimeHost、底部槽/设置和中文帮助。模型/原生/解析旧证据沿用，不提升新设备验收。
+
+允许模块服务/最小权限与固定 Media3 1.11.1；同日总控已实际排除官方依赖超时，依赖解析证据沿用。仅本模块 tools/test-module.ps1 的 Gradle 调用作用域可设置指定主工作区 hosts 的 JAVA_TOOL_OPTIONS，并 finally 恢复；不改 hosts、代理或全局配置。详细验证统一追加 SOURCE_MANIFEST 第14节。
+
+回复总控 `01a024cb-1fba-7b23-a357-67eb2ad592b4`（任务 `01a0fd10-c97b-7110-abab-9a56c6f3794b`）；完成整个模块增量、测试/AAR、服务/权限/schema/依赖/宿主需求/未覆盖设备项后一次完整报告并等待。权限、接口或取消安全阻塞即时一次报告。无 Git/APK/根宿主/其他功能权限，不要求纯确认回执。
+
 ## 2026-10-07 核心语音修复（0.3.1，当前执行范围）
 
 按总控同日更新的 `D:/Codex_Project/Codex_EnglishApp/_manager/features/feature-03-speech/BRIEFING.md` 顶部修复节继续：只改本Library，保留布局、公共字段和1.7B Q4；排查正式输入/预算/原生终止/PCM，以及FULL失败后单段请求、门控、结果加载和播放。限定分片与恢复次数，异常不得缓存成功或覆盖旧成功；不将模拟/编译提高为设备验收。
