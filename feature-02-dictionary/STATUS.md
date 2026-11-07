@@ -1,31 +1,75 @@
 # 功能 2 当前状态（Android Library）
 
-证据日期：2026-08-26；文档合并日期：2026-09-23，本轮未重新运行测试。
+更新时间：2026-11-07
 
 ## 当前阶段
 
-- 功能版本：`0.2.1`。
-- 状态：`integrated / awaiting_app_1.0.0_test.002_device_verification`。总控既有集成记录确认 test.002 已签名归档，原“等待构建”表述已过时；没有新增实机通过证据。
-- 用户已明确将“功能2：词典”指定为 `app-feature`；功能模块保持Android Library，总控边界检查为1个Application、2个Library。
-- 原 `mdict-java` / `lzo-core` GPL路线永久停止；当前是有完整MIT来源审计的项目自有纯Kotlin/JVM解析内核，没有Rust、Cargo、NDK、JNI或解析器运行依赖。
-- App 1.0.0 test.001 已由用户设备判定词典应用内链接仍失败；没有设备日志、具体词条或原始链接标记，本功能任务未宣称复现。
-- v0.2.0 的兼容缺口是仍以少量路径/fragment/格式白名单分类受控内部链接，并关闭 JavaScript。真实结构审计进一步确认 Oxford9 的快捷定位存在 `onclick`/`className` 机制。
-- v0.2.1 对当前词典受控文档内部默认放行：同源页面、未知路径、query、fragment、MDD 资源、相对/绝对同源链接、`entry:`、`bword:`、其他词典自定义 scheme、DOM 动态链接和内联事件不再因未枚举而进入 blocked/403。
-- 受控 WebView 已启用 JavaScript，CSP 只允许 `dictionary.local` 与内联词典脚本；MDD `.js` 资源可按需从当前词典读取。没有 JS Bridge、弹窗或多窗口能力。
-- 外部 HTTP/HTTPS 页面、file/content/intent/android-app/跨应用 scheme、文件/内容访问和外部脚本继续阻止；MDD 资源读取仍只经过当前已打开词典，8 MiB 大小边界保持。
-- 跨词条 `entry:`/`bword:`/相对/自定义 scheme 仍替换当前查询，不建立功能内返回栈；QUICK_LOOKUP 的一次返回契约不变。
-- 发音、字号、Room v2、`MIGRATION_1_2`、解析内核、导入和公共 `DictionaryFeature` 签名均未修改。
+- 功能版本：`0.3.0`，目标集成 saber `1.4.0`。
+- 状态：`accepted / awaiting_app_1.4.0_build`；总控已提交6402e84并接收本轮模块证据，等待其他模块和整包验证。
+- 本轮来源为总控登记的 `de23797`，仅改 Compose 查询/结果/管理布局、UI 测试及功能文档；未执行 Git。
+- 查询页区分页头/搜索、词头/发音、词典标签和正文；长词头及按钮可换行，顶部大字号内容可滚动，正文拥有独立可见区域。
+- 管理页使用纵向卡片，长名称完整换行，启停、排序、字号和删除各自成区；字号对话框只改排版，保存/取消、十档映射与删除确认继续使用原逻辑。
+- 直接使用宿主 MaterialTheme，留白 16/20dp、圆角 16dp、轻边线、主要触点至少 48dp，宽屏内容居中且不超过 720dp；宿主负责 system bar/bottom bar inset。
+- v0.2.1 受控内部链接和脚本兼容、词典 CSS 与逐词典字号继续保留。解析、资源、HTML 改写、音频、导入、Room v2/迁移和公共 DictionaryFeature 签名未修改。
 
-## 真实词典结构证据
+## 本轮验证与产物
+
+命令（本 worktree，使用既有授权 hosts 文件）：
+
+```powershell
+& 'feature-02-dictionary\tools\test-module.ps1' -Tasks @(
+  ':feature-02-dictionary:testDebugUnitTest',
+  '--tests', 'com.xuesui.englishapp.dictionary.DictionaryFeatureContractTest',
+  ':feature-02-dictionary:compileDebugAndroidTestKotlin',
+  ':feature-02-dictionary:assembleDebug'
+)
+# UI 测试 API/视口定位与空词典提示优先级收尾后的最终增量编译：
+& 'feature-02-dictionary\tools\test-module.ps1' -Tasks @(
+  ':feature-02-dictionary:compileDebugAndroidTestKotlin',
+  ':feature-02-dictionary:assembleDebug'
+)
+```
+
+| 项目 | 2026-11-07 结果 |
+|---|---|
+| Gradle | 定向回归 BUILD SUCCESSFUL，37 tasks：12 executed、25 up-to-date；最终增量编译 BUILD SUCCESSFUL，31 tasks：6 executed、25 up-to-date |
+| 受影响 JVM 契约 | 7 tests，0 failures/errors/skipped；覆盖 FULL→QUICK、新查询、安装门槛、一次关闭与字号草稿 |
+| Android 测试源码 | 4 个 Kotlin 源文件、15 项测试编译成功；新增 UI 5 项，未在设备执行 |
+| UI 用例范围 | 管理页 320dp/200% 与 360dp/150% 字号、长名称换行、启停/排序/字号保存取消/删除确认可达；查询页 360dp/200% 长词头与长标签、搜索和发音回调及正文分区；QUICK 继承管理态时系统/页面返回共用一次关闭 |
+| AAR | `build/outputs/aar/feature-02-dictionary-debug.aar`，480,961 bytes |
+| AAR SHA-256 | `DFCD2059E82FB745F995EF7C7FC4A268C5EBB6B37A8A62F0321D873CA6D0B463` |
+| 模块边界 | Android Library 不变；AAR Manifest 无 Activity，native/JNI=0，功能目录 APK=0 |
+| 数据库/公共契约 | Room 2 与 `MIGRATION_1_2`、`DictionaryFeature(...)` 均无变化 |
+| 未覆盖 | 无 Android 设备，新增 UI 用例只编译；未进行视觉、仪器或用户实机验收 |
+
+- 首次沙箱执行在 Gradle 启动时无法加载 `native-platform.dll`，未进入源码编译；经平台授权在沙箱外执行同一命令后成功。
+- 新 UI 测试使用当前 Compose `junit4.v2` API，4 个源文件/15 项测试已编译；最终只涉及外围显示条件的小改动未改变测试源码，AndroidTest 编译任务为 up-to-date。7 项入口契约结果继续适用，未重复运行无变化用例。
+- 仅增加 BOM 管理的 AndroidX Compose UI 测试依赖：`androidTestImplementation(ui-test-junit4)` 与 `debugImplementation(ui-test-manifest)`；测试宿主不进入生产源码/本 AAR Manifest，无新解析或音频依赖。
+- 入口测试 XML：`build/test-results/testDebugUnitTest/TEST-com.xuesui.englishapp.dictionary.DictionaryFeatureContractTest.xml`。本轮未复跑未受影响的 63 项旧全套；其清晰证据沿用既有总控记录和下列审计入口。
+
+## 既有 v0.2.1 结构证据（沿用，未重新审查）
 
 | 词典 | 抽样内部机制 | 事件/脚本机制 | 结论 |
 |---|---|---|---|
 | Collins | `entry:` 1307、相对链接 517 | 事件 0、脚本 0、MDD `.js` 0 | 静态内部链接默认兼容 |
 | Oxford9 | `entry:` 553、相对链接 524 | `onclick` 386，均为 `className`；脚本文件与 MDD `.js` 0 | 需要受控内联 JavaScript |
 
-只记录结构计数，没有记录或复制词典正文。
+只记录结构计数，没有记录或复制词典正文。本轮未读取私人词典，未重新扫描其链接或脚本。受控文档继续默认兼容内部路径/query/fragment、相对链接、自定义词典 scheme 与内联事件；外部网页、file/content/intent/跨应用访问仍隔离，不新增 JS Bridge。
 
-## 验证边界
+## 下一步
+
+本轮已完成一次 FEATURE_MILESTONE 汇报并由总控接收，功能任务停止等待。总控完成共享根主题/系统栏留白接线后构建 saber 1.4.0 候选；设备需验证窄屏/大字号/长名称、管理操作、真实 CSS/正文和快速查词一次返回原阅读位置。共享根主题和宿主接线由总控覆盖；不以模块源码编译替代视觉实机。
+
+## 历史验收与证据入口
+
+- 总控既有记录确认 v0.2.1 已完成增量审查、独立模块复测与主线集成，App 1.0.0 test.002 已签名归档；其历史状态不是等待构建，没有新增设备通过结论。
+- v0.1.1 随 App v0.3.0 获用户概括验收；历史接受 F02-LINK-001/F02-AUDIO-001，随后按用户授权在 v0.2.0/v0.2.1 实施。App 1.0.0 test.001 内部链接实机失败历史保留。
+- v0.2.1 自动与结构证据：[V0.2.1_INTERNAL_LINK_COMPATIBILITY_AUDIT.md](V0.2.1_INTERNAL_LINK_COMPATIBILITY_AUDIT.md)；v0.2.0：[V0.2.0_AUDIT.md](V0.2.0_AUDIT.md)。
+- 初版交接：[MILESTONE_3_HANDOFF.md](MILESTONE_3_HANDOFF.md)；解析来源与许可：[MILESTONE_1B_AUDIT.md](MILESTONE_1B_AUDIT.md)、[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。既有审计继续保留，本轮未重新审查未变化内核。
+
+## 历史 v0.2.1 自动验证（2026-08-26）
+
+以下为此前总控接收的历史表格；1 Application / 2 Library 是当时尚未集成语音的范围，不能替代当前整包边界。原 mdict-java/lzo-core GPL 路线仍停止；项目自有纯Kotlin/JVM解析内核的MIT来源证据继续沿用。
 
 | 项目 | 当前状态 |
 |---|---|
@@ -39,14 +83,3 @@
 | 数据库 | 保持 Room 2 与既有 `MIGRATION_1_2`，无变化 |
 | 公共契约 | `DictionaryFeature(...)` 签名不变 |
 | 实机 | 无设备；不得宣称 v0.2.1 内部链接已在设备修复 |
-
-## 下一步
-
-总控此前已完成 v0.2.1 增量审查、模块/边界验证及 App 1.0.0 test.002 签名归档，等待用户覆盖安装验收。功能任务保持等待；当前文档整理不启动新的开发或测试。
-
-## 历史验收与证据入口
-
-- v0.1.1 随 App v0.3.0 已获用户概括验收，历史上接受 `F02-LINK-001` 与 `F02-AUDIO-001`；用户于 2026-08-25 重新授权在 v0.2.0 处理两项问题并增加逐词典字号。
-- App 1.0.0 test.001 实机确认 v0.2.0 受控锚点方案仍失败，该历史结论保留；v0.2.1 test.002 不能仅凭自动验证标记实机修复。
-- v0.2.1 增量与自动证据：[V0.2.1_INTERNAL_LINK_COMPATIBILITY_AUDIT.md](V0.2.1_INTERNAL_LINK_COMPATIBILITY_AUDIT.md)；v0.2.0 证据：[V0.2.0_AUDIT.md](V0.2.0_AUDIT.md)。
-- 历史交接：[MILESTONE_3_HANDOFF.md](MILESTONE_3_HANDOFF.md)；解析来源与许可：[MILESTONE_1B_AUDIT.md](MILESTONE_1B_AUDIT.md)、[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。现存里程碑与修复审计继续保留。
