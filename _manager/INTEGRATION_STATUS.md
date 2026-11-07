@@ -2,10 +2,12 @@
 
 ## 2026-11-07 saber1.4.0 开发中
 
-用户新增逐段生成提速、全App重设计及可展开沉浸播放器。唯一正文见 [V1_4_0_PLAN.md](V1_4_0_PLAN.md)；三份原简报已更新并成功下发既有功能1/词典/语音对话，目标0.7.0/0.3.0/0.5.0。功能1已接收并合入，词典/语音等待主动交接。App目标1.4.0/code9尚未构建，实际交付仍为下方1.3.0 test.001；没有新手机运行/提速/视觉验收结论，不改写历史状态。
+用户新增逐段生成提速、全App重设计及可展开沉浸播放器。唯一正文见 [V1_4_0_PLAN.md](V1_4_0_PLAN.md)；三份原简报已更新并成功下发既有功能1/词典/语音对话，目标0.7.0/0.3.0/0.5.0。功能1和词典已接收并合入，语音等待主动交接。App目标1.4.0/code9尚未构建，实际交付仍为下方1.3.0 test.001；没有新手机运行/提速/视觉验收结论，不改写历史状态。
 
 - 总控根主题/底部导航：提交f40146c，使用既有JDK/SDK和进程级hosts执行 `gradle --no-daemon --no-configuration-cache --max-workers=2 :app:compileDebugKotlin` 成功（1m42s，32任务/4执行/28缓存），导航状态和RuntimeHost归属不变。此编译发生在新功能1合入前；新模块交齐后补整包集成验证，不重复模块旧回归。
 - 功能1 0.7.0：功能提交99a9547、合并f5dde44。书架/阅读分区、操作换行及继承根主题已接收；公共签名与数据无变化。2项新布局JVM、Android测试源码编译、AAR及无APK证据沿用模块STATUS，不复跑；既有39项与builder fixture证据保持原适用范围。合并只解决STATUS历史信息冲突，无源码/配置冲突，因此不单独重复架构扫描。实际宿主播放按钮、沉浸页配合与320/360dp/大字/长标题视觉和触摸仍待整包及设备验证。
+- 词典0.3.0：功能提交6402e84、合并bb21814。查询/管理布局与宿主主题继承已接收，7项入口契约JVM、15项Android测试源码/AAR证据沿用模块STATUS；不复跑旧63项或读取私人词典。只新增BOM管理的UI测试/debug依赖，无release依赖、公共签名或Room变化。合并只解决README/CHANGELOG/STATUS历史状态冲突，旧自动验证表保留；无源码冲突。因build.gradle.kts变化补 `verify-boundaries.ps1`，1 Application / 3 Library通过。
+- 新宿主接线缺口：词典明确由宿主处理系统栏，但原根Scaffold为零insets，QUICK也无外层保护。总控在RuntimeHost之后、两种页面分支之外统一使用 `safeDrawingPadding`，向子模块消费系统/键盘留白；旧语音safeDrawingPadding和功能1Scaffold继续尊重已消费部分。无导航状态/返回契约变化。处理依据为 [Android inset consumption](https://developer.android.com/develop/ui/compose/system/insets-ui#inset-consumption)。针对这个新增宿主接线，运行同一 `:app:compileDebugKotlin` 命令通过（2m47s，32任务/7执行/25缓存），覆盖功能1 0.7.0、词典0.3.0和原语音0.4.0；未重复模块测试、未生成APK。实际Android16/键盘/旋转/双重留白仍待设备，语音0.5.0尚未交付。
 
 ## 2026-10-14 saber1.3.0本机交付完成，待用户设备验收
 
