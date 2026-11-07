@@ -24,6 +24,7 @@ internal fun SpeechScreen(
 ) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var confirmDelete by remember { mutableStateOf(false) }
+    var confirmBenchmark by remember { mutableStateOf(false) }
     val idle = !state.busy
     val runnable = idle && state.installed && state.parametersValid && state.text.isNotBlank() && supportedAbi
     LazyColumn(Modifier.fillMaxSize().safeDrawingPadding().imePadding(), contentPadding = PaddingValues(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -136,7 +137,9 @@ internal fun SpeechScreen(
                     }
                     Text("播放器变速：${format(state.playbackSpeed.toDouble())}×")
                     Slider(state.playbackSpeed, actions::setPlaybackSpeed, valueRange = 0.5f..2f, steps = 5)
-                    Text("播放器变速不改变WAV、生成参数、音频原始时长或RTF。切到后台会请求停止计算和播放，旋转保留任务。", style = MaterialTheme.typography.bodySmall)
+                    Text("播放器变速不改变WAV、生成参数、音频原始时长或RTF。切页、后台和旋转保留任务。", style = MaterialTheme.typography.bodySmall)
+                    OutlinedButton({ confirmBenchmark = true }, enabled = runnable) { Text("同段4 / 6 / 8线程对照") }
+                    Text("仅测试当前小段英文（最多400字符），每档分别重载和暖运行；线程数受本机上限约束，可能耗时较长。", style = MaterialTheme.typography.bodySmall)
                     OutlinedButton(actions::clearCache, enabled = idle) { Text("清理缓存索引") }
                     Text("保留历史音频与报告，清理后不会再次命中这些缓存。", style = MaterialTheme.typography.bodySmall)
                 }
@@ -175,6 +178,10 @@ internal fun SpeechScreen(
         }
         item { Spacer(Modifier.height(16.dp)) }
     }
+    if (confirmBenchmark) AlertDialog(onDismissRequest = { confirmBenchmark = false }, title = { Text("开始同段线程对照？") },
+        text = { Text("将用当前小段英文和固定的实际seed依次测试本机可用的4、6、8线程，每档重载一次、暖运行一次。不会改写已保存参数或自动提高线程；可能持续数分钟，可随时请求停止。完整结果可在历史中导出JSON，不能只按速度判定音质。") },
+        confirmButton = { TextButton({ confirmBenchmark = false; actions.compareThreads() }, enabled = runnable) { Text("开始测试") } },
+        dismissButton = { TextButton({ confirmBenchmark = false }) { Text("取消") } })
     if (confirmDelete) AlertDialog(onDismissRequest = { confirmDelete = false }, title = { Text("删除私有模型副本？") },
         text = { Text("约1.44GB私有副本将被移除。内置资产、历史WAV与报告会保留，下次需重新安装。") },
         confirmButton = { TextButton({ confirmDelete = false; actions.deleteModel() }) { Text("删除副本") } },
@@ -199,6 +206,18 @@ private fun ResultDetails(run: SavedRun, parameterSummary: @Composable (JSONObje
     if (!report.isNull("error")) Text(report.getString("error"), color = MaterialTheme.colorScheme.error)
     if (report.optString("taskId") == "speech.reading.v1") Text("${report.optString("title")} · ${report.optInt("completedCount")}/${report.optInt("plannedCount")}片段完成")
     if (report.has("message")) Text(report.getString("message"))
+    report.optJSONArray("benchmarkRows")?.let { rows ->
+        repeat(rows.length()) { index ->
+            val row = rows.getJSONObject(index)
+            fun number(key: String) = if (row.isNull(key)) "未知" else row.get(key).toString()
+            HorizontalDivider()
+            Text("${row.getInt("threads")}线程 · ${if (row.getString("kind") == "cold") "重载模型" else "暖运行"} · ${runStatusTitle(row.getString("status"))}", style = MaterialTheme.typography.titleSmall)
+            Text("RTF ${number("rtf")} · 总耗时 ${number("elapsedMillis")}ms · 音频 ${row.optJSONObject("audio")?.optDouble("durationSeconds") ?: "未知"}秒")
+            Text("加载 ${number("loadMillis")}ms / 预填充 ${number("prefillMillis")}ms / token生成 ${number("tokenGenerationMillis")}ms / 解码 ${number("decodeMillis")}ms / WAV ${number("wavWriteMillis")}ms", style = MaterialTheme.typography.bodySmall)
+            Text("峰值PSS ${number("sampledPeakPssKiB")} KiB · 电池 ${number("batteryTemperatureStartC")}→${number("batteryTemperatureEndC")}℃ · 热状态 ${number("thermalStart")}→${number("thermalEnd")}", style = MaterialTheme.typography.bodySmall)
+            Text("后端 ${row.optJSONObject("backend")?.optString("backend") ?: "未知"} / ${row.optJSONObject("backend")?.optString("architecture") ?: "未知"}", style = MaterialTheme.typography.bodySmall)
+        }
+    }
     if (run.status == "token_limit") Text("音频可能漏掉末尾内容，请提高上限或缩短文本后重新测试。", color = MaterialTheme.colorScheme.error)
     report.optJSONObject("audio")?.let { audio ->
         Text("${format(audio.getDouble("durationSeconds"))}秒 · ${audio.getInt("sampleRate")}Hz · ${audio.getLong("samples")}个样本")

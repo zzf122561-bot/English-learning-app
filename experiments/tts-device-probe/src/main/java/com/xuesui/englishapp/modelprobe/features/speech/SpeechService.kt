@@ -148,6 +148,7 @@ internal class SpeechService(
             .put("textCodePoints", request.text.codePointCount(0, request.text.length))
             .put("wordCountApproximate", Regex("\\b[A-Za-z]+(?:['’-][A-Za-z]+)*\\b").findAll(request.text).count())
             .put("requested", request.parameters.snapshot()).put("device", metrics.device())
+            .put("backend", engine.runtimeInfo())
             .put("firstPcmLatencyMillis", JSONObject.NULL)
             .put("validation", JSONObject().put("compatibilityGate", "pending").put("listening", "unreviewed").put("offlineTest", "not_recorded"))
         runs.begin().use { draft ->

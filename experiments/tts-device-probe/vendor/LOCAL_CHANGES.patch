@@ -209,13 +209,16 @@
      std::vector<float> trailing_text_hidden;
      std::vector<float> tts_pad_embed;
  
-@@ -224,12 +230,16 @@
+@@ -224,12 +230,19 @@
      output.reserve(max_len * cfg.n_codebooks);
  
      int32_t n_past = prefill_len;
 +    const auto probe_loop_start = std::chrono::steady_clock::now();
 +    probe_generation_.prefill_ms = std::chrono::duration_cast<std::chrono::milliseconds>(probe_loop_start - probe_start).count();
      std::vector<int32_t> frame_codes(cfg.n_codebooks);
++#if PROBE_REUSE_CODE_BUFFERS
++    std::vector<int32_t> codes_1_15;
++#endif
      std::vector<int32_t> generated_cb0_tokens;
      transformer_sampling_state sampling{resolve_sampling_seed(seed), 0};
      const int32_t suppress_start = std::min(cfg.code_pred_vocab_size, cfg.codec_vocab_size);
@@ -226,7 +229,7 @@
          const bool trace_frame = transformer_internal::debug_trace_should_dump_frame(trace_cfg, frame);
          if (trace_frame) {
              char raw_name[128];
-@@ -268,6 +278,7 @@
+@@ -268,6 +281,7 @@
          }
  
          if (next_token == cfg.codec_eos_id) {
@@ -234,7 +237,7 @@
              if (trace_frame) {
                  int32_t eos_token = next_token;
                  char eos_name[128];
-@@ -278,6 +289,7 @@
+@@ -278,6 +292,7 @@
          }
  
          const bool is_thinking = (next_token >= cfg.codec_think_id && next_token <= cfg.codec_think_eos_id);
@@ -242,7 +245,19 @@
          if (is_thinking) {
              fprintf(stderr, "  [frame %d] Filtering thinking token: %d\n", frame, next_token);
          }
-@@ -368,6 +380,7 @@
+@@ -301,7 +316,11 @@
+ #ifdef QWEN3_TTS_TIMING
+         t0 = clk::now();
+ #endif
++#if PROBE_REUSE_CODE_BUFFERS
++        codes_1_15.clear();
++#else
+         std::vector<int32_t> codes_1_15;
++#endif
+         const bool need_host_hidden_for_predictor =
+             impl_->use_coreml_code_predictor || trace_cfg.enabled;
+         const float * predictor_hidden =
+@@ -368,6 +387,7 @@
          n_past++;
      }
  
@@ -269,6 +284,34 @@
              error_msg = "Failed to read tensor data: " + std::string(name);
              fclose(f);
              release_preferred_backend(backend);
+--- a/vendor/qwen3-tts/src/transformer/transformer_runtime_code_pred.cpp
++++ b/vendor/qwen3-tts/src/transformer/transformer_runtime_code_pred.cpp
+@@ -654,7 +654,14 @@
+         : impl_->state.sched;
+ 
+     output.resize(15);
++    // The host predictor previously allocated/freed this vocabulary buffer every audio
++    // frame. Preserve zero initialization and all math; only reuse the owned capacity.
++#if PROBE_REUSE_CODE_BUFFERS
++    auto & logits_data = impl_->state.probe_code_logits_scratch;
++    logits_data.assign(cfg.code_pred_vocab_size, 0.0f);
++#else
+     std::vector<float> logits_data(cfg.code_pred_vocab_size);
++#endif
+     int64_t local_subseq = sampling_subseq ? *sampling_subseq : 0;
+     transformer_sampling_state sampling{resolve_sampling_seed(seed), local_subseq};
+ 
+--- a/vendor/qwen3-tts/src/transformer/transformer_state_internal.h
++++ b/vendor/qwen3-tts/src/transformer/transformer_state_internal.h
+@@ -145,6 +145,8 @@
+ };
+ 
+ struct tts_transformer_state {
++    // Serialized model owner only. Zeroed before each predictor call, freed with the model.
++    std::vector<float> probe_code_logits_scratch;
+     ggml_backend_t backend = nullptr;
+     ggml_backend_t backend_cpu = nullptr;
+     ggml_backend_sched_t sched = nullptr;
 --- a/vendor/qwen3-tts/src/tts_transformer.h
 +++ b/vendor/qwen3-tts/src/tts_transformer.h
 @@ -82,6 +82,14 @@

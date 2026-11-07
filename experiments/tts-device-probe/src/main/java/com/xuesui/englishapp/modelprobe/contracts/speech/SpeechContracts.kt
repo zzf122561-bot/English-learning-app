@@ -32,6 +32,7 @@ internal data class SpeechDiagnostics(val textTokens: Int, val generatedFrames: 
 }
 internal class SpeechExecutionFailure(val cancelled: Boolean, val effective: SpeechParameters?, message: String) : RuntimeException(message)
 internal interface SpeechEngine {
+    fun runtimeInfo(): JSONObject = JSONObject().put("backend", "unspecified")
     val descriptor: ModelDescriptor
     val loaded: Boolean
     val instructionSupported: Boolean

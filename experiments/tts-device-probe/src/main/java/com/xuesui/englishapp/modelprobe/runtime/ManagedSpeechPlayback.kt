@@ -19,6 +19,8 @@ internal data class GlobalPlayback(
     val targetKey: String? = null, val paragraph: Int? = null, val desired: Boolean = false,
     val waiting: Boolean = false, val position: Long = 0, val duration: Long = 0,
     val speed: Float = 1f, val label: String = "未播放", val phase: PlaybackPhase = PlaybackPhase.IDLE,
+    val title: String = "尚未选择音频", val selection: PlayAvailability? = null,
+    val sequence: List<Int> = emptyList(), val runId: String? = null,
 )
 
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -42,6 +44,7 @@ internal class ManagedSpeechPlayback(private val app: Context, private val chang
     private var loading = false
     private var referenceWorkStarted = false
     private var speed = 1f
+    private var legacyTitle = "保存的音频"
     private val runtime get() = SpeechRuntimeRegistry.get(app).background
     private val progress = object : Runnable {
         override fun run() {
@@ -49,17 +52,18 @@ internal class ManagedSpeechPlayback(private val app: Context, private val chang
             if (host != null) main.postDelayed(this, 500)
         }
     }
-    fun playRange(value: PlayAvailability, existingOnly: Boolean) {
+    fun playRange(value: PlayAvailability, existingOnly: Boolean, startParagraph: Int? = null) {
         stop()
         available = value
         val indexes = if (existingOnly) value.indexes.filter { it in value.audio } else value.indexes
         if (indexes.isEmpty()) { publish(PlaybackPhase.FAILED, "没有可播放的自然段"); return }
         intent = PlaybackIntent(key(value.target), indexes)
+        if (startParagraph != null && !intent!!.select(startParagraph, true)) { stop(); return }
         publish(PlaybackPhase.PREPARING, if (existingOnly) "仅播放已有内容，缺段将跳过" else "按原段顺序播放")
         startOutput()
     }
-    fun play(file: File, runId: String, sourceLease: Closeable? = null) {
-        stop(); legacy = Triple(file, runId, sourceLease)
+    fun play(file: File, runId: String, sourceLease: Closeable? = null, title: String = "保存的音频") {
+        stop(); legacyTitle = title; legacy = Triple(file, runId, sourceLease)
         intent = PlaybackIntent("legacy:$runId", listOf(0)); publish(PlaybackPhase.PREPARING, "准备播放保存的音频")
         startOutput()
     }
@@ -87,6 +91,9 @@ internal class ManagedSpeechPlayback(private val app: Context, private val chang
                 if (!playWhenReady && reason in setOf(Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS, Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY)) pause()
             }
             override fun onPlayerError(error: PlaybackException) { if (output === player) fail("播放失败：${error.message}") }
+            override fun onPlaybackParametersChanged(parameters: PlaybackParameters) {
+                if (output === player) { speed = parameters.speed; publishSpeed() }
+            }
         })
         main.removeCallbacks(progress); main.post(progress)
         loadCurrent()
@@ -101,7 +108,9 @@ internal class ManagedSpeechPlayback(private val app: Context, private val chang
             else -> "播放保存的音频 · ${speed}×"
         }
         mutable.value = mutable.value.copy(targetKey = range?.key, paragraph = paragraph, desired = range?.desired == true, waiting = waiting,
-            speed = speed, label = label, phase = phase)
+            speed = speed, label = label, phase = phase, selection = available, sequence = range?.indexes.orEmpty(),
+            title = available?.target?.plan?.input?.title?.ifBlank { "未命名文章" } ?: legacyTitle, runId = loaded,
+            position = if (loaded == null) 0 else mutable.value.position, duration = if (loaded == null) 0 else mutable.value.duration)
         changed(PlaybackState(phase, loaded, speed, if (phase == PlaybackPhase.FAILED) label else null))
     }
     private fun loadCurrent() {
@@ -150,6 +159,7 @@ internal class ManagedSpeechPlayback(private val app: Context, private val chang
     }
     private fun prepare(player: ExoPlayer, file: File, id: String, title: String) {
         loaded = id
+        mutable.value = mutable.value.copy(position = 0, duration = 0)
         player.setMediaItem(MediaItem.Builder().setMediaId(id).setUri(android.net.Uri.fromFile(file))
             .setMediaMetadata(MediaMetadata.Builder().setTitle(title.take(220)).build()).build())
         player.prepare(); player.play(); publish(PlaybackPhase.PREPARING)
@@ -157,14 +167,14 @@ internal class ManagedSpeechPlayback(private val app: Context, private val chang
     fun audioChanged() {
         val range = intent ?: return
         val selection = available ?: return
-        if (!range.desired || loaded != null || !mutable.value.waiting) return
         val ticket = epoch
         runtime.io("更新待播段落") {
             val found = runtime.availability(selection.target, settingsKey = selection.settingsKey)
             main.post {
-                if (ticket == epoch && intent === range && range.desired) {
-                    available = selection.copy(audio = selection.audio + found.audio)
-                    loadCurrent()
+                if (ticket == epoch && intent === range) {
+                    available = selection.copy(audio = found.audio + selection.audio.filterValues { it in pins })
+                    publish(mutable.value.phase, mutable.value.label, mutable.value.waiting)
+                    if (range.desired && loaded == null) loadCurrent()
                 }
             }
         }
@@ -178,9 +188,34 @@ internal class ManagedSpeechPlayback(private val app: Context, private val chang
         if (output == null) startOutput() else loadCurrent()
         if (loaded == null) { publish(PlaybackPhase.PREPARING, waiting = true); audioChanged() }
     }
+    fun seek(position: Long, expectedRun: String? = loaded) {
+        if (loaded == null || loaded != expectedRun) return
+        val player = output ?: return
+        val target = boundedSeek(position, player.duration) ?: return
+        player.seekTo(target)
+        mutable.value = mutable.value.copy(position = target)
+    }
+    fun adjacent(direction: Int) {
+        require(direction == -1 || direction == 1)
+        intent?.adjacent(direction)?.let { selectParagraph(it, play = intent?.desired == true) }
+    }
+    /** Only navigates the already approved sequence. It never enqueues generation. */
+    fun selectParagraph(index: Int, play: Boolean = true) {
+        val range = intent ?: return
+        if (available == null || !range.select(index, play)) return
+        epoch++; loading = false; loaded = null
+        output?.pause(); output?.clearMediaItems()
+        mutable.value = mutable.value.copy(position = 0, duration = 0)
+        publish(if (play) PlaybackPhase.PREPARING else PlaybackPhase.PAUSED)
+        if (play) { if (output == null) startOutput() else loadCurrent(); audioChanged() }
+    }
     fun setSpeed(value: Float) {
-        require(value.isFinite() && value in 0.5f..2f)
-        speed = value; output?.setPlaybackSpeed(value); mutable.value = mutable.value.copy(speed = value)
+        if (!value.isFinite() || value !in 0.5f..2f) return
+        speed = value; output?.setPlaybackSpeed(value); publishSpeed()
+    }
+    private fun publishSpeed() {
+        val current = mutable.value
+        publish(current.phase, if (current.phase in setOf(PlaybackPhase.IDLE, PlaybackPhase.COMPLETED, PlaybackPhase.FAILED)) current.label else null, current.waiting)
     }
     private fun releaseOutput() {
         // ExoPlayer.release waits for its internal player teardown before audio references are
@@ -200,7 +235,7 @@ internal class ManagedSpeechPlayback(private val app: Context, private val chang
     internal fun detached(service: SpeechMediaService) {
         if (host !== service) return
         host = null; output = null; main.removeCallbacks(progress)
-        epoch++; intent?.pause(); leases.forEach { it.close() }; leases.clear(); pins.clear(); loaded = null
+        epoch++; intent?.pause(); loading = false; leases.forEach { it.close() }; leases.clear(); pins.clear(); loaded = null
         legacy?.third?.close(); legacy = null
         runtime.io("释放播放器引用") { runtime.owner.runs.durablePins("player", emptySet()); runtime.owner.runs.recover() }
         if (state.value.phase != PlaybackPhase.COMPLETED) publish(PlaybackPhase.PAUSED, "播放服务已停止；需手动继续")

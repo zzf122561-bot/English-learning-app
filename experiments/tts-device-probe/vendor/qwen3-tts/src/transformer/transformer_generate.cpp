@@ -233,6 +233,9 @@ bool TTSTransformer::generate(const int32_t * text_tokens, int32_t n_tokens,
     const auto probe_loop_start = std::chrono::steady_clock::now();
     probe_generation_.prefill_ms = std::chrono::duration_cast<std::chrono::milliseconds>(probe_loop_start - probe_start).count();
     std::vector<int32_t> frame_codes(cfg.n_codebooks);
+#if PROBE_REUSE_CODE_BUFFERS
+    std::vector<int32_t> codes_1_15;
+#endif
     std::vector<int32_t> generated_cb0_tokens;
     transformer_sampling_state sampling{resolve_sampling_seed(seed), 0};
     const int32_t suppress_start = std::min(cfg.code_pred_vocab_size, cfg.codec_vocab_size);
@@ -313,7 +316,11 @@ bool TTSTransformer::generate(const int32_t * text_tokens, int32_t n_tokens,
 #ifdef QWEN3_TTS_TIMING
         t0 = clk::now();
 #endif
+#if PROBE_REUSE_CODE_BUFFERS
+        codes_1_15.clear();
+#else
         std::vector<int32_t> codes_1_15;
+#endif
         const bool need_host_hidden_for_predictor =
             impl_->use_coreml_code_predictor || trace_cfg.enabled;
         const float * predictor_hidden =

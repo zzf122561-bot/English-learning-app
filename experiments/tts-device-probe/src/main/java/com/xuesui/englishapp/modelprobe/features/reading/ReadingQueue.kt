@@ -132,6 +132,7 @@ internal class ReadingQueue(private val service: SpeechService, private val runs
                     .put("runKind", r.opt("runKind")).put("loadMillis", r.opt("loadMillis"))
                     .put("elapsedMillis", r.opt("elapsedMillis")).put("wavWriteMillis", r.opt("wavWriteMillis"))
                     .put("effectiveSegments", r.opt("effectiveSegments"))
+                    .put("backend", r.opt("backend") ?: JSONObject.NULL)
                     .put("audio", r.opt("audio")).put("error", r.opt("error")))
             }
             val fresh = attempts.map { it.second }.filter { it.id !in reusedIds }

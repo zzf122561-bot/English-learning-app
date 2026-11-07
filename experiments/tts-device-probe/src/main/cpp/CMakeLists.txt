@@ -41,6 +41,8 @@ set(QWEN_SOURCES
     pipeline/pipeline_models.cpp pipeline/pipeline_runtime.cpp pipeline/pipeline_synthesize.cpp)
 list(TRANSFORM QWEN_SOURCES PREPEND "${QWEN_DIR}/src/")
 add_library(probe_engine STATIC ${QWEN_SOURCES} probe_engine.cpp)
+option(PROBE_REUSE_CODE_BUFFERS "Reuse zero-initialized predictor scratch buffers; OFF restores local vectors" ON)
+target_compile_definitions(probe_engine PUBLIC PROBE_REUSE_CODE_BUFFERS=$<BOOL:${PROBE_REUSE_CODE_BUFFERS}>)
 target_include_directories(probe_engine PUBLIC "${QWEN_DIR}/src" "${CMAKE_CURRENT_SOURCE_DIR}" "${GGML_DIR}/include")
 target_link_libraries(probe_engine PUBLIC ggml ggml-base ggml-cpu Threads::Threads)
 if(WIN32)

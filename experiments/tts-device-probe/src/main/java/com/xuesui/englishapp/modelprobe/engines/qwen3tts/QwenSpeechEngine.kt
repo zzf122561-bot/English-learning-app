@@ -8,9 +8,10 @@ import org.json.JSONObject
 
 internal object QwenModel {
     const val PREVIOUS_ENGINE_VERSION = "16bb5afc-ggml-af97976c-patch-08f2da86-adapter2"
+    val COMPATIBLE_SETTINGS_ENGINES = setOf(PREVIOUS_ENGINE_VERSION, "16bb5afc-ggml-af97976c-patch-ae30dc34-adapter3")
     val descriptor = ModelDescriptor(
         modelId = "qwen3-tts-1.7b-customvoice-q4", engineId = "qwen3tts-cpu",
-        engineVersion = "16bb5afc-ggml-af97976c-patch-ae30dc34-adapter3", taskId = "speech.synthesis.v1",
+        engineVersion = "16bb5afc-ggml-af97976c-patch-bf474c9e-adapter4", taskId = "speech.synthesis.v1",
         revision = "b7ee2e8c7459c3bea99da23e3d178125a7d1713c", license = "Apache-2.0",
         title = "Qwen3-TTS · 1.7B CustomVoice · Q4", runtime = "GGUF / GGML CPU", abi = "arm64-v8a",
         capabilities = setOf("named-speaker", "instruction", "batch-synthesis", "cooperative-cancel"),
@@ -52,6 +53,7 @@ internal data class QwenConfiguration(val native: QwenNativeParameters = QwenNat
 }
 
 internal class QwenSpeechEngine : SpeechEngine {
+    override fun runtimeInfo(): JSONObject = JSONObject(QwenNativeBindings.backendInfo())
     override val descriptor = QwenModel.descriptor
     @Volatile private var handle = 0L
     private var lease: ModelLease? = null

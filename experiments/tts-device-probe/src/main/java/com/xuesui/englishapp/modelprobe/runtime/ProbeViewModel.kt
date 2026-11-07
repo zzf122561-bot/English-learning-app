@@ -58,7 +58,7 @@ internal class ProbeController(context: Context, private var diagnostic: Boolean
     internal val service by lazy { SpeechService(engine, models, runs, metrics) { message -> mutable.update { it.copy(message = message) } } }
     private val main = Handler(Looper.getMainLooper())
     internal val playback = ManagedSpeechPlayback(app) { value ->
-        mutable.update { it.copy(playback = value.label) }
+        mutable.update { it.copy(playback = value.label, playbackSpeed = value.speed) }
         mutableReading.update { it.copy(playback = value) }
     }
     val background by lazy { DurableSpeechRuntime(app, this) }
@@ -86,7 +86,7 @@ internal class ProbeController(context: Context, private var diagnostic: Boolean
             var settingMessage = ""
             val (config, preferences) = runCatching {
                 settings.load(descriptor.modelId, descriptor.engineVersion, 2,
-                    if (descriptor == QwenModel.descriptor) setOf(QwenModel.PREVIOUS_ENGINE_VERSION) else emptySet())?.let {
+                    if (descriptor == QwenModel.descriptor) QwenModel.COMPATIBLE_SETTINGS_ENGINES else emptySet())?.let {
                     QwenConfiguration.fromJson(it.getJSONObject("generation")) to SpeechPreferences.fromJson(it.getJSONObject("speech"))
                 } ?: (QwenConfiguration() to SpeechPreferences())
             }.getOrElse { settingMessage = "设置读取失败，已恢复默认，原文件保留：${it.message}"; QwenConfiguration() to SpeechPreferences() }
@@ -208,6 +208,42 @@ internal class ProbeController(context: Context, private var diagnostic: Boolean
             }
         }
     }
+    override fun compareThreads() {
+        val text = state.value.text
+        val capturedForm = form.value
+        nativeWork("准备线程对照") { token ->
+            check(diagnostic && supportedAbi) { "线程对照仅用于独立诊断入口" }
+            require(text.isNotBlank() && text.codePointCount(0, text.length) <= 400) { "请在测试文本中输入同一小段英文（最多400字符），不会自动截短正文" }
+            val frozen = capturedForm.parse().resolved()
+            val processors = minOf(Runtime.getRuntime().availableProcessors(), QwenNativeBindings.maximumThreads())
+            val trials = threadTrials(processors)
+            val rows = org.json.JSONArray()
+            var complete = false
+            try {
+                for ((index, trial) in trials.withIndex()) {
+                    token.check()
+                    val parameters = frozen.copy(native = frozen.native.copy(threads = trial.threads))
+                    mutable.update { it.copy(message = "线程对照 ${index + 1}/${trials.size} · ${trial.threads}线程 · ${if (trial.kind == RunKind.COLD) "重新载入" else "复用已载入模型"}") }
+                    val saved = service.run(SpeechRequest(text, parameters, SpeechMode.PARAGRAPH, trial.kind), token)
+                    rows.put(threadTrialSummary(saved.report, trial))
+                    mutable.update { it.copy(selected = saved) }
+                    if (saved.status != "success") break
+                }
+                complete = rows.length() == trials.size && (0 until rows.length()).all { rows.getJSONObject(it).getString("status") == "success" }
+            } finally {
+                // Preserve completed measurements even on cancellation; no inference on cleanup.
+                runs.begin().use { draft ->
+                    val summary = draft.commit(JSONObject().put("taskId", "speech.thread-benchmark.v1")
+                        .put("status", if (complete) "benchmark" else "benchmark_partial")
+                        .put("createdAtEpochMillis", System.currentTimeMillis()).put("modelId", descriptor.modelId)
+                        .put("engineVersion", descriptor.engineVersion).put("plannedTrials", trials.size)
+                        .put("textSha256", text.toByteArray(Charsets.UTF_8).sha256()).put("benchmarkRows", rows)
+                        .put("message", "同段同seed/声音/采样配置，线程以外条件固定；cold只指重载模型，不清系统文件缓存。按4/6/8顺序测量，热累积影响结果；电池温度不是CPU温度。无首PCM/真实听感判定。"), emptyMap())
+                    mutable.update { it.copy(selected = summary, message = runStatusTitle(summary.status)) }
+                }
+            }
+        }
+    }
     override fun clearCache() = work("清理缓存索引") { _ -> runs.clearCache(); mutable.update { it.copy(message = "缓存索引已清理；已保存WAV和历史报告仍可重播/导出") } }
     override fun select(id: String) = work("读取历史结果") { _ ->
         val run = runs.read(id); mutable.update { it.copy(selected = run, message = "已选择历史结果；参数见结果详情") }
@@ -239,7 +275,8 @@ internal class ProbeController(context: Context, private var diagnostic: Boolean
                 token.check()
                 main.post {
                     if (!disposed && generation == playback.epoch && !token.cancelled.get())
-                        playback.play(file, id, Closeable { lease.close(); requestMaintenance() })
+                        playback.play(file, id, Closeable { lease.close(); requestMaintenance() },
+                            lease.run.report.optJSONObject("reading")?.optString("title")?.ifBlank { null } ?: "已保存的语音")
                     else { lease.close(); requestMaintenance() }
                 }
             } catch (failure: Throwable) { lease.close(); throw failure }

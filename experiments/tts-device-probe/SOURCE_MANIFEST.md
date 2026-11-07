@@ -717,3 +717,70 @@ queue/player/export的持久pin互不覆盖；player在ExoPlayer实际release后
 - 退出0，`BUILD SUCCESSFUL in 38s`，45 tasks（12 executed / 33 up-to-date）；Debug/Release Kotlin增量编译和Release AAR成功。预算测试**2通过、0跳过、0失败/错误**，XML时间2026-10-13T17:37:14.741Z（北京时间2026-10-14 01:37）。当前`build/test-results/testDebugUnitTest/`和对应HTML报告只对应本次2项，先前66项以已接收的上一份收据为准；没有重跑Android测试源码编译、Lint或旧66项。
 - 新`build/outputs/aar/runtime-release.aar`：**2,124,811字节**；SHA-256 **`791603640fed2891bcb09dc446a28f4d262facc275ac265ce3fc7f2726057573`**。直接读取新AAR中两份SO的大小/hash，与本节上一份收据完全一致；旧原生/ELF/模型来源证据继续沿用。
 - 变更仅上述2个生产源码、1个定向测试，以及当前架构/状态/变更/授权和本收据5份文档；未执行Git、构建APK或提升任何设备验收。状态仍为`ready_for_integration / awaiting_manager_integration`，完成一次定向交接后等待总控集成。
+
+## 15. 2026-11-07 语音0.5.0：展开播放器、布局与性能对照
+
+执行总控同日语音BRIEFING顶部和V1_4_0_PLAN.md完整正文；来源由总控登记c45be63，本任务未执行Git。0.4.0完整交付、350分钟修正和成功发送收据均保留；总控已经通报1.3.0 test.001完成集成/签名，并未通报新设备验收。本节是0.5.0增量正文，非App已发布声明。
+
+### 产品与契约差异
+
+- 公共SpeechInlineReadingFeature、SpeechSettingsFeature、SpeechReadingPlayButton、SpeechRuntimeHost、ModelProbeFeature及请求DTO签名不变，不要求新宿主接线。两个宿主继续复用Library，不新增Activity/Application/launcher。生产依赖、Manifest、SQLite schema1及数据迁移不变；新增依赖仅Android测试配置`androidx.compose.ui:ui-test-junit4`，版本由既有Compose BOM约束。
+- 紧凑条保留180dp上限，展示实际播放器文章/状态/进度，展开进入Library自己的全屏Dialog。收起/Back仅销毁展示层，仍使用原Media3 Session/Player，不调用停止、取消或阅读导航。当前选择的生成范围与实际播放范围分开；原单句入口保留。
+- 展开页有实际文章标题、原段号/总段数、当前段正文、真实时长/已播时长、受实际duration约束的seek、上一/下一自然段、播放/暂停、0.5–2倍速和片段列表。未知时长禁用拖动；提交拖动带runId，防止换段后的旧操作落到新音频。单段序列不能越界；全文从所选段继续原序列，“仅已有”保留稀疏原段号。切段时保留暂停意图，显式点击已有段可播放，缺失段先确认，不在纯导航中启动推理。后台迟到结果不会自行解除暂停。
+- Media3服务继续承接通知/锁屏/焦点；seek和倍速由同一运行器处理，外部倍速变化同步到页面。播放文件引用仍保持到Player释放；切段不提前释放所需文件。展开页不使用虚构逐字时间轴或在UI暴露内部ID/路径。
+- 设置按“当前模型、声音与风格、高级参数”分区，说明按项展开；风格动作可换行，正式页沿用根Material主题，移除重复安全区。生成控制、音频管理/删除和导出放原详情入口；不改默认/权重/音色/保存设置。
+
+### 定向性能结论与回退
+
+总控提供的“队列已复用模型”证据沿用；第9节34.08秒/RTF4.71是旧单次样本，不是此次测速。当前主要计算仍是1.7B CPU自回归模型；本轮没有实机分阶段占比，不声称加速倍数。
+
+固定ggml源码的`vendor/ggml/src/CMakeLists.txt`明确要求CPU_ALL_VARIANTS依赖BACKEND_DL，而BACKEND_DL依赖BUILD_SHARED_LIBS；当前采用静态CPU子集。ARM变体又使用独立`cpu-feats.cpp`和禁止LTO的能力检测对象。直接更改整库`-march`不能提供旧机安全回退。因此本轮保持`armv8-a`，未打开dotprod/i8mm、GPU/NPU/OpenMP/KleidiAI或动态后端。新JNI `backendInfo()`返回实际后端和编译开关，并用Android HWCAP区分设备是否支持dotprod/i8mm；“设备支持”不写成“本构建已启用”。后端信息进入单次报告、正式阅读尝试行和线程汇总。
+
+已确认并修改的开销仅两处每帧临时分配：`transformer_runtime_code_pred.cpp`中词表大小的host logits vector，改为串行模型state内复用容量，每次仍assign零、每步仍由相同tensor_get覆盖；`transformer_generate.cpp`的15码本输出vector移到当前合成调用外层，每帧clear、由原函数resize/写入。没有改变采样、矩阵计算、EOS、取消位置、分片、重试、PCM检查或发布协议。模型state销毁即回收logits容量，不使用跨模型全局缓存。
+
+回退开关是本模块CMake `PROBE_REUSE_CODE_BUFFERS`（默认ON）；在本模块cmake arguments传`-DPROBE_REUSE_CODE_BUFFERS=OFF`后重新构建可恢复原临时vector路径，报告的`bufferReuse`会为false。`tools/check-buffer-fallback.py`基于实际Android编译数据库、仅将该定义改为0，对三份受影响编译单元做`-fsyntax-only`，不改变AAR；其证据不能替代回退包设备推理。结果见下方最终收据。
+
+当前累计vendor补丁由既有固定原件重新生成：`vendor/LOCAL_CHANGES.patch` SHA-256 `bf474c9ed4f563e8c0a2be2e0feaa6a79f46ebfc3062e04581a05213cb21aa26`，引擎身份`16bb5afc-ggml-af97976c-patch-bf474c9e-adapter4`。上游和GGML提交/许可不变，未重新审计许可或下载权重。adapter2/3设置均在显式兼容集合内只读加载；旧成功音频/失败历史仍保留，新引擎的缓存身份独立，不冒充旧音频来自新实现。
+
+### 设备线程对照入口
+
+仅ModelProbeFeature的独立诊断页提供按钮与开始确认；正式设置页不增加基准或生成器。用户输入同一小段英文（最多400字符），超过限制可见拒绝，不自动截断。可用线程为4/6/8中不超过Java和原生共同上限的档位；不足4核心时用实际上限。每档先COLD重载再WARM复用，所有轮次使用同一份冻结正文、音色/指令/采样参数及一次解析的实际seed，不改form或持久设置、不并行、不命中缓存。
+
+失败、触顶或取消即停止后续，已返回的单次报告和汇总保留。汇总任务`speech.thread-benchmark.v1`仅增加一种诊断JSON记录（不改数据库schema），含来源runId、正文hash、实际参数/后端、音频时长、RTF、总耗时、加载/预填充/token生成/解码/WAV耗时、PSS采样峰值、起止电池温度与Android热等级；缺失指标保留null。可在诊断历史选择并导出JSON。没有首PCM数据，不记录全文，不将电池温度写成CPU温度。COLD仅代表模型重载，不清系统页缓存；固定顺序可能受热累积影响，设备比较需同文、同配置并考虑冷却/重复。
+
+### 更快模型的接入差距（未采纳或下载）
+
+| 候选 | 一手资料与许可边界 | 本项目需要补齐的接口/验证 |
+|---|---|---|
+| Kokoro-82M + sherpa-onnx | [模型卡](https://huggingface.co/hexgrad/Kokoro-82M)标注82M及Apache-2.0权重；[sherpa Android清单](https://k2-fsa.github.io/sherpa/onnx/tts/apk-engine.html)提供Android TTS构建，框架有[自己的许可](https://github.com/k2-fsa/sherpa-onnx/blob/master/LICENSE)。模型示例还使用misaki/espeak-ng，不能把权重许可当全链许可结论。 | 新增独立SpeechEngine/参数能力表、固定ONNX/voices/词法前端资产与hash、Android JNI/ABI和16KiB包验证；逐项核对语音前端及所用导出包的依赖许可。Ryan/Aiden不可假定有等价音色；必须单独标识声音并经用户听感对照。 |
+| Pocket TTS 100M | [官方仓库](https://github.com/kyutai-labs/pocket-tts)提供CPU/流式路径，代码[MIT](https://github.com/kyutai-labs/pocket-tts/blob/main/LICENSE)；[官方权重页](https://huggingface.co/kyutai/pocket-tts)为CC-BY-4.0且文件访问需接受条件。不是整链MIT，也不是本机测速。 | 确定受维护的Android可打包运行时/固定revision、资产获取和署名要求；语音state/取消/串行所有权/自然段完整发布适配。当前批量SpeechEngine接口不能伪报流式首PCM，若做真流式须单独设计回调契约。 |
+
+后续A/B应作为显式候选引擎适配：保持正文、采样条件和测量口径可追踪，分别记录音色、引擎身份、完整性与听感；不得以第三方电脑速度代替这台手机结果。本轮没有新后端/权重、云服务或自动选型；新增更小模型的宣传不改变当前已授权范围。
+
+### 验证边界与总控下一步
+
+受影响JVM覆盖完整/单段/稀疏序列切段、暂停与缺段、seek边界、线程档位与阶段统计/null保持，并沿用/补跑相应SpeechService、SpeechRepair和音频持久保护用例。新增Android播放器表面测试用合成正文和一份真实Session/Player核对320dp、360dp大字体、横屏滚动、展开/收起及控制回调；该测试不假装验证生产服务/通知/锁屏。原真实WAV Media3、SQLite和生命周期测试仍只编译，不宣称手机执行。
+
+总控接收后继续集成到1.4.0候选，根主题提供深蓝/银白色阶，独立宿主兼容检查由总控完成。手机仍需验证紧凑条不超180dp、长标题/大字、Back收起保留阅读位置、全文/本段/单句、拖动/倍速/切段、缺失确认及用户暂停、通知/锁屏/焦点同步、后台生成和旧音频管理。性能必须同文同配置测线程/冷暖，并比较缓冲复用ON/OFF的完整PCM/听感与耗时；无真实证据不登记提速或设备通过。
+
+### 本轮最终验证与产物收据
+
+只运行本Library受影响范围，既有0.4.0的66项及其他未变证据不重复验证。完整验证命令如下，工具链沿用JDK17、SDK36/min29、NDK28.2.13676358、CMake3.22.1、Gradle9.5.0；脚本只在当前Gradle进程作用域使用既有固定hosts设置并在finally恢复。
+
+```powershell
+& './experiments/tts-device-probe/tools/test-module.ps1' -Tests @(
+  '*PlaybackNavigationTest', '*ThreadBenchmarkTest', '*DurableAudioTest',
+  '*SpeechServiceTest', '*SpeechRepairTest'
+) -Tasks @(':runtime:testDebugUnitTest', ':runtime:compileDebugAndroidTestKotlin',
+  ':runtime:assembleRelease', ':runtime:lintDebug')
+```
+
+- 完整命令最后一次运行成功退出0，`BUILD SUCCESSFUL in 6m 42s`，74项任务（24执行/50 up-to-date）。JVM XML时间2026-11-07T11:35:48.600Z至11:37:16.039Z：39项全部通过，0失败/错误/跳过。分布为DurableAudioTest7、PlaybackNavigationTest6、SpeechRepairTest12、SpeechServiceTest9、ThreadBenchmarkTest5。覆盖新增导航/暂停/seek/线程报告，以及受影响服务、分片修复、音频持久保护调用链。
+- 随后只调整UI测试的v2 rule导入、滚动定位与对应生产UI测试标记，未改逻辑。最终增量命令为同一脚本加 `-Tasks @(':runtime:compileDebugAndroidTestKotlin', ':runtime:assembleRelease', ':runtime:lintDebug')`，成功退出0，`BUILD SUCCESSFUL in 4m 27s`，69项任务（22执行/47 up-to-date）。39项逻辑结果直接沿用，不重复运行。
+- 新增PlayerSurfaceDeviceTest的320×640、360×640大字体、640×320横屏大字体三项用例已编译。用例使用合成正文及一个真实ExoPlayer/MediaSession，覆盖展示和控制回调；没有执行这些Android用例，不将其等同生产服务/通知/锁屏或手机视觉验收。
+- 最终Lint为0错误/9警告：GradleDependency1、ChromeOsAbiSupport1、UsableSpace2、UseKtx1、UseTomlInstead4。相较旧8项多1条新增Android测试依赖的版本目录建议，不更改总控全局catalog。报告为 `build/reports/lint-results-debug.{xml,html,sarif}`。
+- 回退检查工具 `tools/check-buffer-fallback.py` 对当前 `.cxx/Release/362z5g3x/arm64-v8a/compile_commands.json` 中三个受影响编译单元，将 `PROBE_REUSE_CODE_BUFFERS` 改为0后仅做Android ARM64编译器 `-fsyntax-only`，三个退出码均0。两个vendor单元无诊断，JNI保留4条既有C++17 codecvt/wstring_convert弃用警告。原始结果在 `.local/cpu-buffer-fallback.json`；此项不是OFF完整链接/设备执行或ON/OFF数值等价实测。
+- 最终 `build/outputs/aar/runtime-release.aar`：**2,194,811字节**，SHA-256 **`93a21e1256c0e59fd65564b17da878d7c496ef55e387c260d9b3ceac05b95211`**。
+- AAR仅包含arm64-v8a两份SO。新 `libmodel_probe_qwen.so` 为2,304,960字节，SHA-256 `8d21b695a090ce7a570ff188edd47fc6cf81fd0894df8991c2dc0fe0a0a20085`；`libc++_shared.so` 仍为1,253,544字节，SHA-256 `cd61762848882a16c8244c964a6f396c0caa0b440588a210ce9cc4ab0e6d9f0c`。两者均与本轮已检查的AArch64 ELF完全一致，沿用其LOAD 16,384对齐/同余及RELRO覆盖通过证据。llvm-nm已确认新增 `Java_com_xuesui_englishapp_modelprobe_engines_qwen3tts_QwenNativeBindings_backendInfo` 导出；现有JNI keep规则覆盖，无新增反射入口。
+- 最终classes.jar内5份license/notice与模块源逐字节相同。`.local/artifact-check/final-receipt.json`为最终AAR/两SO/5份notice/Lint/JVM计数收据；`inspection.json`保留前一中间AAR的ELF检查，只有其中两SO身份与最终一致，不把中间AAR hash充当最终值。
+- 模块状态为 `ready_for_integration / awaiting_manager_integration`。本轮没有运行真实模型、原生OFF/ON对照或任何手机测试，没有声称提速、音质改善或App发布。第9节34.08秒样本的用户反馈“完整且清晰，没有明显漏读或重复”仍仅适用于该旧样本。总控完成集成、提交、签名候选APK和新增设备验证；本任务完整报告一次后等待。

@@ -654,7 +654,14 @@ bool TTSTransformer::predict_codes_autoregressive(const float * hidden, int32_t 
         : impl_->state.sched;
 
     output.resize(15);
+    // The host predictor previously allocated/freed this vocabulary buffer every audio
+    // frame. Preserve zero initialization and all math; only reuse the owned capacity.
+#if PROBE_REUSE_CODE_BUFFERS
+    auto & logits_data = impl_->state.probe_code_logits_scratch;
+    logits_data.assign(cfg.code_pred_vocab_size, 0.0f);
+#else
     std::vector<float> logits_data(cfg.code_pred_vocab_size);
+#endif
     int64_t local_subseq = sampling_subseq ? *sampling_subseq : 0;
     transformer_sampling_state sampling{resolve_sampling_seed(seed), local_subseq};
 
