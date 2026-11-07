@@ -1,6 +1,6 @@
 # 功能 1 当前状态（Android Library）
 
-证据日期：2026-10-14。v0.6.0 已运行功能1全部 JVM 测试、Android 测试源码编译和 AAR 构建；没有连接设备，设备/用户验收级别没有提高。
+证据日期：2026-11-07。v0.7.0 只运行新增布局策略 JVM 测试、全部 Android 测试源码编译和 AAR 构建；未重跑未受影响的旧 JVM/parser 测试。没有连接设备，视觉与用户验收级别没有提高。
 
 ## 已完成源码
 
@@ -36,6 +36,12 @@
 - 顶部操作区及每段中文显隐/播放操作区使用宽度响应布局，窄屏时分行；
 - 功能1不查询音频、不推断缺失或播放状态、不实现播放器，宿主控件独占播放/暂停/继续与确认行为；
 - 合成 `story-docx-v1` 解析→去编号测试覆盖全加粗标题、相邻加粗 runs、英中配对、`A0001`/`A10000` 跨段顺序及正常年份/小数保留；旧编号文档兼容规则未收窄。
+- v0.7.0 书架重构为标题/导入区和文章卡片列表；卡片分层显示最多两行标题、合法范围内的上次阅读段落、目标数、继续学习和重命名/删除次级菜单；
+- 阅读页把标题/工具、全文播放、段落元信息、正文、本段中文/播放、生成范围和默写区拆分；段号使用独立细蓝标记，不再与目标数、范围按钮和正文首行混排；
+- 中文显隐和本段播放槽使用 `FlowRow`；320dp 使用 16dp、360dp及以上使用20dp水平留白，内容宽屏居中且最大约720dp；长标题最多两行，用户文章字号不缩小；
+- 底部 `readingContent` 仍最大180dp；可展开播放器归语音宿主，本模块未增加播放器内容或改变槽签名；
+- `WordMemoryFeature` 不再嵌套完整 `WordMemoryTheme`，正式配色继承根 App `MaterialTheme`；模块内 fallback 主题未作为公共入口包裹；
+- 公共签名、Room 2/MIGRATION_1_2、DOCX/parser/cleaner、长按查词、默写、十档字号、显隐和阅读位置均未改变。
 
 ## 0.5.1 用户反馈与根因边界
 
@@ -51,12 +57,12 @@
 | 文件与依赖配置完整性检查 | 已完成 |
 | 两份 Word 模板的独立结构检查 | 已完成，不等同于 App 运行验证 |
 | D 盘工具链 | 已安装并验证：Temurin JDK 17.0.20、Android SDK 36、Build Tools 36.0.0、Platform Tools、Gradle 9.5.0 |
-| Kotlin/Android 编译 | 已验证：v0.6.0 Library `assembleDebug` 成功并生成 AAR |
-| JVM 单元测试 | v0.6.0 功能1全部 39 项通过，0 失败、0 跳过；含合成 `story-docx-v1` 解析→去编号契约测试 |
-| Android 仪器测试源码 | v0.6.0 `InlineReadingSelectionUiTest` 新增播放槽/生成菜单接线覆盖，全部既有测试源码 `compileDebugAndroidTestKotlin` 成功 |
+| Kotlin/Android 编译 | 已验证：v0.7.0 Library `assembleDebug` 成功并生成 AAR |
+| JVM 单元测试 | v0.7.0 仅新增 `WordMemoryLayoutTest` 2项通过、0失败、0跳过；v0.6.0全部39项历史证据沿用，本轮未重跑parser或生成器fixture测试 |
+| Android 仪器测试源码 | v0.7.0 新增 `WordMemoryResponsiveLayoutUiTest`，覆盖360dp书架及320dp/大字号阅读布局；全部Android测试源码 `compileDebugAndroidTestKotlin` 成功，但未在设备执行 |
 | Android 仪器测试运行 | 尚未运行：2026-08-23 无已连接设备 |
 | 模块 APK 边界 | 已验证：功能目录 APK 数量为 0；只能生成 AAR |
-| AAR 产物 | `build/outputs/aar/feature-01-word-memory-debug.aar`，290911 bytes，SHA-256 `B0130A06EEE983F57BE016AD07902EFBD0A94E3AFADBF64E32D5437D993931B2` |
+| AAR 产物 | `build/outputs/aar/feature-01-word-memory-debug.aar`，297611 bytes，SHA-256 `614181715F9B033A9525CD52836D52B0D6DE11E9ED6D0B1CB02BA2A259A9026F` |
 | App APK 生成与签名 | 由总控负责；本轮未生成 APK |
 | v0.1.0 真机核心流程 | 用户确认通过：2026-08-23 报告此前提供的测试清单全部正确 |
 | v0.2.0 覆盖安装与字号交互 | 用户确认通过：2026-08-24 已验证可用、无问题 |
@@ -65,6 +71,7 @@
 | v0.5.0 原页底部槽/边看边听 | 未实机验证；滚动状态为结构性保留证据，触摸、旋转、生成和播放待总控集成后验证 |
 | v0.5.1 首段点击与去编号 | 编号清理已有 JVM 执行证据；点击→槽为 Android UI 测试源码编译证据，未在设备执行；生成/播放不在本模块内 |
 | v0.6.0 全文/本段直接播放入口 | 公共接口、响应布局和接线测试源码已编译；无设备执行，不声称触摸、窄屏/大字体视觉、宿主播放状态或声音通过 |
+| v0.7.0 书架/阅读布局 | 布局策略JVM测试与320/360dp Compose测试源码编译通过；无设备执行，不声称长标题、大字号、FlowRow换行或根主题视觉已实机通过 |
 | `story-docx-v1` | 仓库内合成单元 fixture 已通过；生成器实际 builder 的最终合成 DOCX 也已完成一次定向 parser→cleaner 比对，详见下节；两者都不等同实机导入或朗读验收 |
 
 验证过程记录：首次 `compileDebugAndroidTestKotlin` 因当前 Compose 测试库不提供 `assertExists` 扩展而失败；仅将测试存在性断言改为同版本支持的 `fetchSemanticsNode`，随后按相同任务完整重跑并成功。主功能实现未因该失败改用替代行为。
@@ -91,4 +98,4 @@ $env:WORD_MEMORY_GENERATOR_FIXTURE_EXPECTED = 'D:\Codex_Project\Codex_EnglishApp
 
 ## 下一道门槛
 
-v0.6.0 已完成公共播放槽、直接入口、独立“生成全文”菜单、窄屏布局，并完成生成器实际 builder 最终合成 fixture 的定向 parser→cleaner 比对。下一步由总控审查和集成；设备上仍需执行系统导入、全文/本段入口、窄屏/大字体、生成/播放分离及既有学习行为回归。功能对话不得自行提交、签名或发版。
+v0.7.0 已完成书架和阅读页布局分区、操作换行、宿主主题继承及现有播放槽重新摆放。下一步由总控接入根主题和语音模块的新紧凑/沉浸播放器，并在设备验证320/360dp、长标题、大字号、按钮可达与换行、滚动位置、生成/播放分离及全部既有学习行为。功能对话不得自行提交、签名或发版。

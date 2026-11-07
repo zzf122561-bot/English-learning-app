@@ -11,6 +11,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,15 +23,15 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.DeleteOutline
-import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
@@ -45,6 +48,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -66,7 +70,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -85,11 +91,6 @@ import com.xuesui.englishapp.study.prepareReadingParagraph
 import com.xuesui.englishapp.study.readingSelectionNotice
 import com.xuesui.englishapp.study.splitEnglishSentences
 import com.xuesui.englishapp.study.wordMemoryDocumentId
-import com.xuesui.englishapp.ui.theme.Cobalt
-import com.xuesui.englishapp.ui.theme.Hairline
-import com.xuesui.englishapp.ui.theme.Ink
-import com.xuesui.englishapp.ui.theme.Paper
-import com.xuesui.englishapp.ui.theme.Slate
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Composable
@@ -172,7 +173,7 @@ fun WordMemoryApp(
 }
 
 @Composable
-private fun LibraryScreen(
+internal fun LibraryScreen(
     notebooks: List<NotebookEntity>,
     onImport: () -> Unit,
     onOpen: (Long) -> Unit,
@@ -181,40 +182,66 @@ private fun LibraryScreen(
 ) {
     var renameTarget by remember { mutableStateOf<NotebookEntity?>(null) }
     var deleteTarget by remember { mutableStateOf<NotebookEntity?>(null) }
-    Scaffold(containerColor = Paper) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
-            Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 28.dp)) {
-                Text("语境记忆", style = MaterialTheme.typography.displaySmall, color = Ink)
-                Text("你的私人学习档案", style = MaterialTheme.typography.bodyMedium, color = Slate)
-                Spacer(Modifier.height(24.dp))
-                Button(onClick = onImport) {
-                    Icon(Icons.Rounded.Add, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("导入 Word 笔记本")
-                }
-            }
-            HorizontalDivider(color = Hairline)
-            if (notebooks.isEmpty()) {
-                EmptyLibrary(Modifier.fillMaxSize())
-            } else {
-                LazyColumn(Modifier.fillMaxSize()) {
-                    item {
+    Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
+        BoxWithConstraints(Modifier.fillMaxSize().padding(padding)) {
+            val horizontalPadding = WordMemoryLayout.horizontalPaddingDp(maxWidth.value.toInt()).dp
+            Column(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .widthIn(max = WordMemoryLayout.MAX_CONTENT_WIDTH_DP.dp)
+                            .padding(horizontal = horizontalPadding, vertical = 24.dp),
+                    ) {
                         Text(
-                            "学习档案  ${notebooks.size.toString().padStart(2, '0')}",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = Slate,
-                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 18.dp),
+                            "语境记忆",
+                            style = MaterialTheme.typography.headlineLarge.copy(fontFamily = FontFamily.Serif),
+                            color = MaterialTheme.colorScheme.onBackground,
                         )
-                    }
-                    items(notebooks, key = { it.id }) { notebook ->
-                        NotebookRow(
-                            notebook = notebook,
-                            onOpen = { onOpen(notebook.id) },
-                            onRename = { renameTarget = notebook },
-                            onDelete = { deleteTarget = notebook },
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "把每篇短文留在书架，继续上次的学习位置。",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        Spacer(Modifier.height(16.dp))
+                        Button(onClick = onImport, modifier = Modifier.testTag("import-notebook")) {
+                            Icon(Icons.Rounded.Add, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("导入 Word 笔记本")
+                        }
                     }
-                    item { Spacer(Modifier.height(28.dp)) }
+                }
+                if (notebooks.isEmpty()) {
+                    EmptyLibrary(Modifier.fillMaxSize())
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(horizontal = horizontalPadding, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        item {
+                            Text(
+                                "学习档案 · ${notebooks.size} 篇",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onBackground,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .widthIn(max = WordMemoryLayout.MAX_CONTENT_WIDTH_DP.dp)
+                                    .padding(vertical = 4.dp),
+                            )
+                        }
+                        items(notebooks, key = { it.id }) { notebook ->
+                            NotebookCard(
+                                notebook = notebook,
+                                onOpen = { onOpen(notebook.id) },
+                                onRename = { renameTarget = notebook },
+                                onDelete = { deleteTarget = notebook },
+                            )
+                        }
+                        item { Spacer(Modifier.height(16.dp)) }
+                    }
                 }
             }
         }
@@ -233,32 +260,95 @@ private fun EmptyLibrary(modifier: Modifier = Modifier) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text("还没有学习档案", style = MaterialTheme.typography.headlineSmall)
             Spacer(Modifier.height(8.dp))
-            Text("导入短文 Word 后，内容会保存在本机。", color = Slate)
+            Text("导入短文 Word 后，内容会保存在本机。", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
 
 @Composable
-private fun NotebookRow(notebook: NotebookEntity, onOpen: () -> Unit, onRename: () -> Unit, onDelete: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().clickable(onClick = onOpen).padding(start = 24.dp, end = 12.dp, top = 18.dp, bottom = 18.dp),
-        verticalAlignment = Alignment.CenterVertically,
+private fun NotebookCard(
+    notebook: NotebookEntity,
+    onOpen: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    var menuExpanded by remember(notebook.id) { mutableStateOf(false) }
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .widthIn(max = WordMemoryLayout.MAX_CONTENT_WIDTH_DP.dp)
+            .testTag("notebook-card-${notebook.id}")
+            .clickable(onClick = onOpen),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
-        Box(
-            Modifier.size(46.dp).background(Cobalt),
-            contentAlignment = Alignment.Center,
-        ) { Text("${notebook.lastSegmentIndex + 1}", color = Color.White, style = MaterialTheme.typography.labelMedium) }
-        Spacer(Modifier.width(16.dp))
-        Column(Modifier.weight(1f)) {
-            Text(notebook.title, style = MaterialTheme.typography.titleLarge)
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                notebook.title,
+                style = MaterialTheme.typography.titleLarge.copy(fontFamily = FontFamily.Serif),
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.testTag("notebook-title-${notebook.id}"),
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                WordMemoryLayout.progressText(notebook.lastSegmentIndex, notebook.segmentCount),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.testTag("notebook-progress-${notebook.id}"),
+            )
             Spacer(Modifier.height(4.dp))
-            Text("${notebook.segmentCount} 段  ·  ${notebook.targetCount} 个目标", style = MaterialTheme.typography.labelMedium, color = Slate)
-            Text(notebook.originalFileName, style = MaterialTheme.typography.bodyMedium, color = Slate, maxLines = 1)
+            Text(
+                "${notebook.targetCount} 个学习目标 · ${notebook.originalFileName}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(12.dp))
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(
+                    onClick = onOpen,
+                    modifier = Modifier.testTag("continue-notebook-${notebook.id}"),
+                ) {
+                    Text("继续学习")
+                }
+                Box {
+                    IconButton(
+                        onClick = { menuExpanded = true },
+                        modifier = Modifier.testTag("notebook-menu-${notebook.id}"),
+                    ) {
+                        Icon(Icons.Rounded.MoreVert, contentDescription = "更多档案操作")
+                    }
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("重命名") },
+                            onClick = {
+                                menuExpanded = false
+                                onRename()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("删除", color = MaterialTheme.colorScheme.error) },
+                            onClick = {
+                                menuExpanded = false
+                                onDelete()
+                            },
+                        )
+                    }
+                }
+            }
         }
-        IconButton(onClick = onRename) { Icon(Icons.Rounded.Edit, "重命名", tint = Slate) }
-        IconButton(onClick = onDelete) { Icon(Icons.Rounded.DeleteOutline, "删除", tint = Slate) }
     }
-    HorizontalDivider(color = Hairline, modifier = Modifier.padding(start = 86.dp))
 }
 
 @Composable
@@ -379,7 +469,7 @@ internal fun StudyScreen(
             .distinctUntilChanged()
             .collect(onPositionChange)
     }
-    Scaffold(containerColor = Paper) { padding ->
+    Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             StudyHeader(
                 notebook = notebook,
@@ -391,7 +481,7 @@ internal fun StudyScreen(
                 onGenerateFull = { submitReadingRequest(null, null) },
                 onShowFontDialog = { showFontDialog = true },
             )
-            HorizontalDivider(color = Hairline)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             if (segments.isEmpty()) {
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             } else {
@@ -427,26 +517,33 @@ internal fun StudyScreen(
                     item { Spacer(Modifier.height(42.dp)) }
                 }
                 if (readingContent != null) {
-                    HorizontalDivider(color = Hairline)
-                    Column(
-                        Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 180.dp)
-                            .background(Paper)
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
-                    ) {
-                        (readingPreparationError ?: selectionNotice)?.let { notice ->
-                            Text(notice, style = MaterialTheme.typography.labelMedium, color = Slate)
-                            Spacer(Modifier.height(6.dp))
-                        }
-                        selectedReadingRequest?.let { request ->
-                            readingContent(
-                                wordMemoryDocumentId(notebook.id),
-                                request.title,
-                                request.englishParagraphs,
-                                request.paragraphIndex,
-                                request.sentenceText,
-                            )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+                        Column(
+                            Modifier
+                                .fillMaxWidth()
+                                .widthIn(max = WordMemoryLayout.MAX_CONTENT_WIDTH_DP.dp)
+                                .heightIn(max = 180.dp)
+                                .background(MaterialTheme.colorScheme.surface)
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                        ) {
+                            (readingPreparationError ?: selectionNotice)?.let { notice ->
+                                Text(
+                                    notice,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Spacer(Modifier.height(6.dp))
+                            }
+                            selectedReadingRequest?.let { request ->
+                                readingContent(
+                                    wordMemoryDocumentId(notebook.id),
+                                    request.title,
+                                    request.englishParagraphs,
+                                    request.paragraphIndex,
+                                    request.sentenceText,
+                                )
+                            }
                         }
                     }
                 } else if (readingPreparationError != null) {
@@ -491,83 +588,87 @@ private fun StudyHeader(
     onShowFontDialog: () -> Unit,
 ) {
     var generationMenuExpanded by remember(documentId) { mutableStateOf(false) }
-
-    @Composable
-    fun Title(modifier: Modifier) {
-        Column(modifier) {
-            Text(notebook.title, style = MaterialTheme.typography.titleLarge, maxLines = 1)
-            Text(
-                "${notebook.segmentCount} 段  ·  ${notebook.targetCount} 个目标",
-                style = MaterialTheme.typography.labelMedium,
-                color = Slate,
-            )
-        }
-    }
-
-    @Composable
-    fun Actions() {
-        Row(
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically,
+    BoxWithConstraints(
+        Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background),
+    ) {
+        val horizontalPadding = WordMemoryLayout.horizontalPaddingDp(maxWidth.value.toInt()).dp
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .widthIn(max = WordMemoryLayout.MAX_CONTENT_WIDTH_DP.dp)
+                .align(Alignment.TopCenter)
+                .padding(horizontal = horizontalPadding, vertical = 12.dp),
         ) {
-            if (playbackControl == null) {
-                TextButton(
-                    onClick = onGenerateFull,
-                    enabled = englishParagraphs.isNotEmpty(),
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top,
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回")
+                }
+                Column(Modifier.weight(1f).padding(top = 4.dp)) {
+                    Text(
+                        notebook.title,
+                        style = MaterialTheme.typography.titleLarge.copy(fontFamily = FontFamily.Serif),
+                        color = MaterialTheme.colorScheme.onBackground,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.testTag("study-title"),
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "${notebook.targetCount} 个学习目标 · ${WordMemoryLayout.progressText(notebook.lastSegmentIndex, notebook.segmentCount)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.testTag("study-progress"),
+                    )
+                }
+                IconButton(
+                    onClick = onShowFontDialog,
+                    modifier = Modifier.testTag("font-size-control"),
                 ) {
-                    Text(if (readingContentAvailable) "选全文" else "全文朗读")
+                    Text("Aa", fontWeight = FontWeight.Bold)
                 }
-            } else {
-                if (englishParagraphs.isNotEmpty()) {
-                    playbackControl(documentId, notebook.title, englishParagraphs, null)
+                if (playbackControl != null) {
+                    Box {
+                        IconButton(
+                            onClick = { generationMenuExpanded = true },
+                            modifier = Modifier.testTag("full-reading-menu"),
+                            enabled = englishParagraphs.isNotEmpty(),
+                        ) {
+                            Icon(Icons.Rounded.MoreVert, contentDescription = "更多朗读操作")
+                        }
+                        DropdownMenu(
+                            expanded = generationMenuExpanded,
+                            onDismissRequest = { generationMenuExpanded = false },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("生成全文") },
+                                onClick = {
+                                    generationMenuExpanded = false
+                                    onGenerateFull()
+                                },
+                                modifier = Modifier.testTag("generate-full-reading"),
+                            )
+                        }
+                    }
                 }
-                Box {
-                    IconButton(
-                        onClick = { generationMenuExpanded = true },
-                        modifier = Modifier.testTag("full-reading-menu"),
+            }
+            Spacer(Modifier.height(8.dp))
+            Box(
+                Modifier.fillMaxWidth().testTag("full-playback-row"),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                if (playbackControl == null) {
+                    TextButton(
+                        onClick = onGenerateFull,
                         enabled = englishParagraphs.isNotEmpty(),
                     ) {
-                        Icon(Icons.Rounded.MoreVert, contentDescription = "更多朗读操作")
+                        Text(if (readingContentAvailable) "选全文" else "全文朗读")
                     }
-                    DropdownMenu(
-                        expanded = generationMenuExpanded,
-                        onDismissRequest = { generationMenuExpanded = false },
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("生成全文") },
-                            onClick = {
-                                generationMenuExpanded = false
-                                onGenerateFull()
-                            },
-                            modifier = Modifier.testTag("generate-full-reading"),
-                        )
-                    }
+                } else if (englishParagraphs.isNotEmpty()) {
+                    playbackControl(documentId, notebook.title, englishParagraphs, null)
                 }
-            }
-            IconButton(onClick = onShowFontDialog) {
-                Text("Aa", fontWeight = FontWeight.Bold)
-            }
-        }
-    }
-
-    BoxWithConstraints(
-        Modifier.fillMaxWidth().background(Paper).padding(horizontal = 8.dp, vertical = 10.dp),
-    ) {
-        if (maxWidth < 560.dp && playbackControl != null) {
-            Column(Modifier.fillMaxWidth()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回") }
-                    Title(Modifier.weight(1f))
-                }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    Actions()
-                }
-            }
-        } else {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回") }
-                Title(Modifier.weight(1f))
-                Actions()
             }
         }
     }
@@ -598,56 +699,121 @@ private fun StudySegment(
     var englishLayout by remember(segment.id, segment.englishText) { mutableStateOf<TextLayoutResult?>(null) }
     var showReadingDialog by remember(segment.id) { mutableStateOf(false) }
     val currentLookupRequested by rememberUpdatedState(onLookupRequested)
-    Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 26.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("段落 ${(segment.position + 1).toString().padStart(3, '0')}", style = MaterialTheme.typography.labelMedium, color = Cobalt)
-            Spacer(Modifier.width(12.dp))
-            HorizontalDivider(Modifier.weight(1f), color = Hairline)
-            Spacer(Modifier.width(12.dp))
-            Text("${targets.size} TARGETS", style = MaterialTheme.typography.labelMedium, color = Slate)
-            Spacer(Modifier.width(6.dp))
-            TextButton(
-                onClick = { showReadingDialog = true },
-                modifier = Modifier.testTag("paragraph-reading-$paragraphIndex"),
-                enabled = readingEnabled,
-            ) {
-                Text(if (inlineSelectionEnabled) "选范围" else "朗读")
-            }
-        }
-        Spacer(Modifier.height(19.dp))
-        Text(
-            text = highlightedText(segment.englishText, targets, false),
-            modifier = Modifier.pointerInput(segment.id, segment.englishText) {
-                detectTapGestures(
-                    onLongPress = { position ->
-                        val textOffset = englishLayout?.getOffsetForPosition(position) ?: return@detectTapGestures
-                        findLatinWordAtOffset(segment.englishText, textOffset)?.let(currentLookupRequested)
-                    },
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val horizontalPadding = WordMemoryLayout.horizontalPaddingDp(maxWidth.value.toInt()).dp
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = WordMemoryLayout.MAX_CONTENT_WIDTH_DP.dp)
+                .align(Alignment.TopCenter)
+                .padding(horizontal = horizontalPadding, vertical = 8.dp)
+                .testTag("study-segment-$paragraphIndex"),
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        ) {
+            Column(Modifier.fillMaxWidth().padding(20.dp)) {
+                Row(
+                    Modifier.fillMaxWidth().testTag("segment-metadata-$paragraphIndex"),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        Modifier
+                            .width(3.dp)
+                            .height(36.dp)
+                            .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(3.dp)),
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "第 ${(segment.position + 1).toString().padStart(3, '0')} 段",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Text(
+                            "${targets.size} 个学习目标",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                Spacer(Modifier.height(20.dp))
+                Text(
+                    text = highlightedText(
+                        segment.englishText,
+                        targets,
+                        chinese = false,
+                        highlightColor = MaterialTheme.colorScheme.primary,
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("segment-english-$paragraphIndex")
+                        .pointerInput(segment.id, segment.englishText) {
+                            detectTapGestures(
+                                onLongPress = { position ->
+                                    val textOffset = englishLayout?.getOffsetForPosition(position)
+                                        ?: return@detectTapGestures
+                                    findLatinWordAtOffset(segment.englishText, textOffset)?.let(currentLookupRequested)
+                                },
+                            )
+                        },
+                    style = studyTextStyle,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    onTextLayout = { englishLayout = it },
                 )
-            },
-            style = studyTextStyle,
-            color = Ink,
-            onTextLayout = { englishLayout = it },
-        )
-        Spacer(Modifier.height(18.dp))
-        OutlinedTextField(
-            value = draft,
-            onValueChange = { draft = it; onDictationChange(it) },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("我的默写") },
-            placeholder = { Text("只看英文，在这里写下你记住的中文或目标词义") },
-            textStyle = studyTextStyle,
-            minLines = 3,
-        )
-        Spacer(Modifier.height(14.dp))
-        SegmentTranslationActions(
-            chineseVisible = segment.chineseVisible,
-            onVisibilityChange = onVisibilityChange,
-            playbackControl = playbackControl,
-        )
-        if (segment.chineseVisible) {
-            Spacer(Modifier.height(16.dp))
-            Text(highlightedText(segment.chineseText, targets, true), style = studyTextStyle, color = Ink)
+                Spacer(Modifier.height(16.dp))
+                SegmentTranslationActions(
+                    chineseVisible = segment.chineseVisible,
+                    onVisibilityChange = onVisibilityChange,
+                    playbackControl = playbackControl,
+                    paragraphIndex = paragraphIndex,
+                )
+                if (segment.chineseVisible) {
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        highlightedText(
+                            segment.chineseText,
+                            targets,
+                            chinese = true,
+                            highlightColor = MaterialTheme.colorScheme.primary,
+                        ),
+                        style = studyTextStyle,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Column(
+                    Modifier.fillMaxWidth().testTag("segment-generation-row-$paragraphIndex"),
+                ) {
+                    Text(
+                        "生成范围",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Box(
+                        Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.CenterEnd,
+                    ) {
+                        TextButton(
+                            onClick = { showReadingDialog = true },
+                            modifier = Modifier.testTag("paragraph-reading-$paragraphIndex"),
+                            enabled = readingEnabled,
+                        ) {
+                            Text(if (inlineSelectionEnabled) "选择本段或单句" else "朗读本段或单句")
+                        }
+                    }
+                }
+                OutlinedTextField(
+                    value = draft,
+                    onValueChange = { draft = it; onDictationChange(it) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("我的默写") },
+                    placeholder = { Text("只看英文，在这里写下你记住的中文或目标词义") },
+                    textStyle = studyTextStyle,
+                    minLines = 3,
+                )
+            }
         }
     }
     if (showReadingDialog) {
@@ -661,49 +827,33 @@ private fun StudySegment(
             },
         )
     }
-    HorizontalDivider(color = Hairline)
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SegmentTranslationActions(
     chineseVisible: Boolean,
     onVisibilityChange: (Boolean) -> Unit,
     playbackControl: (@Composable () -> Unit)?,
+    paragraphIndex: Int,
 ) {
-    @Composable
-    fun TranslationButton(modifier: Modifier) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth().testTag("segment-primary-actions-$paragraphIndex"),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         OutlinedButton(
             onClick = { onVisibilityChange(!chineseVisible) },
-            modifier = modifier,
-            border = BorderStroke(1.dp, Hairline),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         ) {
-            Icon(if (chineseVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility, contentDescription = null)
+            Icon(
+                if (chineseVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                contentDescription = null,
+            )
             Spacer(Modifier.width(8.dp))
             Text(if (chineseVisible) "隐藏本段中文" else "显示本段中文")
         }
-    }
-
-    if (playbackControl == null) {
-        TranslationButton(Modifier.fillMaxWidth())
-        return
-    }
-
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-        if (maxWidth < 520.dp) {
-            Column(Modifier.fillMaxWidth()) {
-                TranslationButton(Modifier.fillMaxWidth())
-                Spacer(Modifier.height(8.dp))
-                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-                    playbackControl()
-                }
-            }
-        } else {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                TranslationButton(Modifier.weight(1f))
-                Spacer(Modifier.width(10.dp))
-                playbackControl()
-            }
-        }
+        playbackControl?.invoke()
     }
 }
 
@@ -765,9 +915,9 @@ private fun ReadingChoice(
         RadioButton(selected = selected, onClick = onClick)
         Spacer(Modifier.width(8.dp))
         Column(Modifier.weight(1f)) {
-            Text(label, style = MaterialTheme.typography.labelLarge, color = Cobalt)
+            Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(4.dp))
-            Text(content, style = MaterialTheme.typography.bodyMedium, color = Ink)
+            Text(content, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
         }
     }
 }
@@ -812,13 +962,18 @@ private fun FontSizeDialog(
     )
 }
 
-private fun highlightedText(text: String, targets: List<TargetEntity>, chinese: Boolean) = buildAnnotatedString {
+private fun highlightedText(
+    text: String,
+    targets: List<TargetEntity>,
+    chinese: Boolean,
+    highlightColor: Color,
+) = buildAnnotatedString {
     append(text)
     targets.forEach { target ->
         val start = if (chinese) target.chineseStart else target.englishStart
         val end = if (chinese) target.chineseEnd else target.englishEnd
         if (start in 0..text.length && end in start..text.length) {
-            addStyle(SpanStyle(color = Cobalt, fontWeight = FontWeight.Bold), start, end)
+            addStyle(SpanStyle(color = highlightColor, fontWeight = FontWeight.Bold), start, end)
         }
     }
 }
