@@ -30,6 +30,7 @@ internal interface SpeechActions {
     fun unload()
     fun deleteModel()
     fun generate(kind: RunKind, batch: Boolean = false)
+    fun compareThreads()
     fun clearCache()
     fun select(id: String)
     fun selfCheck()
@@ -41,5 +42,6 @@ internal interface SpeechActions {
 
 internal fun runStatusTitle(status: String) = when (status) {
     "success" -> "合成完成"; "cache" -> "复用缓存（未推理）"; "token_limit" -> "触及上限，可能截断"
-    "cancelled" -> "取消完成，原生已退出"; "failed" -> "生成失败"; "self_check" -> "无模型自检通过"; else -> status
+    "cancelled" -> "取消完成，原生已退出"; "failed" -> "生成失败"; "self_check" -> "无模型自检通过"
+    "benchmark" -> "线程对照完成"; "benchmark_partial" -> "线程对照未完成，已保留测量"; else -> status
 }

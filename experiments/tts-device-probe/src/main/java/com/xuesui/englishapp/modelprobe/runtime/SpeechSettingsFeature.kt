@@ -24,32 +24,12 @@ fun SpeechSettingsFeature(modifier: Modifier = Modifier) {
     var advanced by rememberSaveable { mutableStateOf(false) }
     var deletingModel by rememberSaveable { mutableStateOf(false) }
     val idle = !state.busy
-    LazyColumn(modifier.fillMaxSize().safeDrawingPadding().imePadding(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    LazyColumn(modifier.fillMaxSize().imePadding(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item { Text("语音设置", style = MaterialTheme.typography.headlineSmall) }
         item {
-            Text("声音与生成风格", style = MaterialTheme.typography.titleMedium)
-            Text("正在排队或生成的任务保留入队时的正文和参数。这里的修改只用于之后创建的新任务。", style = MaterialTheme.typography.bodySmall)
-            QwenVoiceSettings(form, true, state.instructionSupported, vm::editForm)
-        }
-        item {
-            Text("播放倍速：${String.format(Locale.ROOT, "%.2f", state.playbackSpeed)}×", style = MaterialTheme.typography.titleMedium)
-            Slider(state.playbackSpeed, vm::setPlaybackSpeed, valueRange = 0.5f..2f, steps = 5, enabled = true)
-            Text("只调整播放，不改动原始音频。生成时的快慢风格可在语气指令中描述，不能保证精确倍速。", style = MaterialTheme.typography.bodySmall)
-        }
-        item {
-            TextButton({ advanced = !advanced }) { Text(if (advanced) "收起高级配置" else "高级生成配置") }
-            if (advanced) QwenAdvancedSettings(form, true, vm::editForm)
-            if (!state.parametersValid) Text(state.parameterError, color = MaterialTheme.colorScheme.error)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button({ vm.saveSettings(false) }, enabled = state.parametersValid) { Text("保存设置") }
-                TextButton({ vm.saveSettings(true) }, enabled = true) { Text("恢复默认") }
-            }
-        }
-        item { HorizontalDivider() }
-        item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("本地模型", style = MaterialTheme.typography.titleMedium)
-                Text("Qwen3-TTS · 1.7B CustomVoice · Q4")
+                Text("当前模型", style = MaterialTheme.typography.titleMedium)
+                Text("Qwen3-TTS · 1.7B CustomVoice · Q4", style = MaterialTheme.typography.bodyMedium)
                 Text(if (state.loaded) "已载入" else if (state.installed) "已安装 · 使用时载入" else "尚未准备 · 从安装包复制约1.44GB模型")
                 if (!vm.supportedAbi) Text("当前设备不支持，需要arm64-v8a。", color = MaterialTheme.colorScheme.error)
                 if (state.modelIssue.isNotBlank()) Text(state.modelIssue, color = MaterialTheme.colorScheme.error)
@@ -70,6 +50,27 @@ fun SpeechSettingsFeature(modifier: Modifier = Modifier) {
                 }
             }
         }
+        item { HorizontalDivider() }
+        item {
+            Text("声音与风格", style = MaterialTheme.typography.titleMedium)
+            Text("正在排队或生成的任务保留入队时的正文和参数。这里的修改只用于之后创建的新任务。", style = MaterialTheme.typography.bodySmall)
+            QwenVoiceSettings(form, true, state.instructionSupported, vm::editForm)
+        }
+        item {
+            Text("播放倍速：${String.format(Locale.ROOT, "%.2f", state.playbackSpeed)}×", style = MaterialTheme.typography.titleMedium)
+            Slider(state.playbackSpeed, vm::setPlaybackSpeed, valueRange = 0.5f..2f, steps = 5, enabled = true)
+            Text("只调整播放，不改动原始音频。生成时的快慢风格可在语气指令中描述，不能保证精确倍速。", style = MaterialTheme.typography.bodySmall)
+        }
+        item {
+            TextButton({ advanced = !advanced }) { Text(if (advanced) "收起高级参数" else "高级参数") }
+            if (advanced) QwenAdvancedSettings(form, true, vm::editForm)
+            if (!state.parametersValid) Text(state.parameterError, color = MaterialTheme.colorScheme.error)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button({ vm.saveSettings(false) }, enabled = state.parametersValid) { Text("保存设置") }
+                TextButton({ vm.saveSettings(true) }, enabled = true) { Text("恢复默认") }
+            }
+        }
+
     }
     if (deletingModel) AlertDialog(onDismissRequest = { deletingModel = false }, title = { Text("删除模型私有副本？") },
         text = { Text("已生成音频会保留。再次生成前需要重新准备模型。") },

@@ -10,5 +10,16 @@ internal class PlaybackIntent(val key: String, val indexes: List<Int>) {
     fun pause() { desired = false }
     fun resume() { if (paragraph != null) desired = true }
     fun ended() { cursor++; if (paragraph == null) desired = false }
+    fun select(index: Int, play: Boolean = desired): Boolean {
+        val next = indexes.indexOf(index)
+        if (next < 0) return false
+        cursor = next; desired = play
+        return true
+    }
+    fun adjacent(direction: Int): Int? = indexes.getOrNull(cursor + direction)
     fun ready(available: Set<Int>): Boolean = desired && paragraph in available
 }
+
+/** Unknown duration is not seekable; dragging never changes the play/pause intention. */
+internal fun boundedSeek(position: Long, duration: Long): Long? =
+    if (duration <= 0) null else position.coerceIn(0, duration)

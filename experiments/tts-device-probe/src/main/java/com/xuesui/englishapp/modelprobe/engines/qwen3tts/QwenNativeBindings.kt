@@ -70,6 +70,7 @@ internal object QwenNativeBindings {
     external fun close(handle: Long)
     external fun phase(handle: Long): Int
     external fun maximumThreads(): Int
+    external fun backendInfo(): String
 
     // Kept callable from instrumentation for testing native validation independently.
     external fun nativeLoad(handle: Long, operation: Long, talker: String, tokenizer: String, threads: Int): QwenNativeLoadResult

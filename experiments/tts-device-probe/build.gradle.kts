@@ -48,4 +48,5 @@ dependencies {
     testImplementation("org.json:json:20250517")
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
 }

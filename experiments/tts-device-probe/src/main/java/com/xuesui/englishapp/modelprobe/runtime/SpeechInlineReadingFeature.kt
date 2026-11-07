@@ -2,6 +2,7 @@ package com.xuesui.englishapp.modelprobe.runtime
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -49,6 +50,7 @@ fun SpeechInlineReadingFeature(documentId: String, request: SpeechReadingRequest
     RuntimeLifecycle(vm, state.busy, vm::leaveInline)
     var management by rememberSaveable { mutableStateOf(false) }
     var details by rememberSaveable { mutableStateOf(false) }
+    var expanded by rememberSaveable { mutableStateOf(false) }
     var deleting by rememberSaveable { mutableStateOf<String?>(null) }
     val wave = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("audio/wav")) {
         vm.selectingDocument(false); vm.export("audio", it)
@@ -83,38 +85,36 @@ fun SpeechInlineReadingFeature(documentId: String, request: SpeechReadingRequest
         else -> state.message
     }
     val fontScale = LocalDensity.current.fontScale
-    Surface(modifier.fillMaxWidth().heightIn(max = 180.dp), shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceContainerLow) {
-        BoxWithConstraints {
-            val availableHeight = maxHeight
-            Column(Modifier.padding(horizontal = 12.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                // Reserve the action row before measuring the heading. Large fonts drop the
-                // secondary status line; full status stays available through the details dialog.
-                Row(Modifier.fillMaxWidth().weight(1f, fill = false), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                    Text(if (globalPlayer.phase !in setOf(PlaybackPhase.IDLE, PlaybackPhase.COMPLETED)) globalPlayer.label + " · ${globalPlayer.position / 1000}/${globalPlayer.duration / 1000}秒" else if (current) "朗读 · ${inline.target!!.label}" else "朗读", Modifier.weight(1f),
+    val hasPlayback = globalPlayer.targetKey != null
+    Surface(modifier.fillMaxWidth().heightIn(max = 180.dp), shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surface) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Column(Modifier.weight(1f).heightIn(min = 48.dp).clickable(enabled = hasPlayback) { expanded = true }, verticalArrangement = Arrangement.Center) {
+                    Text(if (hasPlayback) globalPlayer.title else if (current) "朗读 · ${inline.target!!.label}" else "朗读",
                         style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    IconButton({ details = true }, Modifier.semantics { contentDescription = "朗读详情、停止播放与音频管理" }) { Text("⋯") }
+                    if (fontScale <= 1.3f) Text(if (hasPlayback) globalPlayer.label else "选择播放范围后开始", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                if (fontScale <= 1.3f && availableHeight >= 140.dp)
-                    Text(status, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(vm::generateInline, Modifier.weight(1f), enabled = idle && state.installed && vm.supportedAbi && state.parametersValid) {
-                        Text(if (batch == null && inline.latest == null) "生成朗读" else "生成此范围", maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                    if (request.scope != SpeechReadingScope.SENTENCE) {
-                        SpeechReadingPlayButton(documentId, request, Modifier.weight(1f))
-                    } else
-                    when {
-                        playingThis && reader.playback.phase in setOf(PlaybackPhase.PLAYING, PlaybackPhase.PREPARING) ->
-                            OutlinedButton(vm::pausePlayback, Modifier.weight(1f)) { Text("暂停", maxLines = 1) }
-                        playingThis && reader.playback.phase == PlaybackPhase.PAUSED ->
-                            OutlinedButton(vm::resumePlayback, Modifier.weight(1f), enabled = idle && inline.matchesSettings) { Text("继续", maxLines = 1) }
-                        else -> OutlinedButton(vm::playInline, Modifier.weight(1f), enabled = idle && inline.matchesSettings) { Text("播放", maxLines = 1) }
-                    }
-                }
+                if (hasPlayback) IconButton({ if (globalPlayer.desired) vm.pausePlayback() else vm.resumePlayback() },
+                    enabled = globalPlayer.phase != PlaybackPhase.COMPLETED,
+                    modifier = Modifier.semantics { contentDescription = if (globalPlayer.desired) "暂停当前播放" else "继续当前播放" }) { Text(if (globalPlayer.desired) "Ⅱ" else "▶") }
+                IconButton({ expanded = true }, enabled = hasPlayback, modifier = Modifier.semantics { contentDescription = "展开播放器" }) { Text("↗") }
             }
+            if (globalPlayer.duration > 0) LinearProgressIndicator(
+                progress = { (globalPlayer.position.toFloat() / globalPlayer.duration).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth().height(2.dp))
+            HorizontalDivider()
+            Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                TextButton(vm::generateInline, enabled = idle && state.installed && vm.supportedAbi && state.parametersValid,
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp)) { Text("生成", maxLines = 1) }
+                if (request.scope != SpeechReadingScope.SENTENCE) SpeechReadingPlayButton(documentId, request, Modifier.weight(1f))
+                else TextButton({ if (playingThis && reader.playback.phase == PlaybackPhase.PLAYING) vm.pausePlayback() else if (playingThis && reader.playback.phase == PlaybackPhase.PAUSED) vm.resumePlayback() else vm.playInline() },
+                    enabled = idle && inline.matchesSettings, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) { Text(if (playingThis && reader.playback.phase == PlaybackPhase.PLAYING) "暂停单句" else "播放单句", maxLines = 1) }
+                IconButton({ details = true }, Modifier.semantics { contentDescription = "朗读详情、生成控制与音频管理" }) { Text("⋯") }
+            }
+            if (fontScale <= 1.3f) Text(status, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
+    if (expanded) SpeechExpandedPlayer(vm) { expanded = false }
     if (details) AlertDialog(onDismissRequest = { details = false }, title = { Text("朗读详情") }, text = {
         LazyColumn(Modifier.heightIn(max = 380.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             item { Text(inline.target?.label ?: "当前范围无效"); Text(status) }

@@ -31,6 +31,12 @@ class SpeechMediaService : MediaSessionService() {
         override fun play() = runtimePlayer.resume()
         override fun pause() = runtimePlayer.pause()
         override fun stop() = runtimePlayer.stop()
+        override fun seekTo(positionMs: Long) = runtimePlayer.seek(positionMs)
+        override fun seekTo(mediaItemIndex: Int, positionMs: Long) { if (mediaItemIndex == 0) runtimePlayer.seek(positionMs) }
+        override fun seekBack() = runtimePlayer.seek(delegate.currentPosition - delegate.seekBackIncrement)
+        override fun seekForward() = runtimePlayer.seek(delegate.currentPosition + delegate.seekForwardIncrement)
+        override fun setPlaybackSpeed(speed: Float) = runtimePlayer.setSpeed(speed)
+        override fun setPlaybackParameters(playbackParameters: PlaybackParameters) = runtimePlayer.setSpeed(playbackParameters.speed)
         override fun setPlayWhenReady(playWhenReady: Boolean) { if (playWhenReady) runtimePlayer.resume() else runtimePlayer.pause() }
         override fun getAvailableCommands(): Player.Commands = super.getAvailableCommands().buildUpon()
             .remove(Player.COMMAND_CHANGE_MEDIA_ITEMS).remove(Player.COMMAND_SET_MEDIA_ITEM)

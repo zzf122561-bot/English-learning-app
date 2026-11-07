@@ -3,6 +3,10 @@
 #include <codecvt>
 #include <locale>
 #include <stdexcept>
+#if defined(__ANDROID__) && defined(__aarch64__)
+#include <sys/auxv.h>
+#include <asm/hwcap.h>
+#endif
 
 namespace {
 constexpr const char * params_class = "com/xuesui/englishapp/modelprobe/engines/qwen3tts/QwenNativeParameters";
@@ -133,6 +137,20 @@ JNIEXPORT jint JNICALL JNI_NAME(phase)(JNIEnv * e, jobject, jlong h) {
     return boundary<jint>(e, 0, [=] { return model_probe::phase(h); });
 }
 JNIEXPORT jint JNICALL JNI_NAME(maximumThreads)(JNIEnv *, jobject) { return model_probe::maximum_threads(); }
+JNIEXPORT jstring JNICALL JNI_NAME(backendInfo)(JNIEnv * e, jobject) {
+    return boundary<jstring>(e, nullptr, [=] {
+        bool dotprod = false, i8mm = false;
+#if defined(__ANDROID__) && defined(__aarch64__)
+        dotprod = (getauxval(AT_HWCAP) & HWCAP_ASIMDDP) != 0;
+        i8mm = (getauxval(AT_HWCAP2) & HWCAP2_I8MM) != 0;
+#endif
+        const std::string info = std::string("{\"backend\":\"ggml-cpu\",\"architecture\":\"armv8-a\",\"dotprodCompiled\":false,\"i8mmCompiled\":false,\"openmp\":false,\"bufferReuse\":")
+            + (PROBE_REUSE_CODE_BUFFERS ? "true" : "false")
+            + ",\"dotprodAvailable\":" + (dotprod ? "true" : "false")
+            + ",\"i8mmAvailable\":" + (i8mm ? "true" : "false") + "}";
+        return java_string(e, info);
+    });
+}
 JNIEXPORT jobject JNICALL JNI_NAME(nativeLoad)(JNIEnv * e, jobject, jlong h, jlong op, jstring talker, jstring codec, jint threads) {
     return boundary<jobject>(e, nullptr, [=] {
         auto result = model_probe::load(h, op, {utf8(e, talker), utf8(e, codec), threads});

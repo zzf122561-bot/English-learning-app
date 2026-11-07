@@ -145,6 +145,8 @@ struct tts_kv_cache {
 };
 
 struct tts_transformer_state {
+    // Serialized model owner only. Zeroed before each predictor call, freed with the model.
+    std::vector<float> probe_code_logits_scratch;
     ggml_backend_t backend = nullptr;
     ggml_backend_t backend_cpu = nullptr;
     ggml_backend_sched_t sched = nullptr;

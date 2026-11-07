@@ -3,7 +3,8 @@ package com.xuesui.englishapp.modelprobe.engines.qwen3tts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -42,29 +43,30 @@ internal fun QwenSettings(form: QwenForm, enabled: Boolean, instructionEnabled: 
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun QwenVoiceSettings(form: QwenForm, enabled: Boolean, instructionEnabled: Boolean, onChange: (QwenForm) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf("ryan" to "Ryan", "aiden" to "Aiden").forEach { (id, label) ->
                 FilterChip(selected = form.speaker == id, onClick = { onChange(form.copy(speaker = id)) }, enabled = enabled, label = { Text(label) })
             }
         }
         Text("生成风格", style = MaterialTheme.typography.labelLarge)
         val styles = listOf("自然" to "", "慢速" to "Speak slowly and clearly, with natural pauses.", "轻快" to "Speak at a slightly faster, lively pace while staying clear.")
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             styles.forEach { (label, instruction) ->
                 FilterChip(selected = form.instruction == instruction, onClick = { onChange(form.copy(instruction = instruction)) },
                     enabled = enabled && instructionEnabled, label = { Text(label) })
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             TextButton(onClick = { onChange(form.copy(instruction = "Speak clearly and gently, at a slow pace suitable for English dictation.")) }, enabled = enabled && instructionEnabled) { Text("填入听写要求") }
             TextButton(onClick = { onChange(form.copy(instruction = "Speak in a warm, calm and gentle voice.")) }, enabled = enabled && instructionEnabled) { Text("填入温和要求") }
         }
         OutlinedTextField(form.instruction, { onChange(form.copy(instruction = it)) }, Modifier.fillMaxWidth(), minLines = 2,
             enabled = enabled && instructionEnabled, label = { Text("个性化语音要求（可编辑、可留空）") }, supportingText = { Text("例如清晰、温和、适合听写。要求原样传给模型，不改写英文正文。最多512个字符。") })
-        Text("生成风格通过模型语气指令表达快慢，无法承诺精确数值语速。播放倍速在下方单独调整。", style = MaterialTheme.typography.bodySmall)
+        Text("生成风格通过模型语气指令表达快慢，无法承诺精确数值语速。播放倍速单独调整。", style = MaterialTheme.typography.bodySmall)
         if (!instructionEnabled) Text("当前载入模型未提供语气指令能力。")
     }
 }
@@ -73,20 +75,29 @@ internal fun QwenVoiceSettings(form: QwenForm, enabled: Boolean, instructionEnab
 internal fun QwenAdvancedSettings(form: QwenForm, enabled: Boolean, onChange: (QwenForm) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         NumericField("CPU线程 · 1…${Runtime.getRuntime().availableProcessors()}", form.threads, enabled) { onChange(form.copy(threads = it)) }
-        Text(ParameterHelp.threads, style = MaterialTheme.typography.bodySmall)
-        NumericField("Temperature · 0…2（0为greedy）", form.temperature, enabled) { onChange(form.copy(temperature = it)) }
-        Text(ParameterHelp.temperature, style = MaterialTheme.typography.bodySmall)
+        ParameterHint("CPU线程说明", ParameterHelp.threads)
+        NumericField("采样温度 · 0…2（0选最高概率）", form.temperature, enabled) { onChange(form.copy(temperature = it)) }
+        ParameterHint("温度说明", ParameterHelp.temperature)
         NumericField("Top-k · 0…2048（0关闭）", form.topK, enabled) { onChange(form.copy(topK = it)) }
-        Text(ParameterHelp.topK, style = MaterialTheme.typography.bodySmall)
+        ParameterHint("Top-k说明", ParameterHelp.topK)
         NumericField("Top-p · 大于0且不超过1", form.topP, enabled) { onChange(form.copy(topP = it)) }
-        Text(ParameterHelp.topP, style = MaterialTheme.typography.bodySmall)
-        NumericField("Repetition penalty · 1…2", form.repetition, enabled) { onChange(form.copy(repetition = it)) }
-        Text(ParameterHelp.repetition, style = MaterialTheme.typography.bodySmall)
+        ParameterHint("Top-p说明", ParameterHelp.topP)
+        NumericField("重复惩罚 · 1…2", form.repetition, enabled) { onChange(form.copy(repetition = it)) }
+        ParameterHint("重复惩罚说明", ParameterHelp.repetition)
         NumericField("最大音频帧 · 1…4096", form.maxTokens, enabled) { onChange(form.copy(maxTokens = it)) }
-        Text(ParameterHelp.frames, style = MaterialTheme.typography.bodySmall)
-        NumericField("Seed · -1随机，或0…2147483647", form.seed, enabled, signed = true) { onChange(form.copy(seed = it)) }
-        Text(ParameterHelp.seed, style = MaterialTheme.typography.bodySmall)
+        ParameterHint("音频帧预算说明", ParameterHelp.frames)
+        NumericField("随机种子 · -1随机，或0…2147483647", form.seed, enabled, signed = true) { onChange(form.copy(seed = it)) }
+        ParameterHint("随机种子说明", ParameterHelp.seed)
         Text("默认线程为核心数与4的较小值；其余默认依次为0.9、50、1.0、1.05、1024、42。高级参数不用于调整播放倍速。", style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+@Composable
+private fun ParameterHint(label: String, explanation: String) {
+    var expanded by rememberSaveable(label) { mutableStateOf(false) }
+    Column {
+        TextButton({ expanded = !expanded }, Modifier.heightIn(min = 48.dp)) { Text(if (expanded) "收起$label" else label) }
+        if (expanded) Text(explanation, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
