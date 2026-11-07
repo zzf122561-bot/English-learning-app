@@ -1,21 +1,23 @@
 package com.xuesui.englishapp
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.School
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -24,7 +26,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import com.xuesui.englishapp.dictionary.DictionaryFeature
 import com.xuesui.englishapp.dictionary.DictionaryPresentation
 import com.xuesui.englishapp.feature.WordMemoryFeature
@@ -39,14 +41,6 @@ private enum class MainSection {
     SPEECH,
 }
 
-private val AppShellColors = lightColorScheme(
-    primary = Color(0xFF2457D6),
-    secondary = Color(0xFF2E7D6B),
-    background = Color(0xFFF7F9FC),
-    surface = Color.White,
-    onSurface = Color(0xFF10243C),
-)
-
 @Composable
 internal fun EnglishAppShell() {
     var selectedSectionName by rememberSaveable { mutableStateOf(MainSection.WORD_MEMORY.name) }
@@ -54,7 +48,7 @@ internal fun EnglishAppShell() {
     val stateHolder = rememberSaveableStateHolder()
     val selectedSection = MainSection.valueOf(selectedSectionName)
 
-    MaterialTheme(colorScheme = AppShellColors) {
+    SaberTheme {
         // Keep the runtime host outside tab/quick-lookup branches. It reconnects generation
         // on foreground entry, but changing screens must not create another owner or auto-play.
         SpeechRuntimeHost()
@@ -70,25 +64,41 @@ internal fun EnglishAppShell() {
         } else {
             Scaffold(
                 bottomBar = {
-                    NavigationBar {
-                        NavigationBarItem(
-                            selected = selectedSection == MainSection.WORD_MEMORY,
-                            onClick = { selectedSectionName = MainSection.WORD_MEMORY.name },
-                            icon = { Icon(Icons.Default.School, contentDescription = null) },
-                            label = { Text("记单词") },
-                        )
-                        NavigationBarItem(
-                            selected = selectedSection == MainSection.DICTIONARY,
-                            onClick = { selectedSectionName = MainSection.DICTIONARY.name },
-                            icon = { Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null) },
-                            label = { Text("词典") },
-                        )
-                        NavigationBarItem(
-                            selected = selectedSection == MainSection.SPEECH,
-                            onClick = { selectedSectionName = MainSection.SPEECH.name },
-                            icon = { Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = null) },
-                            label = { Text("语音") },
-                        )
+                    Column {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        NavigationBar(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            tonalElevation = 0.dp,
+                        ) {
+                            val itemColors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            NavigationBarItem(
+                                selected = selectedSection == MainSection.WORD_MEMORY,
+                                onClick = { selectedSectionName = MainSection.WORD_MEMORY.name },
+                                icon = { Icon(Icons.Default.School, contentDescription = null) },
+                                label = { Text("记单词") },
+                                colors = itemColors,
+                            )
+                            NavigationBarItem(
+                                selected = selectedSection == MainSection.DICTIONARY,
+                                onClick = { selectedSectionName = MainSection.DICTIONARY.name },
+                                icon = { Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null) },
+                                label = { Text("词典") },
+                                colors = itemColors,
+                            )
+                            NavigationBarItem(
+                                selected = selectedSection == MainSection.SPEECH,
+                                onClick = { selectedSectionName = MainSection.SPEECH.name },
+                                icon = { Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = null) },
+                                label = { Text("语音") },
+                                colors = itemColors,
+                            )
+                        }
                     }
                 },
                 contentWindowInsets = WindowInsets(0, 0, 0, 0),
