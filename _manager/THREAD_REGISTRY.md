@@ -9,7 +9,7 @@
 | 功能2：词典 | `01a02fd4-7dcb-7882-aad0-0ed84ad3254c` | `app-feature`（用户于 2026-08-24 明确指定） | v0.3.0查询/管理布局已合入，等待语音与整包设备验收 | `feature-02-dictionary` | `C:\Users\zzf86\.codex\worktrees\b83b\Codex_EnglishApp` / `codex/feature-02-dictionary` | 2026-11-07：6402e84/bb21814；模块证据见STATUS，设备未执行 |
 | GitHub同步：EnglishApp | `01a0a8b9-837e-7252-935f-8c92ce0cdb1b` | `github-sync`（用户于 2026-09-16 明确指定） | `main`及五个标签已同步；两个功能分支待直接授权 | 不维护项目文件 | `C:\Users\zzf86\.codex\worktrees\299f\Codex_EnglishApp` / detached只读工作区 | 2026-09-16：远端`main=828313d`和五个标签已核对；功能分支只读预检通过、未push |
 | 英语语境短文生成器 | `01a024f4-f059-7dd1-a10f-04bbc4211e7b` | `skill` | 用户限定授权的迁移与格式契约已完成，仍独立Skill | `short-story-generator` → `D:/CodexData/skills/english-vocabulary-story`；唯一库见HANDOFF | 不纳入本仓库 | 2026-10-14：总控从MANAGER_OUTBOX接收完整报告；保留消息平台拒绝记录；当前等待 |
-| 本地模型验证：Qwen语音 | `01a0fd10-c97b-7110-abab-9a56c6f3794b` | `app-feature`（2026-10-03用户追加批准正式语音内嵌，保留独立测试App） | 0.4.0已集成，等待1.3.0候选设备验收 | `experiments/tts-device-probe`（同一Library供双宿主使用） | `C:\Users\zzf86\.codex\worktrees\5551\Codex_EnglishApp` / `codex/model-probe`；GPT-6-astra / xhigh | 2026-10-14：c45be63/8192603；第14节完整收据及预算修正沿用，未设备运行 |
+| 本地模型验证：Qwen语音 | `01a0fd10-c97b-7110-abab-9a56c6f3794b` | `app-feature`（2026-10-03用户追加批准正式语音内嵌，保留独立测试App） | 0.5.0已集成，准备1.4.0与独立测速候选 | `experiments/tts-device-probe`（同一Library供双宿主使用） | `C:\Users\zzf86\.codex\worktrees\5551\Codex_EnglishApp` / `codex/model-probe`；GPT-6-astra / xhigh | 2026-11-07：b01f3f1/4344e08；第15节完整收据沿用，无速度/设备验收 |
 
 ## 交接审计
 

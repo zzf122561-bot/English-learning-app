@@ -9,11 +9,12 @@ android {
         applicationId = "com.xuesui.englishapp.modelprobe"
         minSdk = 31
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0-probe"
+        versionCode = 2
+        versionName = "0.5.0-probe"
         ndk { abiFilters += "arm64-v8a" }
     }
     buildFeatures { compose = true }
+    sourceSets.getByName("main").java.srcDir(rootProject.file("../../ui"))
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

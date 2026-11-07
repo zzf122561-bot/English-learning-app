@@ -1,0 +1,2 @@
+# The engine identity uses the canonical patch digest in every Windows worktree.
+experiments/tts-device-probe/vendor/LOCAL_CHANGES.patch text eol=lf

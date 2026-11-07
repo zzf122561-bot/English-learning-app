@@ -21,8 +21,8 @@ android {
         applicationId = "com.xuesui.englishapp"
         minSdk = 29
         targetSdk = 36
-        versionCode = 8
-        versionName = "1.3.0"
+        versionCode = 9
+        versionName = "1.4.0"
         ndk { abiFilters += "arm64-v8a" }
     }
 
@@ -48,6 +48,7 @@ android {
     buildFeatures {
         compose = true
     }
+    sourceSets.getByName("main").java.srcDir(rootProject.file("_manager/ui"))
     androidResources { noCompress += "gguf" }
 
     compileOptions {
