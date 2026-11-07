@@ -48,7 +48,7 @@ android {
     buildFeatures {
         compose = true
     }
-    sourceSets.getByName("main").java.srcDir(rootProject.file("_manager/ui"))
+    sourceSets.getByName("main").kotlin.srcDir(rootProject.file("_manager/ui"))
     androidResources { noCompress += "gguf" }
 
     compileOptions {

@@ -14,7 +14,7 @@ android {
         ndk { abiFilters += "arm64-v8a" }
     }
     buildFeatures { compose = true }
-    sourceSets.getByName("main").java.srcDir(rootProject.file("../../ui"))
+    sourceSets.getByName("main").kotlin.srcDir(rootProject.file("../../ui"))
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
